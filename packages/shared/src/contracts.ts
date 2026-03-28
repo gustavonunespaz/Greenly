@@ -4,7 +4,7 @@ import { z } from 'zod'
 export const CnpjSchema = z.string().length(14).regex(/^\d+$/)
 export const CpfSchema = z.string().length(11).regex(/^\d+$/)
 
-export type UserRole = 'ADMIN' | 'CONSULTOR' | 'CLIENTE'
+export type { UserRole } from './types/usuario.types'
 
 // ─── Auth ───────────────────────────────
 export const LoginSchema = z.object({

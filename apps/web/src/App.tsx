@@ -3,6 +3,8 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/features/auth/components/AuthProvider";
+import { ProtectedRoute } from "@/features/auth/components/ProtectedRoute";
 import Index from "./pages/Index";
 import LicencasPage from "./pages/LicencasPage";
 import MTRsPage from "./pages/MTRsPage";
@@ -13,7 +15,15 @@ import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 1000 * 60 * 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -21,17 +31,19 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<Index />} />
-          <Route path="/licencas" element={<LicencasPage />} />
-          <Route path="/mtrs" element={<MTRsPage />} />
-          <Route path="/condicionantes" element={<CondicionantesPage />} />
-          <Route path="/clientes" element={<ClientesPage />} />
-          <Route path="/notificacoes" element={<NotificacoesPage />} />
-          <Route path="/configuracoes" element={<ConfiguracoesPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+            <Route path="/licencas" element={<ProtectedRoute><LicencasPage /></ProtectedRoute>} />
+            <Route path="/mtrs" element={<ProtectedRoute><MTRsPage /></ProtectedRoute>} />
+            <Route path="/condicionantes" element={<ProtectedRoute><CondicionantesPage /></ProtectedRoute>} />
+            <Route path="/clientes" element={<ProtectedRoute><ClientesPage /></ProtectedRoute>} />
+            <Route path="/notificacoes" element={<ProtectedRoute><NotificacoesPage /></ProtectedRoute>} />
+            <Route path="/configuracoes" element={<ProtectedRoute><ConfiguracoesPage /></ProtectedRoute>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

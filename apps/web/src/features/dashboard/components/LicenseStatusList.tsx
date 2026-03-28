@@ -1,47 +1,93 @@
-import { licencas } from "@/lib/mock-data";
+import { useLicencas } from "@/features/licencas/hooks/useLicencas";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { FileCheck } from "lucide-react";
+import { motion } from "framer-motion";
+import { FileCheck, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export function LicenseStatusList() {
-  const urgent = licencas
-    .filter((l) => l.status === "VENCIDA" || l.diasRestantes <= 120)
-    .sort((a, b) => a.diasRestantes - b.diasRestantes);
+  const { licencas, isLoading } = useLicencas();
+  const navigate = useNavigate();
+
+  const critical = (licencas || [])
+    .filter(l => l.status === 'VENCIDA' || l.status === 'EM_RENOVACAO' || (l.diasAteVencimento !== null && l.diasAteVencimento !== undefined && l.diasAteVencimento <= 120))
+    .sort((a, b) => (a.diasAteVencimento ?? 999) - (b.diasAteVencimento ?? 999))
+    .slice(0, 6);
 
   return (
     <div className="glass-card p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">Licenças Críticas</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Vencidas ou próximas do vencimento</p>
+          <h3 className="text-sm font-medium text-foreground">Licenças Críticas</h3>
+          <p className="text-[11px] text-muted-foreground/50 mt-0.5">Vencidas e próximas do vencimento</p>
         </div>
-        <FileCheck className="h-4 w-4 text-muted-foreground" strokeWidth={1.5} />
+        <button
+          onClick={() => navigate('/licencas')}
+          className="flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors"
+        >
+          Ver todas
+          <ArrowRight className="h-3 w-3" strokeWidth={1.5} />
+        </button>
       </div>
-      <div className="space-y-3">
-        {urgent.map((lic) => (
-          <div
-            key={lic.id}
-            className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground truncate">{lic.cliente}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {lic.tipo} · {lic.orgao} · {lic.numeroLicenca}
-              </p>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <div className="skeleton h-9 w-9 rounded-lg" />
+              <div className="flex-1 space-y-2">
+                <div className="skeleton h-3.5 w-32" />
+                <div className="skeleton h-3 w-20" />
+              </div>
+              <div className="skeleton h-5 w-16 rounded-full" />
             </div>
-            <div className="flex items-center gap-3 shrink-0 ml-4">
-              <span className={`text-xs tabular-nums font-medium ${
-                lic.diasRestantes < 0 ? "text-destructive" :
-                lic.diasRestantes <= 30 ? "text-destructive" :
-                lic.diasRestantes <= 120 ? "text-warning" :
-                "text-primary"
-              }`}>
-                {lic.diasRestantes < 0 ? `${Math.abs(lic.diasRestantes)}d atrás` : `${lic.diasRestantes}d`}
-              </span>
-              <StatusBadge status={lic.status} />
-            </div>
+          ))}
+        </div>
+      ) : critical.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
+            <FileCheck className="h-6 w-6 text-primary" strokeWidth={1.5} />
           </div>
-        ))}
-      </div>
+          <p className="text-sm text-foreground font-medium">Tudo em dia!</p>
+          <p className="text-xs text-muted-foreground/50 mt-1">Nenhuma licença crítica encontrada</p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {critical.map((lic, i) => (
+            <motion.div
+              key={lic.id}
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.05, duration: 0.3 }}
+              onClick={() => navigate('/licencas')}
+              className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/[0.03] transition-colors cursor-pointer group"
+            >
+              <div className="h-9 w-9 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-mono font-medium text-muted-foreground/70">{lic.tipo}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-medium text-foreground truncate">
+                  {lic.numeroLicenca || lic.id.substring(0, 8)}
+                </p>
+                <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+                  {lic.diasAteVencimento !== null && lic.diasAteVencimento !== undefined ? (
+                    <span className={
+                      lic.diasAteVencimento < 0 ? "text-destructive" :
+                      lic.diasAteVencimento <= 30 ? "text-destructive" :
+                      lic.diasAteVencimento <= 120 ? "text-warning" :
+                      "text-primary"
+                    }>
+                      {lic.diasAteVencimento < 0
+                        ? `Vencida há ${Math.abs(lic.diasAteVencimento)} dias`
+                        : `${lic.diasAteVencimento} dias restantes`}
+                    </span>
+                  ) : "—"}
+                </p>
+              </div>
+              <StatusBadge status={lic.status as any} />
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -17,12 +17,12 @@
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?style=flat-square&logo=nodedotjs&logoColor=white)
-![React](https://img.shields.io/badge/React-19.x-61DAFB?style=flat-square&logo=react&logoColor=black)
+![React](https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-7.x-FF4438?style=flat-square&logo=redis&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-port_8081-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-orchestrated-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
-![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=flat-square&logo=prisma&logoColor=white)
+![Drizzle ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=flat-square&logo=drizzle&logoColor=black)
 
 </div>
 
@@ -109,10 +109,10 @@ Hoje, esse trabalho é feito em planilhas Excel, e-mails e memória humana.
 | **TypeScript** | 5.x | Linguagem core (front + back) | Contratos estritos entre camadas, detecção de erros em compile-time, autocomplete rico para regras de negócio complexas |
 | **Node.js** | 22.x LTS | Runtime do backend | Assíncrono por natureza, ideal para I/O intensivo (BD, Redis, uploads), ecossistema maduro |
 | **Express.js** | 5.x | HTTP Server | Minimalista, compositional, permite estruturar middleware sem opiniões que conflitem com Clean Architecture |
-| **React** | 19.x | Frontend SPA | Componentização para painéis de controle complexos, ecossistema rico, Server Components para páginas estáticas |
-| **Vite** | 6.x | Build tool do frontend | HMR instantâneo, tree-shaking agressivo, build de produção otimizado |
+| **React** | 18.x | Frontend SPA | Componentização para painéis de controle complexos, ecossistema rico, base madura para evolução incremental |
+| **Vite** | 8.x | Build tool do frontend | HMR instantâneo, tree-shaking agressivo, build de produção otimizado |
 | **PostgreSQL** | 16 | Banco relacional principal | ACID compliance obrigatório para dados legais/transacionais, suporte robusto a multi-tenant via RLS ou column-level isolation, JSON nativo para auditoria |
-| **Prisma** | 5.x | ORM / Data Access Layer | Type-safe, migrations versionadas, isolado das regras de negócio conforme Clean Architecture |
+| **Drizzle ORM** | 0.31.x | ORM / Data Access Layer | Type-safe com SQL explícito, schema em TypeScript e integração direta com PostgreSQL |
 | **Redis** | 7.x | Cache + Mensageria | Cache de queries pesadas do dashboard, sessões, filas de background jobs via BullMQ |
 | **BullMQ** | 5.x | Sistema de filas (sobre Redis) | Processamento confiável de jobs com retry, delay, concorrência e observabilidade |
 | **Docker** | 26.x | Conteinerização | Ambientes reproduzíveis, multistage builds para imagens enxutas |
@@ -172,7 +172,7 @@ Internamente, segue a **Clean Architecture** de Robert C. Martin, com a **Regra 
 ```
 ┌─────────────────────────────────────────────────────┐
 │                  FRAMEWORKS & DRIVERS                │
-│         Express, Prisma, Redis, BullMQ, Multer       │
+│       Express, Drizzle ORM, Redis, BullMQ, Multer    │
 │  ┌───────────────────────────────────────────────┐  │
 │  │            INTERFACE ADAPTERS                  │  │
 │  │    Controllers REST, DTOs, Presenters          │  │
@@ -216,7 +216,7 @@ Cliente HTTP
     └──► [Repository Interface] → abstração do acesso a dados
               │
               ▼
-         [Prisma Repository] → executa queries no PostgreSQL
+         [Drizzle Repository] → executa queries no PostgreSQL
               │
               ▼
          [PostgreSQL] ←──► [Redis Cache]
@@ -246,428 +246,142 @@ Cliente HTTP
 
 ## 5. Estrutura do Monorepo
 
-O projeto usa **pnpm workspaces**, dividido em três pacotes principais:
+O projeto usa **pnpm workspaces** com dois apps (`api`, `web`) e um pacote compartilhado (`packages/shared`).
 
-```
+```text
 greenly/
-│
-├── 📄 README.md
-├── 📄 .env.example
-├── 📄 .gitignore
-├── 📄 .eslintrc.js
-├── 📄 .prettierrc
-├── 📄 docker-compose.yml          # Ambiente local completo
-├── 📄 docker-compose.prod.yml     # Configuração de produção
-├── 📄 package.json                # Root workspace (pnpm)
-├── 📄 pnpm-workspace.yaml
-├── 📄 tsconfig.base.json          # tsconfig compartilhado
-│
-├── 📁 apps/
-│   ├── 📁 api/                    # Backend Node.js + Express
-│   └── 📁 web/                    # Frontend React + Vite
-│
-├── 📁 packages/
-│   ├── 📁 shared/                 # Código compartilhado (tipos, validações)
-│   └── 📁 eslint-config/          # Config ESLint compartilhada
-│
-├── 📁 infra/
-│   ├── 📁 k8s/                    # Manifests Kubernetes
-│   ├── 📁 docker/                 # Dockerfiles de cada serviço
-│   └── 📁 nginx/                  # Configuração do Nginx
-│
-└── 📁 docs/
-    ├── 📁 architecture/           # Diagramas e decisões de arquitetura
-    ├── 📁 api/                    # Documentação OpenAPI (gerada)
-    └── 📁 adr/                    # Architecture Decision Records
+├── README.md
+├── package.json
+├── pnpm-workspace.yaml
+├── docker-compose.yml
+├── api.Dockerfile
+├── web.Dockerfile
+├── apps/
+│   ├── api/
+│   └── web/
+├── packages/
+│   └── shared/
+├── infra/
+└── docs/
 ```
 
 ---
 
 ### `apps/api/` — Backend
 
-```
+```text
 apps/api/
-│
-├── 📄 package.json
-├── 📄 tsconfig.json
-├── 📄 Dockerfile
-├── 📄 .env.example
-│
-├── 📁 src/
-│   │
-│   ├── 📄 server.ts               # Entry point: configura e sobe o Express
-│   ├── 📄 app.ts                  # Configura middlewares globais, rotas e error handler
-│   │
-│   ├── 📁 modules/                # Módulos de negócio (um por domínio)
-│   │   │
-│   │   ├── 📁 auth/               # Autenticação e gestão de sessões
-│   │   │   ├── 📁 domain/
-│   │   │   │   ├── 📄 Usuario.ts              # Entidade Usuario
-│   │   │   │   ├── 📄 Sessao.ts               # Entidade Sessao
-│   │   │   │   ├── 📄 Email.vo.ts             # Value Object: Email validado
-│   │   │   │   ├── 📄 SenhaHash.vo.ts         # Value Object: Senha hasheada
-│   │   │   │   └── 📄 errors/
-│   │   │   │       ├── 📄 CredenciaisInvalidas.error.ts
-│   │   │   │       └── 📄 UsuarioBloqueado.error.ts
-│   │   │   ├── 📁 application/
-│   │   │   │   ├── 📄 IUsuarioRepository.ts   # Port (interface)
-│   │   │   │   ├── 📄 ISessaoRepository.ts    # Port (interface)
-│   │   │   │   ├── 📄 LoginUseCase.ts
-│   │   │   │   ├── 📄 LogoutUseCase.ts
-│   │   │   │   ├── 📄 RefreshTokenUseCase.ts
-│   │   │   │   ├── 📄 RegistrarUsuarioUseCase.ts
-│   │   │   │   └── 📄 RedefinirSenhaUseCase.ts
-│   │   │   ├── 📁 interface/
-│   │   │   │   ├── 📄 auth.controller.ts
-│   │   │   │   ├── 📄 auth.routes.ts
-│   │   │   │   └── 📄 dtos/
-│   │   │   │       ├── 📄 login.dto.ts
-│   │   │   │       └── 📄 registrar.dto.ts
-│   │   │   └── 📁 infrastructure/
-│   │   │       ├── 📄 PrismaUsuarioRepository.ts
-│   │   │       └── 📄 PrismaSessaoRepository.ts
-│   │   │
-│   │   ├── 📁 consultorias/       # Gestão do tenant
-│   │   │   ├── 📁 domain/
-│   │   │   │   ├── 📄 Consultoria.ts
-│   │   │   │   ├── 📄 CNPJ.vo.ts              # Value Object: CNPJ validado
-│   │   │   │   ├── 📄 Slug.vo.ts              # Value Object: Slug único
-│   │   │   │   └── 📄 errors/
-│   │   │   │       └── 📄 ConsultoriaNaoEncontrada.error.ts
-│   │   │   ├── 📁 application/
-│   │   │   │   ├── 📄 IConsultoriaRepository.ts
-│   │   │   │   ├── 📄 CriarConsultoriaUseCase.ts
-│   │   │   │   └── 📄 AtualizarConsultoriaUseCase.ts
-│   │   │   ├── 📁 interface/
-│   │   │   │   ├── 📄 consultorias.controller.ts
-│   │   │   │   ├── 📄 consultorias.routes.ts
-│   │   │   │   └── 📄 dtos/
-│   │   │   └── 📁 infrastructure/
-│   │   │       └── 📄 PrismaConsultoriaRepository.ts
-│   │   │
-│   │   ├── 📁 clientes/           # Empresas atendidas pela consultoria
-│   │   │   ├── 📁 domain/
-│   │   │   │   ├── 📄 Cliente.ts
-│   │   │   │   ├── 📄 Instalacao.ts
-│   │   │   │   └── 📄 errors/
-│   │   │   ├── 📁 application/
-│   │   │   │   ├── 📄 IClienteRepository.ts
-│   │   │   │   ├── 📄 CriarClienteUseCase.ts
-│   │   │   │   ├── 📄 ListarClientesUseCase.ts
-│   │   │   │   ├── 📄 AtualizarClienteUseCase.ts
-│   │   │   │   └── 📄 DesativarClienteUseCase.ts
-│   │   │   ├── 📁 interface/
-│   │   │   │   ├── 📄 clientes.controller.ts
-│   │   │   │   ├── 📄 clientes.routes.ts
-│   │   │   │   └── 📄 dtos/
-│   │   │   └── 📁 infrastructure/
-│   │   │       └── 📄 PrismaClienteRepository.ts
-│   │   │
-│   │   ├── 📁 licencas/           # ★ MÓDULO LEGAL — CORE DO MVP
-│   │   │   ├── 📁 domain/
-│   │   │   │   ├── 📄 Licenca.ts                      # Entidade agregado-raiz
-│   │   │   │   ├── 📄 Condicionante.ts                # Entidade filha
-│   │   │   │   ├── 📄 CumprimentoCondicionante.ts     # Entidade de ciclo periódico
-│   │   │   │   ├── 📄 NumeroLicenca.vo.ts             # Value Object
-│   │   │   │   ├── 📄 PrazoRenovacao.vo.ts            # Value Object: calcula 120 dias
-│   │   │   │   ├── 📄 PeriodoCumprimento.vo.ts        # Value Object: referência de ciclo
-│   │   │   │   └── 📄 errors/
-│   │   │   │       ├── 📄 LicencaNaoEncontrada.error.ts
-│   │   │   │       ├── 📄 LicencaVencida.error.ts
-│   │   │   │       ├── 📄 CondicionanteAtrasada.error.ts
-│   │   │   │       └── 📄 StatusInvalido.error.ts
-│   │   │   ├── 📁 application/
-│   │   │   │   ├── 📄 ILicencaRepository.ts
-│   │   │   │   ├── 📄 ICondicionanteRepository.ts
-│   │   │   │   ├── 📄 IDocumentoStorage.ts            # Port para upload (S3/GCS)
-│   │   │   │   ├── 📄 CriarLicencaUseCase.ts
-│   │   │   │   ├── 📄 AtualizarLicencaUseCase.ts
-│   │   │   │   ├── 📄 IniciarRenovacaoUseCase.ts
-│   │   │   │   ├── 📄 UploadDocumentoLicencaUseCase.ts
-│   │   │   │   ├── 📄 ListarLicencasUseCase.ts
-│   │   │   │   ├── 📄 ObterLicencaDetalheUseCase.ts
-│   │   │   │   ├── 📄 CriarCondicionanteUseCase.ts
-│   │   │   │   ├── 📄 AtualizarStatusCondicionanteUseCase.ts
-│   │   │   │   ├── 📄 RegistrarCumprimentoUseCase.ts
-│   │   │   │   └── 📄 GerarRelatorioLicencasUseCase.ts
-│   │   │   ├── 📁 interface/
-│   │   │   │   ├── 📄 licencas.controller.ts
-│   │   │   │   ├── 📄 licencas.routes.ts
-│   │   │   │   ├── 📄 condicionantes.controller.ts
-│   │   │   │   ├── 📄 condicionantes.routes.ts
-│   │   │   │   └── 📄 dtos/
-│   │   │   │       ├── 📄 criar-licenca.dto.ts
-│   │   │   │       ├── 📄 atualizar-licenca.dto.ts
-│   │   │   │       ├── 📄 criar-condicionante.dto.ts
-│   │   │   │       └── 📄 registrar-cumprimento.dto.ts
-│   │   │   └── 📁 infrastructure/
-│   │   │       ├── 📄 PrismaLicencaRepository.ts
-│   │   │       ├── 📄 PrismaCondicionanteRepository.ts
-│   │   │       └── 📄 S3DocumentoStorage.ts           # Implementa IDocumentoStorage
-│   │   │
-│   │   ├── 📁 residuos/           # ★ MÓDULO OPERACIONAL
-│   │   │   ├── 📁 domain/
-│   │   │   │   ├── 📄 MTR.ts                          # Entidade agregado-raiz
-│   │   │   │   ├── 📄 FonteGeradora.ts
-│   │   │   │   ├── 📄 InventarioResiduo.ts
-│   │   │   │   ├── 📄 Parceiro.ts
-│   │   │   │   ├── 📄 VolumeResiduo.vo.ts             # Value Object: volume + unidade
-│   │   │   │   ├── 📄 CompetenciaMensal.vo.ts         # Value Object: mês/ano validado
-│   │   │   │   └── 📄 errors/
-│   │   │   │       ├── 📄 ParceiroSemLicenca.error.ts # Regra crítica de negócio
-│   │   │   │       ├── 📄 MTRNaoEncontrado.error.ts
-│   │   │   │       └── 📄 TransicaoStatusInvalida.error.ts
-│   │   │   ├── 📁 application/
-│   │   │   │   ├── 📄 IMTRRepository.ts
-│   │   │   │   ├── 📄 IParceiroRepository.ts
-│   │   │   │   ├── 📄 IInventarioRepository.ts
-│   │   │   │   ├── 📄 EmitirMTRUseCase.ts             # Valida licença do parceiro
-│   │   │   │   ├── 📄 AvancarStatusMTRUseCase.ts
-│   │   │   │   ├── 📄 RegistrarCDFUseCase.ts          # Encerra o ciclo do MTR
-│   │   │   │   ├── 📄 LancarInventarioUseCase.ts
-│   │   │   │   ├── 📄 CadastrarParceiroUseCase.ts
-│   │   │   │   ├── 📄 RenovarLicencaParceiroUseCase.ts
-│   │   │   │   └── 📄 GerarRelatorioResiduosUseCase.ts
-│   │   │   ├── 📁 interface/
-│   │   │   │   ├── 📄 mtrs.controller.ts
-│   │   │   │   ├── 📄 mtrs.routes.ts
-│   │   │   │   ├── 📄 parceiros.controller.ts
-│   │   │   │   ├── 📄 parceiros.routes.ts
-│   │   │   │   ├── 📄 inventario.controller.ts
-│   │   │   │   ├── 📄 inventario.routes.ts
-│   │   │   │   └── 📄 dtos/
-│   │   │   └── 📁 infrastructure/
-│   │   │       ├── 📄 PrismaMTRRepository.ts
-│   │   │       ├── 📄 PrismaParceiroRepository.ts
-│   │   │       └── 📄 PrismaInventarioRepository.ts
-│   │   │
-│   │   └── 📁 dashboard/          # Queries otimizadas para o painel
-│   │       ├── 📁 application/
-│   │       │   ├── 📄 IDashboardRepository.ts
-│   │       │   ├── 📄 ObterMetricasConsultoriaUseCase.ts
-│   │       │   └── 📄 ObterMetricasAnalistaUseCase.ts
-│   │       ├── 📁 interface/
-│   │       │   ├── 📄 dashboard.controller.ts
-│   │       │   └── 📄 dashboard.routes.ts
-│   │       └── 📁 infrastructure/
-│   │           └── 📄 PrismaDashboardRepository.ts    # Usa as Views do PostgreSQL
-│   │
-│   ├── 📁 shared/                 # Código compartilhado entre módulos
-│   │   ├── 📁 domain/
-│   │   │   ├── 📄 Entity.ts                   # Classe base de Entidade (id, createdAt)
-│   │   │   ├── 📄 ValueObject.ts              # Classe base de Value Object
-│   │   │   ├── 📄 DomainError.ts              # Classe base de Erros de Domínio
-│   │   │   └── 📄 UniqueEntityId.ts           # Wrapper de UUID
-│   │   ├── 📁 application/
-│   │   │   ├── 📄 UseCase.ts                  # Interface base de Use Case
-│   │   │   └── 📄 IEmailService.ts            # Port para envio de e-mail
-│   │   └── 📁 infrastructure/
-│   │       ├── 📄 NodemailerEmailService.ts
-│   │       └── 📄 S3StorageService.ts
-│   │
-│   └── 📁 infra/                  # Configurações globais da aplicação
-│       ├── 📄 prisma.ts               # Singleton do PrismaClient
-│       ├── 📄 redis.ts                # Singleton do Redis client
-│       ├── 📄 bullmq.ts              # Configuração das filas BullMQ
-│       ├── 📄 logger.ts              # Winston logger configurado
-│       ├── 📁 http/
-│       │   ├── 📄 middlewares/
-│       │   │   ├── 📄 auth.middleware.ts       # Verifica e decodifica JWT
-│       │   │   ├── 📄 tenant.middleware.ts     # Injeta consultoriaId na request
-│       │   │   ├── 📄 rbac.middleware.ts       # Verifica permissões por role
-│       │   │   ├── 📄 rateLimit.middleware.ts  # Rate limiting via Redis
-│       │   │   ├── 📄 upload.middleware.ts     # Multer para PDFs
-│       │   │   └── 📄 errorHandler.middleware.ts
-│       │   └── 📄 router.ts           # Registro central de todas as rotas
-│       ├── 📁 jobs/
-│       │   ├── 📄 AlertasWorker.ts    # Worker BullMQ que processa alertas
-│       │   ├── 📄 VarreduraAlertasCron.ts  # node-cron: varre BD e enfileira
-│       │   └── 📄 StatusUpdaterCron.ts     # Atualiza status de licenças/condicionantes
-│       └── 📁 container/
-│           └── 📄 index.ts            # Injeção de dependências manual (sem framework)
-│
-├── 📁 prisma/
-│   ├── 📄 schema.prisma
-│   ├── 📄 seed.ts
-│   └── 📁 migrations/
-│       ├── 📁 20240101_init/
-│       └── 📄 post_prisma_customizations.sql
-│
-└── 📁 tests/
-    ├── 📁 unit/                   # Testes de entidades e use cases
-    │   ├── 📁 domain/
-    │   └── 📁 application/
-    ├── 📁 integration/            # Testes com BD real (Testcontainers)
-    └── 📁 e2e/                    # Playwright — fluxos completos via HTTP
+├── package.json
+├── tsconfig.json
+├── drizzle.config.ts
+├── .env.example
+├── db_README.md
+├── prisma/                         # legado (schema/SQL histórico)
+└── src/
+    ├── app.ts
+    ├── server.ts
+    ├── @types/
+    │   └── express.d.ts
+    ├── db/
+    │   ├── index.ts                # cliente Drizzle + conexão postgres.js
+    │   ├── seed.ts
+    │   └── schema/
+    │       ├── index.ts
+    │       ├── enums.ts
+    │       ├── users.ts
+    │       ├── tenant.ts
+    │       ├── licencas.ts
+    │       ├── operacional.ts
+    │       └── alertas.ts
+    ├── modules/
+    │   ├── auth/
+    │   ├── cliente/
+    │   ├── consultoria/
+    │   ├── dashboard/
+    │   ├── licenca/
+    │   ├── notificacao/
+    │   └── residuo/
+    └── shared/
+        ├── authMiddleware.ts
+        ├── bullmq.ts
+        ├── container.ts
+        ├── errorHandler.ts
+        ├── EmailService.ts
+        ├── logger.ts
+        ├── redis.ts
+        ├── router.ts
+        ├── jobs/
+        ├── errors/
+        └── utils/
 ```
 
 ---
 
 ### `apps/web/` — Frontend
 
-```
+```text
 apps/web/
-│
-├── 📄 package.json
-├── 📄 tsconfig.json
-├── 📄 vite.config.ts
-├── 📄 tailwind.config.ts
-├── 📄 index.html
-│
-├── 📁 src/
-│   │
-│   ├── 📄 main.tsx                # Entry point React
-│   ├── 📄 App.tsx                 # Router root + Providers
-│   │
-│   ├── 📁 pages/                  # Uma pasta por rota principal
-│   │   ├── 📁 auth/
-│   │   │   ├── 📄 LoginPage.tsx
-│   │   │   └── 📄 RedefinirSenhaPage.tsx
-│   │   ├── 📁 dashboard/
-│   │   │   └── 📄 DashboardPage.tsx           # Painel principal do analista
-│   │   ├── 📁 licencas/
-│   │   │   ├── 📄 LicencasPage.tsx            # Lista com filtros
-│   │   │   ├── 📄 LicencaDetalhePage.tsx      # Detalhe + condicionantes
-│   │   │   └── 📄 LicencaFormPage.tsx         # Criação/edição
-│   │   ├── 📁 condicionantes/
-│   │   │   └── 📄 CondicionanteFormPage.tsx
-│   │   ├── 📁 residuos/
-│   │   │   ├── 📄 MTRsPage.tsx
-│   │   │   ├── 📄 MTRDetalhePage.tsx
-│   │   │   ├── 📄 MTRFormPage.tsx
-│   │   │   ├── 📄 InventarioPage.tsx
-│   │   │   └── 📄 ParceirosPage.tsx
-│   │   ├── 📁 clientes/
-│   │   │   ├── 📄 ClientesPage.tsx
-│   │   │   └── 📄 ClienteDetalhePage.tsx
-│   │   └── 📁 configuracoes/
-│   │       ├── 📄 UsuariosPage.tsx
-│   │       └── 📄 ConsultoriaPage.tsx
-│   │
-│   ├── 📁 components/             # Componentes reutilizáveis
-│   │   ├── 📁 ui/                 # Design system base (atômicos)
-│   │   │   ├── 📄 Button.tsx
-│   │   │   ├── 📄 Input.tsx
-│   │   │   ├── 📄 Select.tsx
-│   │   │   ├── 📄 Badge.tsx       # Status de licença, condicionante, MTR
-│   │   │   ├── 📄 Card.tsx
-│   │   │   ├── 📄 Modal.tsx
-│   │   │   ├── 📄 Table.tsx
-│   │   │   ├── 📄 Skeleton.tsx
-│   │   │   ├── 📄 Toast.tsx
-│   │   │   └── 📄 DatePicker.tsx
-│   │   ├── 📁 layout/
-│   │   │   ├── 📄 AppLayout.tsx   # Sidebar + Header + Content
-│   │   │   ├── 📄 Sidebar.tsx
-│   │   │   ├── 📄 Header.tsx
-│   │   │   └── 📄 AuthLayout.tsx
-│   │   ├── 📁 dashboard/
-│   │   │   ├── 📄 MetricCard.tsx          # Card de métrica com ícone e urgência
-│   │   │   ├── 📄 LicencasVencendoWidget.tsx
-│   │   │   ├── 📄 CondicionantesAtrasadasWidget.tsx
-│   │   │   ├── 📄 MTRsPendentesWidget.tsx
-│   │   │   └── 📄 UrgenciaBadge.tsx       # CRÍTICO / URGENTE / ATENÇÃO / OK
-│   │   ├── 📁 licencas/
-│   │   │   ├── 📄 LicencaStatusBadge.tsx
-│   │   │   ├── 📄 LicencaCard.tsx
-│   │   │   ├── 📄 CondicionanteRow.tsx
-│   │   │   ├── 📄 CondicionanteStatusBadge.tsx
-│   │   │   └── 📄 DocumentoUpload.tsx
-│   │   └── 📁 residuos/
-│   │       ├── 📄 MTRStatusBadge.tsx
-│   │       ├── 📄 MTRTimeline.tsx          # Linha do tempo do ciclo MTR
-│   │       └── 📄 ClasseResiduoBadge.tsx
-│   │
-│   ├── 📁 hooks/                  # Custom hooks
-│   │   ├── 📄 useAuth.ts
-│   │   ├── 📄 useLicencas.ts
-│   │   ├── 📄 useCondicionantes.ts
-│   │   ├── 📄 useMTRs.ts
-│   │   ├── 📄 useDashboard.ts
-│   │   └── 📄 useToast.ts
-│   │
-│   ├── 📁 services/               # Camada de API (axios)
-│   │   ├── 📄 api.ts              # Instância axios com interceptors
-│   │   ├── 📄 auth.service.ts
-│   │   ├── 📄 licencas.service.ts
-│   │   ├── 📄 condicionantes.service.ts
-│   │   ├── 📄 mtrs.service.ts
-│   │   ├── 📄 inventario.service.ts
-│   │   ├── 📄 parceiros.service.ts
-│   │   ├── 📄 clientes.service.ts
-│   │   └── 📄 dashboard.service.ts
-│   │
-│   ├── 📁 stores/                 # Zustand stores (client state)
-│   │   ├── 📄 auth.store.ts       # Usuário logado, token, role
-│   │   └── 📄 ui.store.ts         # Sidebar open, tema, preferências
-│   │
-│   ├── 📁 types/                  # Tipos TypeScript do domínio (espelham o backend)
-│   │   ├── 📄 licenca.types.ts
-│   │   ├── 📄 condicionante.types.ts
-│   │   ├── 📄 mtr.types.ts
-│   │   └── 📄 usuario.types.ts
-│   │
-│   └── 📁 utils/
-│       ├── 📄 formatters.ts       # Formatação de datas, CNPJ, volumes
-│       ├── 📄 validators.ts
-│       └── 📄 constants.ts        # Enums espelhados do backend
-│
-└── 📁 tests/
-    ├── 📁 unit/                   # Vitest: componentes e hooks
-    └── 📁 e2e/                    # Playwright
+├── package.json
+├── vite.config.ts
+├── tailwind.config.ts
+├── index.html
+└── src/
+    ├── main.tsx
+    ├── App.tsx
+    ├── components/
+    │   ├── layout/
+    │   └── ui/
+    ├── features/
+    │   ├── auth/
+    │   ├── clientes/
+    │   ├── dashboard/
+    │   ├── licencas/
+    │   ├── notificacoes/
+    │   └── residuos/
+    ├── pages/
+    ├── hooks/
+    ├── lib/
+    └── test/
 ```
 
 ---
 
 ### `packages/shared/` — Código Compartilhado
 
-```
+```text
 packages/shared/
-│
-├── 📄 package.json
-├── 📄 tsconfig.json
-│
-└── 📁 src/
-    ├── 📄 index.ts
-    ├── 📁 types/
-    │   ├── 📄 licenca.types.ts    # Tipos exportados para front e back
-    │   ├── 📄 mtr.types.ts
-    │   └── 📄 usuario.types.ts
-    └── 📁 validators/
-        ├── 📄 cnpj.validator.ts   # Validação de CNPJ (algoritmo)
-        └── 📄 cpf.validator.ts    # Validação de CPF
+├── package.json
+├── tsconfig.json
+└── src/
+    ├── contracts.ts
+    ├── index.ts
+    ├── types/
+    │   ├── cliente.types.ts
+    │   ├── condicionante.types.ts
+    │   ├── licenca.types.ts
+    │   ├── mtr.types.ts
+    │   └── usuario.types.ts
+    └── validators/
+        ├── cnpj.validator.ts
+        └── cpf.validator.ts
 ```
 
 ---
 
 ### `infra/` — Infraestrutura
 
-```
+```text
 infra/
-│
-├── 📁 docker/
-│   ├── 📄 api.Dockerfile          # Multistage: build → production
-│   └── 📄 web.Dockerfile          # Nginx serve o build do React
-│
-├── 📁 nginx/
-│   ├── 📄 nginx.conf              # Configuração principal
-│   └── 📄 default.conf            # Roteamento: / → web, /api → api
-│
-└── 📁 k8s/
-    ├── 📁 base/                   # Configurações base (Kustomize)
-    │   ├── 📄 namespace.yaml
-    │   ├── 📄 api-deployment.yaml
-    │   ├── 📄 api-service.yaml
-    │   ├── 📄 api-hpa.yaml        # HorizontalPodAutoscaler
-    │   ├── 📄 web-deployment.yaml
-    │   ├── 📄 web-service.yaml
-    │   ├── 📄 ingress.yaml        # Nginx Ingress Controller
-    │   ├── 📄 configmap.yaml      # Variáveis não-sensíveis
-    │   └── 📄 secrets.yaml        # Referências para secrets (AWS SM / Vault)
-    ├── 📁 overlays/
-    │   ├── 📁 staging/
-    │   └── 📁 production/
-    └── 📄 kustomization.yaml
+├── docker/
+│   ├── api.Dockerfile
+│   └── web.Dockerfile
+├── nginx/
+│   └── default.conf
+└── k8s/
+    └── base/
+        ├── namespace.yaml
+        ├── api-deployment.yaml
+        └── api-hpa.yaml
 ```
 
 ---
@@ -733,11 +447,11 @@ POST   /api/mtrs/:id/cdf                              Upload do CDF — encerra 
 
 ## 7. Banco de Dados
 
-Veja o arquivo [`prisma/schema.prisma`](apps/api/prisma/schema.prisma) para o schema completo.
+Veja os arquivos em [`apps/api/src/db/schema/`](apps/api/src/db/schema) para o schema completo em Drizzle ORM.
 
 ### Estratégia Multi-Tenant
 
-O isolamento dos dados entre consultorias é garantido por **column-level tenancy**: toda tabela de dados sensíveis contém `consultoriaId` (direta ou via join com `clientes`). O middleware `tenant.middleware.ts` injeta o `consultoriaId` do token JWT em todas as queries via Prisma.
+O isolamento dos dados entre consultorias é garantido por **column-level tenancy**: toda tabela de dados sensíveis contém `consultoriaId` (direta ou via join com `clientes`). O middleware `tenant.middleware.ts` injeta o `consultoriaId` do token JWT e a camada de repositório aplica filtros em todas as queries via Drizzle.
 
 Não utilizamos PostgreSQL Row Level Security (RLS) no MVP para reduzir complexidade operacional, mas a arquitetura permite migrar para RLS sem alterar o schema.
 
@@ -842,8 +556,8 @@ Tamanho final: ~150MB
 ```yaml
 Serviços:
   api       → localhost:3333
-  web       → localhost:5173 (Vite dev server)
-  postgres  → localhost:5432
+  web       → localhost:8081 (container Nginx servindo o build)
+  postgres  → localhost:5435
   redis     → localhost:6379
   mailhog   → localhost:8025 (captura e-mails em dev)
 ```
@@ -886,42 +600,43 @@ pnpm install
 
 # 3. Copiar variáveis de ambiente
 cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
+# apps/web não possui .env.example; crie apenas se quiser sobrescrever a API
+echo "VITE_API_URL=http://localhost:3333/api" > apps/web/.env
 
 # 4. Subir serviços de infraestrutura
 docker compose up -d postgres redis mailhog
 
 # 5. Rodar migrations e seed do banco
 cd apps/api
-pnpm prisma migrate dev
-pnpm prisma db seed
+pnpm db:generate
+pnpm db:push
+pnpm db:seed
 
-# 6. Aplicar customizações SQL pós-Prisma
-psql $DATABASE_URL -f prisma/migrations/post_prisma_customizations.sql
-
-# 7. Iniciar backend e frontend em modo dev
+# 6. Iniciar backend e frontend em modo dev
 cd ../..
-pnpm dev          # Inicia api (porta 3333) e web (porta 5173) em paralelo
+pnpm dev          # Inicia api (porta 3333) e web (porta 8080) em paralelo
 ```
 
 ### Comandos Úteis
 
 ```bash
 # Backend
-pnpm --filter api dev               # Dev com hot-reload (tsx watch)
-pnpm --filter api build             # Compilar TypeScript
-pnpm --filter api test              # Vitest — unit tests
-pnpm --filter api test:integration  # Testes com banco real
+pnpm --filter @greenly/api dev               # Dev com hot-reload (tsx watch)
+pnpm --filter @greenly/api build             # Compilar TypeScript
+pnpm --filter @greenly/api test              # Vitest — unit tests
+pnpm --filter @greenly/api test:integration  # Testes com banco real
 
 # Frontend
-pnpm --filter web dev               # Vite dev server
-pnpm --filter web build             # Build de produção
-pnpm --filter web test              # Vitest — component tests
+pnpm --filter @greenly/web dev               # Vite dev server
+pnpm --filter @greenly/web build             # Build de produção
+pnpm --filter @greenly/web test              # Vitest — component tests
 
 # Banco de dados
-pnpm --filter api prisma:migrate    # Criar e aplicar nova migration
-pnpm --filter api prisma:studio     # Abrir Prisma Studio (GUI do BD)
-pnpm --filter api prisma:seed       # Rodar seed
+pnpm --filter @greenly/api db:generate       # Gerar migration a partir do schema
+pnpm --filter @greenly/api db:migrate        # Aplicar migrations versionadas
+pnpm --filter @greenly/api db:push           # Sincronizar schema no banco (sem migration SQL)
+pnpm --filter @greenly/api db:studio         # Abrir Drizzle Studio
+pnpm --filter @greenly/api db:seed           # Rodar seed
 
 # Qualidade de código
 pnpm lint                           # ESLint em todos os workspaces
@@ -942,7 +657,7 @@ Unit Tests (Vitest)
 │  Cobertura alvo: 90%+ do Domain e Application
 │
 Integration Tests (Vitest + Testcontainers)
-│  Testam: Repositórios Prisma com PostgreSQL real
+│  Testam: Repositórios Drizzle com PostgreSQL real
 │  Setup: Container Docker efêmero por test suite
 │  Cobertura alvo: Todos os repositórios e queries complexas
 │
@@ -959,14 +674,14 @@ E2E Tests (Playwright)
 # Todos os testes
 pnpm test
 
-# Com cobertura
-pnpm test:coverage
+# Com cobertura (API)
+pnpm --filter @greenly/api test:coverage
 
 # E2E (requer docker compose rodando)
 pnpm test:e2e
 
 # Watch mode (desenvolvimento)
-pnpm --filter api test --watch
+pnpm --filter @greenly/api test:watch
 ```
 
 ---
@@ -982,7 +697,7 @@ PORT=3333
 LOG_LEVEL=debug
 
 # Banco de Dados
-DATABASE_URL="postgresql://postgres:greenly@localhost:5432/greenly"
+DATABASE_URL="postgresql://postgres:greenly@localhost:5435/greenly"
 
 # Redis
 REDIS_HOST=localhost
@@ -1011,7 +726,7 @@ AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
 
 # App
-APP_URL=http://localhost:5173
+APP_URL=http://localhost:8080
 API_URL=http://localhost:3333
 ```
 
@@ -1048,7 +763,7 @@ fix(alertas): corrigir cálculo de próximo prazo para condicionantes mensais
 docs(readme): atualizar estrutura de pastas do módulo de resíduos
 refactor(auth): extrair validação de token para helper
 test(domain): adicionar testes para value object PrazoRenovacao
-chore(deps): atualizar prisma para 5.14.0
+chore(deps): atualizar drizzle-orm para 0.31.x
 ```
 
 ### Regra da Dependência (CRÍTICA)
@@ -1057,9 +772,9 @@ chore(deps): atualizar prisma para 5.14.0
 // ✅ CORRETO — Use Case usa apenas a interface (Port)
 import { ILicencaRepository } from '../application/ILicencaRepository'
 
-// ❌ ERRADO — Use Case importando diretamente o Prisma (quebra Clean Architecture)
-import { PrismaClient } from '@prisma/client'
-import { PrismaLicencaRepository } from '../infrastructure/PrismaLicencaRepository'
+// ❌ ERRADO — Use Case importando diretamente o Drizzle (quebra Clean Architecture)
+import { db } from '@/db'
+import { LicencaRepository } from '../infrastructure/LicencaRepository'
 ```
 
 As camadas `domain/` e `application/` não podem importar nada de `infrastructure/` ou de libs externas de infraestrutura.
@@ -1132,8 +847,8 @@ Use os templates disponíveis em `.github/ISSUE_TEMPLATE/`:
   - Senha: `greenly`
   - Banco: `greenly`
 - **Acesso Sistema**:
-  - E-mail: `admin@greenly.com`
-  - Senha: `123456` (conforme definido no seed padrão)
+  - E-mail: `admin@greenly.app`
+  - Senha: `greenly123` (conforme definido no seed padrão)
 
 ---
 

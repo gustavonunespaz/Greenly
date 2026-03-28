@@ -50,14 +50,14 @@ export interface MTR {
 }
 
 export const licencas: Licenca[] = [
-  { id: "1", cliente: "Mineradora Vale Norte", tipo: "LO", status: "ATIVA", numeroProcesso: "IAT-2024-0891", numeroLicenca: "LO-4521/2023", orgao: "IAT", dataEmissao: "2023-03-15", dataValidade: "2027-03-15", diasRestantes: 365, empreendimento: "Mina de Calcário - Unidade Rio Branco" },
-  { id: "2", cliente: "Indústria Química Paraná", tipo: "LO", status: "ATIVA", numeroProcesso: "IAT-2023-1204", numeroLicenca: "LO-3892/2022", orgao: "IAT", dataEmissao: "2022-06-10", dataValidade: "2026-06-10", diasRestantes: 85, empreendimento: "Planta de Tratamento Químico" },
-  { id: "3", cliente: "Sanepar - ETE Norte", tipo: "LI", status: "EM_RENOVACAO", numeroProcesso: "IAT-2024-0332", numeroLicenca: "LI-7801/2021", orgao: "IAT", dataEmissao: "2021-01-20", dataValidade: "2026-01-20", diasRestantes: -55, empreendimento: "Estação de Tratamento de Esgoto" },
-  { id: "4", cliente: "Cimentos Apucarana", tipo: "LP", status: "AGUARDANDO_EMISSAO", numeroProcesso: "IBAMA-2024-4501", numeroLicenca: "—", orgao: "IBAMA", dataEmissao: "—", dataValidade: "—", diasRestantes: 0, empreendimento: "Nova Planta de Coprocessamento" },
-  { id: "5", cliente: "Frigorífico Oeste", tipo: "LO", status: "VENCIDA", numeroProcesso: "IAT-2022-0912", numeroLicenca: "LO-2190/2020", orgao: "IAT", dataEmissao: "2020-08-01", dataValidade: "2024-08-01", diasRestantes: -230, empreendimento: "Unidade de Abate e Processamento" },
-  { id: "6", cliente: "Papel & Celulose Sul", tipo: "LO", status: "ATIVA", numeroProcesso: "IAT-2023-0781", numeroLicenca: "LO-5610/2023", orgao: "IAT", dataEmissao: "2023-09-01", dataValidade: "2027-09-01", diasRestantes: 540, empreendimento: "Fábrica de Celulose Branqueada" },
-  { id: "7", cliente: "Energia Solar PR", tipo: "LAS", status: "ATIVA", numeroProcesso: "IAT-2024-1102", numeroLicenca: "LAS-0091/2024", orgao: "IAT", dataEmissao: "2024-02-15", dataValidade: "2028-02-15", diasRestantes: 700, empreendimento: "Usina Fotovoltaica 5MW" },
-  { id: "8", cliente: "Mineradora Vale Norte", tipo: "LI", status: "ATIVA", numeroProcesso: "IAT-2024-0450", numeroLicenca: "LI-1120/2024", orgao: "IAT", dataEmissao: "2024-01-10", dataValidade: "2026-07-10", diasRestantes: 115, empreendimento: "Expansão da Cava Norte" },
+  { id: "1", cliente: "Mineradora Vale Norte", tipo: "LO", status: "ATIVA", numeroProcesso: "IAT-2026-0891", numeroLicenca: "LO-4521/2023", orgao: "IAT", dataEmissao: "2023-03-15", dataValidade: "2027-03-15", diasRestantes: 365, empreendimento: "Mina de Calcário - Unidade Rio Branco" },
+  { id: "2", cliente: "Indústria de Papel Sul", tipo: "LI", status: "ATIVA", numeroProcesso: "FEPAM-2025-1029", numeroLicenca: "LI-8890/2025", orgao: "FEPAM", dataEmissao: "2025-11-05", dataValidade: "2027-11-05", diasRestantes: 580, empreendimento: "Nova Caldeira Biomassa" },
+  { id: "3", cliente: "Sanepar - ETE Norte", tipo: "LI", status: "EM_RENOVACAO", numeroProcesso: "IAT-2026-0332", numeroLicenca: "LI-7801/2021", orgao: "IAT", dataEmissao: "2021-01-20", dataValidade: "2026-01-20", diasRestantes: -55, empreendimento: "Estação de Tratamento de Esgoto" },
+  { id: "4", cliente: "Cimentos Apucarana", tipo: "LP", status: "AGUARDANDO_EMISSAO", numeroProcesso: "IBAMA-2026-4501", numeroLicenca: "—", orgao: "IBAMA", dataEmissao: "—", dataValidade: "—", diasRestantes: 0, empreendimento: "Nova Planta de Coprocessamento" },
+  { id: "5", cliente: "Frigorífico Oeste", tipo: "LO", status: "VENCIDA", numeroProcesso: "IAT-2022-0912", numeroLicenca: "LO-2190/2020", orgao: "IAT", dataEmissao: "2020-08-01", dataValidade: "2026-08-01", diasRestantes: -230, empreendimento: "Unidade de Abate e Processamento" },
+  { id: "6", cliente: "Cooperativa Agro Integrada", tipo: "LO", status: "ATIVA", numeroProcesso: "IAP-2019-3341", numeroLicenca: "LO-1092/2019", orgao: "IAT", dataEmissao: "2019-09-10", dataValidade: "2026-09-10", diasRestantes: 30, empreendimento: "Armazém de Grãos PR" },
+  { id: "7", cliente: "Energia Solar PR", tipo: "LAS", status: "ATIVA", numeroProcesso: "IAT-2026-1102", numeroLicenca: "LAS-0091/2026", orgao: "IAT", dataEmissao: "2026-02-15", dataValidade: "2028-02-15", diasRestantes: 700, empreendimento: "Usina Fotovoltaica 5MW" },
+  { id: "8", cliente: "Mineradora Vale Norte", tipo: "LI", status: "ATIVA", numeroProcesso: "IAT-2026-0450", numeroLicenca: "LI-1120/2026", orgao: "IAT", dataEmissao: "2026-01-10", dataValidade: "2026-07-10", diasRestantes: 115, empreendimento: "Expansão da Cava Norte" },
 ];
 
 export const condicionantes: Condicionante[] = [
