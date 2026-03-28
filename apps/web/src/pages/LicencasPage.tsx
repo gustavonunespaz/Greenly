@@ -29,11 +29,13 @@ import {
   Trash2,
   Save,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLicencas } from "@/features/licencas/hooks/useLicencas";
 import { useClientes } from "@/features/clientes/hooks/useClientes";
 import { toast } from "@/components/ui/sonner";
 import type { LicencaResponseDTO } from "@greenly/shared";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { getApiErrorMessage } from "@/lib/http-error";
 
 const item = {
   hidden: { opacity: 0, y: 8 },
@@ -141,6 +143,10 @@ function SkeletonTable() {
 }
 
 export default function LicencasPage() {
+  const navigate = useNavigate();
+  const { id: licencaIdParam } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const ultimaLicencaDeepLinkProcessada = useRef<string | null>(null);
   const {
     licencas,
     isLoading,
@@ -184,6 +190,33 @@ export default function LicencasPage() {
     setForm(defaultForm);
     setOpen(true);
   }
+
+  useEffect(() => {
+    const quickAction = searchParams.get("quickAction");
+    if (quickAction !== "nova-licenca") return;
+
+    openCreate();
+    const params = new URLSearchParams(searchParams);
+    params.delete("quickAction");
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!licencaIdParam || isLoading) return;
+    if (ultimaLicencaDeepLinkProcessada.current === licencaIdParam) return;
+
+    ultimaLicencaDeepLinkProcessada.current = licencaIdParam;
+    const licenca = (licencas || []).find((item) => item.id === licencaIdParam);
+
+    if (!licenca) {
+      toast.error("A licença deste alerta não está mais disponível.");
+      navigate("/licencas", { replace: true });
+      return;
+    }
+
+    openEdit(licenca);
+    navigate("/licencas", { replace: true });
+  }, [licencaIdParam, isLoading, licencas, navigate]);
 
   function openEdit(lic: LicencaResponseDTO) {
     setEditing(lic);
@@ -254,8 +287,8 @@ export default function LicencasPage() {
       }
 
       setOpen(false);
-    } catch (error: any) {
-      const message = error?.response?.data?.error || "Não foi possível salvar a licença.";
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, "Não foi possível salvar a licença.");
       toast.error(message);
     }
   }
@@ -267,8 +300,8 @@ export default function LicencasPage() {
     try {
       await removerLicenca(lic.id);
       toast.success("Licença excluída com sucesso.");
-    } catch (error: any) {
-      const message = error?.response?.data?.error || "Não foi possível excluir a licença.";
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, "Não foi possível excluir a licença.");
       toast.error(message);
     }
   }

@@ -18,11 +18,21 @@ export function useNotificacoes() {
     }
   })
 
+  const marcarTodasLidasMutation = useMutation({
+    mutationFn: () => notificacaoService.marcarTodasComoLidas(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notificacoes'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] })
+    },
+  })
+
   return {
     notificacoes,
     isLoading,
     error,
-    marcarComoLida: marcarLidaMutation.mutate,
-    isProcessando: marcarLidaMutation.isPending
+    marcarComoLida: marcarLidaMutation.mutateAsync,
+    marcarTodasComoLidas: marcarTodasLidasMutation.mutateAsync,
+    isProcessando: marcarLidaMutation.isPending,
+    isProcessandoTodas: marcarTodasLidasMutation.isPending,
   }
 }

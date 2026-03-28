@@ -32,13 +32,15 @@ import {
   Trash2,
   Save,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useResiduos } from "@/features/residuos/hooks/useResiduos";
 import { residuoService } from "@/features/residuos/services/residuoService";
 import { useClientes } from "@/features/clientes/hooks/useClientes";
 import { toast } from "@/components/ui/sonner";
 import type { MTRResponseDTO } from "@greenly/shared";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { getApiErrorMessage } from "@/lib/http-error";
 
 const steps = [
   { key: "EMITIDO", label: "Emitido", icon: Circle },
@@ -178,6 +180,10 @@ function SkeletonMTR() {
 }
 
 export default function MTRsPage() {
+  const navigate = useNavigate();
+  const { id: mtrIdParam } = useParams<{ id: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const ultimoMtrDeepLinkProcessado = useRef<string | null>(null);
   const { clientes = [] } = useClientes();
   const {
     mtrs,
@@ -218,6 +224,33 @@ export default function MTRsPage() {
     setForm(defaultForm);
     setOpen(true);
   }
+
+  useEffect(() => {
+    const quickAction = searchParams.get("quickAction");
+    if (quickAction !== "novo-mtr") return;
+
+    openCreate();
+    const params = new URLSearchParams(searchParams);
+    params.delete("quickAction");
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+  useEffect(() => {
+    if (!mtrIdParam || isLoading) return;
+    if (ultimoMtrDeepLinkProcessado.current === mtrIdParam) return;
+
+    ultimoMtrDeepLinkProcessado.current = mtrIdParam;
+    const mtr = (mtrs || []).find((item) => item.id === mtrIdParam);
+
+    if (!mtr) {
+      toast.error("O MTR deste alerta não está mais disponível.");
+      navigate("/mtrs", { replace: true });
+      return;
+    }
+
+    openEdit(mtr);
+    navigate("/mtrs", { replace: true });
+  }, [mtrIdParam, isLoading, mtrs, navigate]);
 
   function openEdit(mtr: MTRResponseDTO) {
     setEditing(mtr);
@@ -295,8 +328,8 @@ export default function MTRsPage() {
       }
 
       setOpen(false);
-    } catch (error: any) {
-      const message = error?.response?.data?.error || "Não foi possível salvar o MTR.";
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, "Não foi possível salvar o MTR.");
       toast.error(message);
     }
   }
@@ -308,8 +341,8 @@ export default function MTRsPage() {
     try {
       await removerMTR(mtr.id);
       toast.success("MTR excluído com sucesso.");
-    } catch (error: any) {
-      const message = error?.response?.data?.error || "Não foi possível excluir o MTR.";
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, "Não foi possível excluir o MTR.");
       toast.error(message);
     }
   }

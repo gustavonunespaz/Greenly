@@ -4,11 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Bell, FileCheck, AlertTriangle, Truck, CheckCircle2, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNotificacoes } from "@/features/notificacoes/hooks/useNotificacoes";
+import { toast } from "@/components/ui/sonner";
+import { useNavigate } from "react-router-dom";
+import type { Notificacao } from "@/features/notificacoes/services/notificacaoService";
 
 const iconMap = {
   licenca: FileCheck,
   condicionante: AlertTriangle,
   mtr: Truck,
+  geral: Bell,
 };
 
 const urgenciaColors = {
@@ -16,6 +20,55 @@ const urgenciaColors = {
   media: "bg-warning/10 text-warning border-warning/20 ring-1 ring-warning/20",
   baixa: "bg-primary/10 text-primary border-primary/20 ring-1 ring-primary/20",
 };
+
+type TipoNotificacao = keyof typeof iconMap;
+type UrgenciaNotificacao = keyof typeof urgenciaColors;
+
+function inferirTipo(notif: Notificacao): TipoNotificacao {
+  if (notif.tipo === "licenca" || notif.tipo === "condicionante" || notif.tipo === "mtr") {
+    return notif.tipo;
+  }
+
+  const link = (notif.linkAcao || "").toLowerCase();
+  if (link.startsWith("/licencas")) return "licenca";
+  if (link.startsWith("/condicionantes")) return "condicionante";
+  if (link.startsWith("/mtrs")) return "mtr";
+
+  const texto = `${notif.titulo} ${notif.mensagem}`.toLowerCase();
+  if (texto.includes("licenç") || texto.includes("licenc")) return "licenca";
+  if (texto.includes("condicionante")) return "condicionante";
+  if (texto.includes("mtr") || texto.includes("manifesto")) return "mtr";
+
+  return "geral";
+}
+
+function inferirUrgencia(notif: Notificacao): UrgenciaNotificacao {
+  if (notif.urgencia === "alta" || notif.urgencia === "media" || notif.urgencia === "baixa") {
+    return notif.urgencia;
+  }
+
+  const texto = `${notif.titulo} ${notif.mensagem}`.toLowerCase();
+  if (texto.includes("urgente") || texto.includes("crítica") || texto.includes("critica")) return "alta";
+  if (texto.includes("vence") || texto.includes("prazo") || texto.includes("atras")) return "media";
+  return "baixa";
+}
+
+function resolverDestino(notif: Notificacao, tipo: TipoNotificacao): string {
+  const link = notif.linkAcao || "";
+  if (
+    link.startsWith("/licencas") ||
+    link.startsWith("/condicionantes") ||
+    link.startsWith("/mtrs") ||
+    link.startsWith("/clientes")
+  ) {
+    return link;
+  }
+
+  if (tipo === "licenca") return "/licencas";
+  if (tipo === "condicionante") return "/condicionantes";
+  if (tipo === "mtr") return "/mtrs";
+  return "/notificacoes";
+}
 
 function SkeletonNotificacoes() {
   return (
@@ -50,9 +103,38 @@ function EmptyState() {
 }
 
 export default function NotificacoesPage() {
-  const { notificacoes, isLoading, marcarComoLida } = useNotificacoes();
+  const navigate = useNavigate();
+  const { notificacoes, isLoading, marcarComoLida, marcarTodasComoLidas, isProcessandoTodas } = useNotificacoes();
 
   const naoLidas = notificacoes?.filter(n => !n.lidaEm).length ?? 0;
+
+  async function handleMarcarTodas() {
+    try {
+      const result = await marcarTodasComoLidas();
+      if (result.totalAtualizadas > 0) {
+        toast.success(`${result.totalAtualizadas} notificações marcadas como lidas.`);
+      } else {
+        toast.info("Não há notificações pendentes para marcar.");
+      }
+    } catch {
+      toast.error("Não foi possível marcar todas as notificações como lidas.");
+    }
+  }
+
+  async function handleAbrirNotificacao(notif: Notificacao) {
+    const tipo = inferirTipo(notif);
+    const destino = resolverDestino(notif, tipo);
+
+    try {
+      if (!notif.lidaEm) {
+        await marcarComoLida(notif.id);
+      }
+    } catch {
+      toast.error("Não foi possível marcar a notificação como lida agora.");
+    }
+
+    navigate(destino);
+  }
 
   return (
     <AppLayout title="Notificações">
@@ -70,10 +152,15 @@ export default function NotificacoesPage() {
             </div>
           </div>
           
-          <Button variant="ghost" className="text-xs text-muted-foreground hover:bg-white/[0.04] hover:text-foreground transition-all duration-200 gap-1.5 h-9 rounded-lg px-3">
+          <Button
+            variant="ghost"
+            onClick={handleMarcarTodas}
+            disabled={naoLidas === 0 || isProcessandoTodas}
+            className="text-xs text-muted-foreground hover:bg-white/[0.04] hover:text-foreground transition-all duration-200 gap-1.5 h-9 rounded-lg px-3"
+          >
             <CheckCircle2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Marcar todas como lidas</span>
-            <span className="sm:hidden">Lidas</span>
+            <span className="hidden sm:inline">{isProcessandoTodas ? "Processando..." : "Marcar todas como lidas"}</span>
+            <span className="sm:hidden">{isProcessandoTodas ? "..." : "Lidas"}</span>
           </Button>
         </div>
 
@@ -81,7 +168,9 @@ export default function NotificacoesPage() {
           <div className="space-y-3">
             <AnimatePresence mode="popLayout">
               {notificacoes.map((notif, i) => {
-                const Icon = (iconMap as any)[notif.tipo] || Bell;
+                const tipo = inferirTipo(notif);
+                const urgencia = inferirUrgencia(notif);
+                const Icon = iconMap[tipo] || Bell;
                 const lida = !!notif.lidaEm;
                 
                 return (
@@ -92,14 +181,17 @@ export default function NotificacoesPage() {
                     animate={{ opacity: 1, x: 0, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
                     transition={{ delay: i * 0.04, duration: 0.4, ease: "easeOut" }}
-                    onClick={() => !lida && marcarComoLida(notif.id)}
                   >
-                    <div className={`glass-card p-4 flex items-start gap-4 transition-all duration-300 ${
+                    <button
+                      type="button"
+                      onClick={() => handleAbrirNotificacao(notif)}
+                      className={`glass-card p-4 flex items-start gap-4 transition-all duration-300 w-full text-left ${
                       !lida 
                         ? "border-l-[3px] border-l-primary shadow-[0_4px_24px_-8px_hsla(161,94%,30%,0.2)] hover:border-white/[0.12] cursor-pointer cursor-interactive" 
                         : "opacity-60 grayscale-[0.2]"
-                    }`}>
-                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${urgenciaColors[notif.urgencia]}`}>
+                    }`}
+                    >
+                      <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${urgenciaColors[urgencia]}`}>
                         <Icon className="h-5 w-5" strokeWidth={1.5} />
                       </div>
                       
@@ -124,13 +216,14 @@ export default function NotificacoesPage() {
                               day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" 
                             })}
                           </span>
+                          <span className="text-primary/80">Clique para abrir a ação</span>
                         </div>
                       </div>
 
-                      <Badge variant="outline" className={`text-[9px] uppercase tracking-wider shrink-0 hidden sm:flex ${urgenciaColors[notif.urgencia]}`}>
-                        {notif.urgencia === "alta" ? "Urgente" : notif.urgencia === "media" ? "Atenção" : "Info"}
+                      <Badge variant="outline" className={`text-[9px] uppercase tracking-wider shrink-0 hidden sm:flex ${urgenciaColors[urgencia]}`}>
+                        {urgencia === "alta" ? "Urgente" : urgencia === "media" ? "Atenção" : "Info"}
                       </Badge>
-                    </div>
+                    </button>
                   </motion.div>
                 );
               })}

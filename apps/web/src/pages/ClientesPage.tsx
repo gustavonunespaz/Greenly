@@ -22,12 +22,14 @@ import {
   Trash2,
   Save,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { useClientes } from "@/features/clientes/hooks/useClientes";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "@/components/ui/sonner";
 import type { ClienteResponseDTO } from "@greenly/shared";
+import { useSearchParams } from "react-router-dom";
+import { getApiErrorMessage } from "@/lib/http-error";
 
 const item = {
   hidden: { opacity: 0, y: 12 },
@@ -114,6 +116,7 @@ function SkeletonGrid() {
 }
 
 export default function ClientesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const {
     clientes,
@@ -148,6 +151,16 @@ export default function ClientesPage() {
     setForm(defaultForm);
     setOpen(true);
   }
+
+  useEffect(() => {
+    const quickAction = searchParams.get("quickAction");
+    if (quickAction !== "novo-cliente") return;
+
+    openNew();
+    const params = new URLSearchParams(searchParams);
+    params.delete("quickAction");
+    setSearchParams(params, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   function openEdit(cliente: ClienteResponseDTO) {
     setEditing(cliente);
@@ -221,21 +234,21 @@ export default function ClientesPage() {
       }
 
       setOpen(false);
-    } catch (error: any) {
-      const message = error?.response?.data?.error || "Não foi possível salvar o cliente.";
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, "Não foi possível salvar o cliente.");
       toast.error(message);
     }
   }
 
   async function handleDelete(cliente: ClienteResponseDTO) {
-    const confirmed = window.confirm(`Excluir o cliente \"${cliente.nome}\"?`);
+    const confirmed = window.confirm(`Excluir o cliente "${cliente.nome}"?`);
     if (!confirmed) return;
 
     try {
       await removerCliente(cliente.id);
       toast.success("Cliente excluído com sucesso.");
-    } catch (error: any) {
-      const message = error?.response?.data?.error || "Não foi possível excluir o cliente.";
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, "Não foi possível excluir o cliente.");
       toast.error(message);
     }
   }

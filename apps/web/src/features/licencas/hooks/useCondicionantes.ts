@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AtualizarStatusCondicionanteDTO } from '@greenly/shared'
+import { AtualizarStatusCondicionanteDTO, CriarCondicionanteDTO } from '@greenly/shared'
 import { licencaService } from '../services/licencaService'
 
 export function useCondicionantes() {
@@ -20,11 +20,23 @@ export function useCondicionantes() {
     },
   })
 
+  const criarMutation = useMutation({
+    mutationFn: ({ licencaId, dto }: { licencaId: string; dto: CriarCondicionanteDTO }) =>
+      licencaService.criarCondicionante(licencaId, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['condicionantes-consultoria'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] })
+      queryClient.invalidateQueries({ queryKey: ['notificacoes'] })
+    },
+  })
+
   return {
     condicionantes: condicionantes ?? [],
     isLoading,
     error,
+    criarCondicionante: criarMutation.mutateAsync,
     atualizarStatusCondicionante: atualizarStatusMutation.mutateAsync,
+    isCriando: criarMutation.isPending,
     isAtualizandoStatus: atualizarStatusMutation.isPending,
     condicionanteAtualizandoId: atualizarStatusMutation.variables?.id,
   }

@@ -57,7 +57,7 @@ O sistema resolve três problemas críticos do setor:
 
 | Problema | Consequência sem o Greenly | Como o Greenly resolve |
 |---|---|---|
-| Licenças ambientais vencendo sem renovação | Multas, embargos, interrupção de operação | Dashboard com alertas proativos em 90/60/30 dias |
+| Licenças ambientais vencendo sem renovação | Multas, embargos, interrupção de operação | Dashboard com alertas proativos em 120/60/30 dias (janela configuravel) |
 | Condicionantes não cumpridas | Autuação pelo órgão ambiental, cassação de licença | Motor de alertas periódicos com rastreamento por ciclo |
 | Resíduos sem rastreabilidade completa | Responsabilidade civil solidária na cadeia | Controle de MTR do berço ao CDF, validação de terceiros |
 
@@ -226,7 +226,7 @@ Cliente HTTP
 
 ```
 [Cron Job - node-cron]
-    │  (executa a cada hora)
+    │  (executa diariamente as 07:00)
     ▼
 [AlertaService]
     │  varre: licenças vencendo, condicionantes atrasadas, MTRs sem CDF
@@ -508,28 +508,28 @@ O sistema de alertas é construído sobre **Redis + BullMQ**, operando com dois 
 
 | Job | Frequência | O que faz |
 |---|---|---|
-| `VarreduraAlertasCron` | A cada hora | Varre licenças e condicionantes próximas do prazo e enfileira alertas |
-| `StatusUpdaterCron` | Todo dia às 00:05 | Atualiza status de licenças vencidas e condicionantes atrasadas automaticamente |
+| `VarreduraAlertasCron` | Todo dia as 07:00 | Varre licencas e condicionantes proximas do prazo e enfileira alertas |
+| `StatusUpdaterCron` | Todo dia as 00:30 | Atualiza status de licencas vencidas e condicionantes atrasadas automaticamente |
 
 ### Regras de Alerta
 
-**Licenças:**
-- 90 dias antes de `dataLimiteRenovacao` → alerta "Iniciar processo de renovação"
-- 60 dias → alerta de urgência
-- 30 dias → alerta crítico
+**Licencas:**
+- Janela legal de renovacao (padrao: 120 dias) -> alerta preventivo
+- 60 dias -> alerta de urgencia
+- 30 dias -> alerta critico
 
 **Condicionantes:**
-- 30 dias antes do prazo → lembrete
-- 7 dias antes → urgência
-- No dia → crítico
-- Após o prazo → status muda para ATRASADA automaticamente
+- Janela configuravel (padrao: 30 dias) -> lembrete
+- 7 dias antes -> urgencia
+- No dia -> critico
+- Apos o prazo -> status muda para ATRASADA automaticamente
 
 **MTRs:**
-- 30 dias sem CDF após emissão → lembrete
-- 60 dias → urgência
+- 30 dias sem CDF apos emissao -> lembrete
+- 60 dias -> urgencia
 
 **Parceiros:**
-- 60 dias antes do vencimento da licença → alerta preventivo
+- Janela configuravel (padrao: 60 dias) antes do vencimento da licenca -> alerta preventivo
 
 ### Filas BullMQ
 
@@ -728,6 +728,11 @@ AWS_SECRET_ACCESS_KEY=
 # App
 APP_URL=http://localhost:8080
 API_URL=http://localhost:3333
+
+# Compliance (janela de alertas)
+LICENCA_RENOVACAO_ANTECEDENCIA_DIAS=120
+CONDICIONANTE_ALERTA_DIAS=30
+PARCEIRO_LICENCA_ALERTA_DIAS=60
 ```
 
 ### `apps/web/.env`

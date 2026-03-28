@@ -1,12 +1,24 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { residuosMensais } from "@/lib/mock-data";
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+type TooltipEntry = {
+  color?: string;
+  name?: string;
+  value?: string | number;
+};
+
+type CustomTooltipProps = {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: string;
+};
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (!active || !payload) return null;
   return (
     <div className="glass-card p-3 !bg-card/90 text-xs space-y-1.5 min-w-[140px]">
       <p className="font-medium text-foreground mb-2">{label}</p>
-      {payload.map((entry: any, i: number) => (
+      {payload.map((entry, i) => (
         <div key={i} className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="h-2.5 w-2.5 rounded-sm" style={{ background: entry.color }} />
@@ -19,11 +31,20 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
-const CustomLegend = ({ payload }: any) => {
+type LegendEntry = {
+  color?: string;
+  value?: string;
+};
+
+type CustomLegendProps = {
+  payload?: LegendEntry[];
+};
+
+const CustomLegend = ({ payload }: CustomLegendProps) => {
   if (!payload) return null;
   return (
     <div className="flex items-center justify-center gap-5 mt-3">
-      {payload.map((entry: any, i: number) => (
+      {payload.map((entry, i) => (
         <div key={i} className="flex items-center gap-1.5">
           <div className="h-2 w-2 rounded-sm" style={{ background: entry.color }} />
           <span className="text-[11px] text-muted-foreground/60">{entry.value}</span>

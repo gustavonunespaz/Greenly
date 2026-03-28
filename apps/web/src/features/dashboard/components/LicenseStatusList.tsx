@@ -83,7 +83,7 @@ export function LicenseStatusList() {
                   ) : "—"}
                 </p>
               </div>
-              <StatusBadge status={lic.status as any} />
+              <StatusBadge status={lic.status} />
             </motion.div>
           ))}
         </div>

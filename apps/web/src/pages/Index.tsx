@@ -4,8 +4,19 @@ import { WasteChart } from "@/features/dashboard/components/WasteChart";
 import { LicenseStatusList } from "@/features/dashboard/components/LicenseStatusList";
 import { useDashboard } from "@/features/dashboard/hooks/useDashboard";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { AlertTriangle, FileX, ClipboardX, Truck, Scale, Building2 } from "lucide-react";
+import {
+  AlertTriangle,
+  FileX,
+  ClipboardX,
+  Truck,
+  Scale,
+  Building2,
+  FilePlus2,
+  ClipboardPlus,
+  ArrowRight,
+} from "lucide-react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 
 const container = {
   hidden: { opacity: 0 },
@@ -15,6 +26,33 @@ const item = {
   hidden: { opacity: 0, y: 16 },
   show: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const } },
 };
+
+const quickActions = [
+  {
+    label: "Nova licença",
+    description: "Cadastrar licença e iniciar monitoramento de prazo.",
+    to: "/licencas?quickAction=nova-licenca",
+    icon: FilePlus2,
+  },
+  {
+    label: "Novo MTR",
+    description: "Emitir manifesto de transporte para operação atual.",
+    to: "/mtrs?quickAction=novo-mtr",
+    icon: Truck,
+  },
+  {
+    label: "Nova condicionante",
+    description: "Registrar condicionante e definir responsabilidade.",
+    to: "/condicionantes?quickAction=nova-condicionante",
+    icon: ClipboardPlus,
+  },
+  {
+    label: "Novo cliente",
+    description: "Adicionar cliente para iniciar gestão ambiental.",
+    to: "/clientes?quickAction=novo-cliente",
+    icon: Building2,
+  },
+];
 
 function getGreeting(): string {
   const h = new Date().getHours();
@@ -70,8 +108,37 @@ export default function DashboardPage() {
             {getGreeting()}, <span className="gradient-text">{firstName}</span>
           </h2>
           <p className="text-sm text-muted-foreground/60 mt-1">
-            Aqui está o resumo da sua operação ambiental
+            Escolha uma ação para avançar e acompanhe os riscos em tempo real.
           </p>
+        </motion.div>
+
+        <motion.div variants={item} className="space-y-2">
+          <p className="text-[10px] text-muted-foreground/50 uppercase tracking-[0.12em] font-medium">
+            Ações Rápidas
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <Link
+                  key={action.label}
+                  to={action.to}
+                  className="glass-card-interactive p-4 flex items-start gap-3 group"
+                >
+                  <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <Icon className="h-4 w-4 text-primary" strokeWidth={1.8} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-foreground">{action.label}</p>
+                      <ArrowRight className="h-3.5 w-3.5 text-primary/70 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <p className="text-xs text-muted-foreground/70 mt-1 leading-relaxed">{action.description}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </motion.div>
 
         {/* Section Label */}

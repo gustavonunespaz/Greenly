@@ -1,8 +1,8 @@
 import { createContext, useContext, useCallback, useEffect, useState, type ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
 import { authService, type AuthUser } from '../services/authService'
 import type { LoginDTO } from '@greenly/shared'
+import { getApiErrorMessage } from '@/lib/http-error'
 
 interface AuthContextType {
   user: AuthUser | null
@@ -50,8 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authService.login(dto)
       setUser(response.usuario as AuthUser)
       queryClient.invalidateQueries({ queryKey: ['auth-user'] })
-    } catch (err: any) {
-      const message = err.response?.data?.error || 'E-mail ou senha inválidos'
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err, 'E-mail ou senha inválidos')
       setLoginError(message)
       throw err
     } finally {
