@@ -1,0 +1,98 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: greenly_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: greenly
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: greenly
+    ports:
+      - '5435:5432'
+    volumes:
+      - greenly_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - greenly
+
+  redis:
+    image: redis:7-alpine
+    container_name: greenly_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - greenly_redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - greenly
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: greenly_mailhog
+    restart: unless-stopped
+    ports:
+      - '1025:1025'  # SMTP
+      - '8025:8025'  # Web UI
+    networks:
+      - greenly
+
+  api:
+    build:
+      context: .
+      dockerfile: api.Dockerfile
+    container_name: greenly_api
+    restart: unless-stopped
+    ports:
+      - '3333:3333'
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:greenly@postgres:5432/greenly?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_ACCESS_SECRET=super_secret_dev_key_123
+      - JWT_ACCESS_EXPIRES_IN=1h
+      - JWT_REFRESH_SECRET=ultra_secret_refresh_key_456
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - EMAIL_FROM=nao-responda@greenly.test
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - greenly
+
+  web:
+    build:
+      context: .
+      dockerfile: web.Dockerfile
+    container_name: greenly_web
+    restart: unless-stopped
+    ports:
+      - '8081:80'
+    depends_on:
+      - api
+    networks:
+      - greenly
+
+volumes:
+  greenly_postgres_data:
+  greenly_redis_data:
+
+networks:
+  greenly:
+    driver: bridge
