@@ -14,6 +14,7 @@ export function useLicencas() {
     mutationFn: (dto: CriarLicencaDTO) => licencaService.criar(dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['licencas-consultoria'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] })
     }
   })
 
@@ -21,6 +22,7 @@ export function useLicencas() {
     mutationFn: ({ id, dto }: { id: string; dto: AtualizarLicencaDTO }) => licencaService.atualizar(id, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['licencas-consultoria'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] })
     }
   })
 

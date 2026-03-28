@@ -92,15 +92,16 @@ export default function DashboardPage() {
           />
           <UrgencyWidget
             icon={AlertTriangle}
-            value={0}
+            value={metrics?.pendenciasCriticas ?? 0}
             label="Pendências Críticas"
-            variant="danger"
+            variant={metrics?.pendenciasCriticas && metrics.pendenciasCriticas > 0 ? "danger" : "neutral"}
+            pulse={metrics?.pendenciasCriticas ? metrics.pendenciasCriticas > 0 : false}
           />
           <UrgencyWidget
             icon={ClipboardX}
-            value={0}
+            value={metrics?.condicionantesAtrasadas ?? 0}
             label="Cond. Atrasadas"
-            variant="neutral"
+            variant={metrics?.condicionantesAtrasadas && metrics.condicionantesAtrasadas > 0 ? "warning" : "neutral"}
           />
           <UrgencyWidget
             icon={Truck}
@@ -110,7 +111,7 @@ export default function DashboardPage() {
           />
           <UrgencyWidget
             icon={Scale}
-            value="0t"
+            value={`${Number(metrics?.residuosNoMes ?? 0).toFixed(1)}t`}
             label="Resíduos no Mês"
             variant="success"
             subtitle="Classe I + II-A + II-B"

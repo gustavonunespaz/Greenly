@@ -6,6 +6,8 @@ import {
   CriarCondicionanteDTO,
   AtualizarLicencaDTO,
   OrgaoAmbientalResponseDTO,
+  CondicionanteListItemDTO,
+  AtualizarStatusCondicionanteDTO,
 } from '@greenly/shared'
 
 export const licencaService = {
@@ -41,5 +43,18 @@ export const licencaService = {
   async criarCondicionante(licencaId: string, dto: CriarCondicionanteDTO): Promise<CondicionanteResponseDTO> {
     const { data } = await api.post<CondicionanteResponseDTO>(`/licencas/${licencaId}/condicionantes`, dto)
     return data
-  }
+  },
+
+  async listarCondicionantesConsultoria(): Promise<CondicionanteListItemDTO[]> {
+    const { data } = await api.get<CondicionanteListItemDTO[]>('/licencas/condicionantes/consultoria')
+    return data
+  },
+
+  async atualizarStatusCondicionante(
+    id: string,
+    dto: AtualizarStatusCondicionanteDTO,
+  ): Promise<CondicionanteListItemDTO> {
+    const { data } = await api.patch<CondicionanteListItemDTO>(`/licencas/condicionantes/${id}/status`, dto)
+    return data
+  },
 }

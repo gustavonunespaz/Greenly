@@ -240,6 +240,29 @@ export interface CondicionanteResponseDTO {
   proximoPrazo?: Date | null
 }
 
+export const AtualizarStatusCondicionanteSchema = z.object({
+  status: z.enum(['A_CUMPRIR', 'EM_ANDAMENTO', 'CUMPRIDA', 'ATRASADA', 'DISPENSADA']),
+  dataCumprimento: z.coerce.date().optional(),
+})
+export type AtualizarStatusCondicionanteDTO = z.infer<typeof AtualizarStatusCondicionanteSchema>
+
+export interface CondicionanteListItemDTO {
+  id: string
+  licencaId: string
+  clienteId: string
+  clienteNome: string
+  licencaTipo: string
+  codigo?: string | null
+  descricao: string
+  tipo: string
+  status: string
+  prazo?: Date | null
+  proximoPrazo?: Date | null
+  dataCumprimento?: Date | null
+  responsavelCliente?: string | null
+  diasRestantes?: number | null
+}
+
 // ─── Resíduos ───────────────────────────
 export const EmitirMTRSchema = z.object({
   clienteId: z.string().uuid(),

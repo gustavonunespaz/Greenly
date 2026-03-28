@@ -3,6 +3,9 @@ import api from '@/lib/api'
 export interface DashboardMetrics {
   totalClientes: number
   licencasAVencer: number
+  pendenciasCriticas: number
+  condicionantesAtrasadas: number
+  residuosNoMes: number
   mtrsPendentes: number
   notificacoesNaoLidas: number
 }

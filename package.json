@@ -8,6 +8,7 @@
     "typecheck": "pnpm --recursive typecheck",
     "test": "pnpm --recursive test",
     "test:e2e": "pnpm --filter web test:e2e",
+    "test:sprint1:smoke": "node ./scripts/smoke-sprint1-flow.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
