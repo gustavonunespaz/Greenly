@@ -9,6 +9,16 @@ export interface AuthUser {
   consultoriaId?: string
 }
 
+function parseConsultoriaIdFromToken(token: string | null): string | undefined {
+  if (!token) return undefined
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.consultoriaId
+  } catch {
+    return undefined
+  }
+}
+
 export const authService = {
   async login(dto: LoginDTO): Promise<LoginResponseDTO> {
     const { data } = await api.post<LoginResponseDTO>('/auth/login', dto)
@@ -19,6 +29,13 @@ export const authService = {
     if (data.refreshToken) {
       localStorage.setItem('greenly_refresh', data.refreshToken)
     }
+
+    const consultoriaId = parseConsultoriaIdFromToken(data.token)
+    if (consultoriaId) {
+      ;(data.usuario as AuthUser).consultoriaId = consultoriaId
+    }
+
+    localStorage.setItem('greenly_user', JSON.stringify(data.usuario))
     return data
   },
 
@@ -35,11 +52,25 @@ export const authService = {
     }
     localStorage.removeItem('greenly_token')
     localStorage.removeItem('greenly_refresh')
+    localStorage.removeItem('greenly_user')
   },
 
   async getProfile(): Promise<AuthUser> {
-    const { data } = await api.get<AuthUser>('/auth/me')
-    return data
+    const { data } = await api.get<Partial<AuthUser>>('/auth/me')
+    const stored = localStorage.getItem('greenly_user')
+    const storedUser = stored ? (JSON.parse(stored) as Partial<AuthUser>) : {}
+    const token = localStorage.getItem('greenly_token')
+
+    const merged: AuthUser = {
+      id: data.id || storedUser.id || '',
+      nome: data.nome || storedUser.nome || 'Usuário',
+      email: data.email || storedUser.email || '',
+      role: data.role || storedUser.role || '',
+      consultoriaId: data.consultoriaId || storedUser.consultoriaId || parseConsultoriaIdFromToken(token),
+    }
+
+    localStorage.setItem('greenly_user', JSON.stringify(merged))
+    return merged
   },
 
   getStoredToken(): string | null {

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { clienteService } from '../services/clienteService'
-import { CriarClienteDTO } from '@greenly/shared'
+import { AtualizarClienteDTO, CriarClienteDTO } from '@greenly/shared'
 
 export function useClientes() {
   const queryClient = useQueryClient()
@@ -17,11 +17,31 @@ export function useClientes() {
     }
   })
 
+  const atualizarMutation = useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: AtualizarClienteDTO }) => clienteService.atualizar(id, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] })
+    }
+  })
+
+  const removerMutation = useMutation({
+    mutationFn: (id: string) => clienteService.remover(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clientes'] })
+      queryClient.invalidateQueries({ queryKey: ['licencas-consultoria'] })
+      queryClient.invalidateQueries({ queryKey: ['mtrs-consultoria'] })
+    }
+  })
+
   return {
     clientes,
     isLoading,
     error,
-    criarCliente: criarMutation.mutate,
-    isCriando: criarMutation.isPending
+    criarCliente: criarMutation.mutateAsync,
+    atualizarCliente: atualizarMutation.mutateAsync,
+    removerCliente: removerMutation.mutateAsync,
+    isCriando: criarMutation.isPending,
+    isAtualizando: atualizarMutation.isPending,
+    isRemovendo: removerMutation.isPending,
   }
 }

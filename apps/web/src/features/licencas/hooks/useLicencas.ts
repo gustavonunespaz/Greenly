@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { licencaService } from '../services/licencaService'
-import { CriarLicencaDTO } from '@greenly/shared'
+import { AtualizarLicencaDTO, CriarLicencaDTO } from '@greenly/shared'
 
 export function useLicencas() {
   const queryClient = useQueryClient()
@@ -17,11 +17,37 @@ export function useLicencas() {
     }
   })
 
+  const atualizarMutation = useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: AtualizarLicencaDTO }) => licencaService.atualizar(id, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['licencas-consultoria'] })
+    }
+  })
+
+  const removerMutation = useMutation({
+    mutationFn: (id: string) => licencaService.remover(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['licencas-consultoria'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] })
+    }
+  })
+
+  const { data: orgaosAmbientais, isLoading: isLoadingOrgaos } = useQuery({
+    queryKey: ['orgaos-ambientais'],
+    queryFn: licencaService.listarOrgaosAmbientais,
+  })
+
   return {
     licencas,
     isLoading,
     error,
-    criarLicenca: criarMutation.mutate,
-    isCriando: criarMutation.isPending
+    orgaosAmbientais,
+    isLoadingOrgaos,
+    criarLicenca: criarMutation.mutateAsync,
+    atualizarLicenca: atualizarMutation.mutateAsync,
+    removerLicenca: removerMutation.mutateAsync,
+    isCriando: criarMutation.isPending,
+    isAtualizando: atualizarMutation.isPending,
+    isRemovendo: removerMutation.isPending,
   }
 }

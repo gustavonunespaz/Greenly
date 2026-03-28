@@ -6,6 +6,75 @@
 
 @layer base {
   :root {
+    --background: 148 33% 98%;
+    --foreground: 168 22% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 168 22% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 168 22% 12%;
+
+    --primary: 161 94% 30%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 150 20% 92%;
+    --secondary-foreground: 166 32% 18%;
+
+    --muted: 150 18% 92%;
+    --muted-foreground: 163 12% 36%;
+
+    --accent: 174 75% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 4 72% 47%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 38 92% 45%;
+    --warning-foreground: 0 0% 100%;
+
+    --success: 152 76% 32%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 153 20% 84%;
+    --input: 153 20% 84%;
+    --ring: 161 94% 30%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 151 25% 96%;
+    --sidebar-foreground: 164 18% 34%;
+    --sidebar-primary: 161 94% 30%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 152 23% 90%;
+    --sidebar-accent-foreground: 166 32% 18%;
+    --sidebar-border: 153 20% 85%;
+    --sidebar-ring: 161 94% 30%;
+
+    /* Custom tokens */
+    --glass-bg: 0 0% 100%;
+    --glass-border: 153 28% 62%;
+    --glass-border-opacity: 0.25;
+    --glass-blur: 24px;
+    --emerald-glow: 0 14px 36px -16px hsla(161, 94%, 30%, 0.5);
+    --emerald-glow-lg: 0 24px 50px -20px hsla(161, 94%, 30%, 0.45);
+    --card-shadow: 0 10px 30px -20px rgba(6, 24, 18, 0.28);
+    --card-inner-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+
+    /* Green palette */
+    --emerald-50: 152 81% 96%;
+    --emerald-100: 149 80% 90%;
+    --emerald-200: 152 76% 80%;
+    --emerald-300: 156 72% 67%;
+    --emerald-400: 158 64% 52%;
+    --emerald-500: 161 94% 30%;
+    --emerald-600: 163 94% 24%;
+    --emerald-700: 164 86% 16%;
+    --emerald-800: 166 78% 11%;
+    --emerald-900: 170 80% 7%;
+  }
+
+  .dark {
     --background: 222 47% 5%;
     --foreground: 210 40% 98%;
 
@@ -40,8 +109,6 @@
     --input: 217 32% 17%;
     --ring: 161 94% 30%;
 
-    --radius: 0.75rem;
-
     --sidebar-background: 222 47% 6%;
     --sidebar-foreground: 215 20% 65%;
     --sidebar-primary: 161 94% 30%;
@@ -51,27 +118,13 @@
     --sidebar-border: 217 32% 12%;
     --sidebar-ring: 161 94% 30%;
 
-    /* Custom tokens */
     --glass-bg: 222 47% 7%;
     --glass-border: 0 0% 100%;
     --glass-border-opacity: 0.08;
-    --glass-blur: 24px;
     --emerald-glow: 0 20px 40px -12px hsla(161, 94%, 30%, 0.25);
     --emerald-glow-lg: 0 25px 60px -12px hsla(161, 94%, 30%, 0.35);
     --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
     --card-inner-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
-
-    /* Green palette */
-    --emerald-50: 152 81% 96%;
-    --emerald-100: 149 80% 90%;
-    --emerald-200: 152 76% 80%;
-    --emerald-300: 156 72% 67%;
-    --emerald-400: 158 64% 52%;
-    --emerald-500: 161 94% 30%;
-    --emerald-600: 163 94% 24%;
-    --emerald-700: 164 86% 16%;
-    --emerald-800: 166 78% 11%;
-    --emerald-900: 170 80% 7%;
   }
 }
 
@@ -109,7 +162,8 @@
 
 @layer utilities {
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-white/[0.08] rounded-xl;
+    @apply bg-card/70 backdrop-blur-xl border rounded-xl;
+    border-color: hsl(var(--glass-border) / var(--glass-border-opacity));
     box-shadow: var(--card-shadow), var(--card-inner-glow);
   }
 
@@ -290,12 +344,12 @@
 /* ─── Skeleton loading ────────────────── */
 
 .skeleton {
-  @apply bg-white/[0.06] rounded-lg;
+  @apply rounded-lg;
   background: linear-gradient(
     90deg,
-    hsl(var(--muted) / 0.3) 0%,
-    hsl(var(--muted) / 0.5) 50%,
-    hsl(var(--muted) / 0.3) 100%
+    hsl(var(--muted) / 0.45) 0%,
+    hsl(var(--muted) / 0.7) 50%,
+    hsl(var(--muted) / 0.45) 100%
   );
   animation: shimmer 1.5s ease-in-out infinite;
   background-size: 200% 100%;

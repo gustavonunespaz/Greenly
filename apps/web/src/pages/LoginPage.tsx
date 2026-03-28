@@ -1,4 +1,3 @@
-import { Leaf } from "lucide-react";
 import { motion } from "framer-motion";
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -101,10 +100,13 @@ export default function LoginPage() {
               transition={{ delay: 0.5, duration: 0.6 }}
               className="text-center"
             >
-              <div className="h-20 w-20 mx-auto rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6 emerald-glow-lg animate-leaf-sway">
-                <Leaf className="h-10 w-10 text-primary" strokeWidth={1.2} />
+              <div className="mx-auto mb-6 animate-leaf-sway h-[120px] w-[300px] overflow-hidden flex items-center justify-center">
+                <img
+                  src="/logo-comp.png"
+                  alt="Logo Greenly"
+                  className="h-full w-full object-contain scale-[1.55] dark:brightness-[1.3] dark:contrast-110"
+                />
               </div>
-              <h2 className="text-3xl font-bold gradient-text mb-3">Greenly</h2>
               <p className="text-muted-foreground/60 text-sm max-w-[240px] leading-relaxed">
                 Plataforma inteligente de compliance e gestão ambiental
               </p>
@@ -151,11 +153,14 @@ export default function LoginPage() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="h-16 w-16 rounded-2xl bg-primary/15 border border-primary/20 flex items-center justify-center mb-4 emerald-glow"
+              className="mb-4 h-[84px] w-[220px] overflow-hidden flex items-center justify-center"
             >
-              <Leaf className="h-8 w-8 text-primary" strokeWidth={1.5} />
+              <img
+                src="/logo-comp.png"
+                alt="Logo Greenly"
+                className="h-full w-full object-contain scale-[1.45] dark:brightness-[1.3] dark:contrast-110"
+              />
             </motion.div>
-            <h1 className="text-2xl font-bold gradient-text">Greenly</h1>
             <p className="text-sm text-muted-foreground mt-1">Compliance ambiental inteligente</p>
           </div>
 

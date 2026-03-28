@@ -6,7 +6,6 @@ import {
   Building2,
   Settings,
   Bell,
-  Leaf,
   LogOut,
   ChevronRight,
 } from "lucide-react";
@@ -53,14 +52,27 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon" className="border-r-0">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-4 py-5 border-b border-white/[0.06]">
-        <div className="h-8 w-8 rounded-xl bg-primary/15 border border-primary/20 flex items-center justify-center shrink-0">
-          <Leaf className="h-4.5 w-4.5 text-primary" strokeWidth={1.5} />
-        </div>
-        {!collapsed && (
-          <span className="text-lg font-semibold tracking-tight gradient-text">
-            Greenly
-          </span>
+      <div
+        className={`border-b border-white/[0.06] ${
+          collapsed ? "px-2 py-4 flex justify-center" : "px-3 py-4"
+        }`}
+      >
+        {collapsed ? (
+          <div className="h-11 w-11 overflow-hidden flex items-center justify-center">
+            <img
+              src="/logo.png"
+              alt="Logo Greenly"
+              className="h-11 w-11 object-contain scale-[1.55]"
+            />
+          </div>
+        ) : (
+          <div className="h-14 w-[210px] overflow-hidden">
+            <img
+              src="/logo-comp.png"
+              alt="Logo Greenly"
+              className="h-full w-full object-contain object-left scale-[1.7] origin-left dark:brightness-[1.3] dark:contrast-110"
+            />
+          </div>
         )}
       </div>
 

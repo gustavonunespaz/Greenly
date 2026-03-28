@@ -1,9 +1,10 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Search, Bell, LogOut, User, Settings } from "lucide-react";
+import { Search, Bell, LogOut, User, Settings, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useRef, useEffect } from "react";
+import { useTheme } from "next-themes";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -24,7 +25,9 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const breadcrumb = breadcrumbMap[location.pathname] || title || '';
@@ -42,6 +45,10 @@ export function AppLayout({ children, title }: AppLayoutProps) {
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   const handleLogout = async () => {
@@ -62,7 +69,11 @@ export function AppLayout({ children, title }: AppLayoutProps) {
               <div className="h-4 w-px bg-white/[0.08] hidden sm:block" />
               {breadcrumb && (
                 <div className="hidden sm:flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground/50">Greenly</span>
+                  <img
+                    src="/logo.png"
+                    alt="Logo Greenly"
+                    className="h-5 w-5 object-contain scale-[1.3]"
+                  />
                   <span className="text-muted-foreground/30">/</span>
                   <h1 className="text-sm font-medium text-foreground tracking-tight">
                     {breadcrumb}
@@ -91,6 +102,20 @@ export function AppLayout({ children, title }: AppLayoutProps) {
                 <Bell className="h-4 w-4" strokeWidth={1.5} />
                 <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-background" />
               </button>
+
+              {mounted && (
+                <button
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  className="p-2 rounded-xl text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.04] transition-all duration-200"
+                  title={theme === "dark" ? "Ativar tema claro" : "Ativar tema escuro"}
+                >
+                  {theme === "dark" ? (
+                    <Sun className="h-4 w-4" strokeWidth={1.5} />
+                  ) : (
+                    <Moon className="h-4 w-4" strokeWidth={1.5} />
+                  )}
+                </button>
+              )}
 
               {/* Divider */}
               <div className="h-5 w-px bg-white/[0.06] mx-1" />

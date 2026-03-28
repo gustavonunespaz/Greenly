@@ -1,5 +1,12 @@
 import api from '@/lib/api'
-import { LicencaResponseDTO, CriarLicencaDTO, CondicionanteResponseDTO, CriarCondicionanteDTO } from '@greenly/shared'
+import {
+  LicencaResponseDTO,
+  CriarLicencaDTO,
+  CondicionanteResponseDTO,
+  CriarCondicionanteDTO,
+  AtualizarLicencaDTO,
+  OrgaoAmbientalResponseDTO,
+} from '@greenly/shared'
 
 export const licencaService = {
   async listarPorConsultoria(): Promise<LicencaResponseDTO[]> {
@@ -14,6 +21,20 @@ export const licencaService = {
 
   async criar(dto: CriarLicencaDTO): Promise<LicencaResponseDTO> {
     const { data } = await api.post<LicencaResponseDTO>('/licencas', dto)
+    return data
+  },
+
+  async atualizar(id: string, dto: AtualizarLicencaDTO): Promise<LicencaResponseDTO> {
+    const { data } = await api.patch<LicencaResponseDTO>(`/licencas/${id}`, dto)
+    return data
+  },
+
+  async remover(id: string): Promise<void> {
+    await api.delete(`/licencas/${id}`)
+  },
+
+  async listarOrgaosAmbientais(): Promise<OrgaoAmbientalResponseDTO[]> {
+    const { data } = await api.get<OrgaoAmbientalResponseDTO[]>('/licencas/orgaos-ambientais')
     return data
   },
 

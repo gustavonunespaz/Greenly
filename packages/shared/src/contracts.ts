@@ -95,8 +95,36 @@ export const CriarClienteSchema = z.object({
   nomeResponsavel: z.string().optional(),
   emailResponsavel: z.string().email().optional(),
   telefoneResponsavel: z.string().optional(),
+  cep: z.string().optional(),
+  logradouro: z.string().optional(),
+  numero: z.string().optional(),
+  complemento: z.string().optional(),
+  bairro: z.string().optional(),
+  cidade: z.string().optional(),
+  estado: z.string().max(2).optional(),
 })
 export type CriarClienteDTO = z.infer<typeof CriarClienteSchema>
+
+export const AtualizarClienteSchema = z.object({
+  nome: z.string().min(2).optional(),
+  cnpj: CnpjSchema.optional(),
+  email: z.string().email().optional().nullable(),
+  telefone: z.string().optional().nullable(),
+  setor: z.string().optional().nullable(),
+  cnae: z.string().optional().nullable(),
+  nomeResponsavel: z.string().optional().nullable(),
+  emailResponsavel: z.string().email().optional().nullable(),
+  telefoneResponsavel: z.string().optional().nullable(),
+  ativo: z.boolean().optional(),
+  cep: z.string().optional().nullable(),
+  logradouro: z.string().optional().nullable(),
+  numero: z.string().optional().nullable(),
+  complemento: z.string().optional().nullable(),
+  bairro: z.string().optional().nullable(),
+  cidade: z.string().optional().nullable(),
+  estado: z.string().max(2).optional().nullable(),
+})
+export type AtualizarClienteDTO = z.infer<typeof AtualizarClienteSchema>
 
 export interface ClienteResponseDTO {
   id: string
@@ -152,6 +180,22 @@ export const CriarLicencaSchema = z.object({
 })
 export type CriarLicencaDTO = z.infer<typeof CriarLicencaSchema>
 
+export const AtualizarLicencaSchema = z.object({
+  clienteId: z.string().uuid().optional(),
+  instalacaoId: z.string().uuid().optional().nullable(),
+  orgaoAmbientalId: z.string().uuid().optional(),
+  tipo: z.string().min(1).optional(),
+  status: z.string().optional(),
+  numeroProcesso: z.string().optional().nullable(),
+  numeroLicenca: z.string().optional().nullable(),
+  nomeEmpreendimento: z.string().optional().nullable(),
+  atividadeLicenciada: z.string().optional().nullable(),
+  dataEmissao: z.coerce.date().optional().nullable(),
+  dataValidade: z.coerce.date().optional().nullable(),
+  observacoes: z.string().optional().nullable(),
+})
+export type AtualizarLicencaDTO = z.infer<typeof AtualizarLicencaSchema>
+
 export interface LicencaResponseDTO {
   id: string
   clienteId: string
@@ -160,6 +204,14 @@ export interface LicencaResponseDTO {
   numeroLicenca?: string | null
   dataValidade?: Date | null
   diasAteVencimento?: number | null
+}
+
+export interface OrgaoAmbientalResponseDTO {
+  id: string
+  sigla: string
+  nome: string
+  esfera: string
+  estado?: string | null
 }
 
 export const CriarCondicionanteSchema = z.object({
@@ -206,16 +258,40 @@ export const EmitirMTRSchema = z.object({
 })
 export type EmitirMTRDTO = z.infer<typeof EmitirMTRSchema>
 
+export const AtualizarMTRSchema = z.object({
+  clienteId: z.string().uuid().optional(),
+  fonteGeradoraId: z.string().uuid().optional(),
+  transportadoraId: z.string().uuid().optional(),
+  destinadorId: z.string().uuid().optional(),
+  tipoDestinacao: z.string().optional(),
+  volume: z.number().positive().optional(),
+  unidadeMedida: z.string().optional(),
+  numeroMTR: z.string().optional().nullable(),
+  placaVeiculo: z.string().optional().nullable(),
+  nomeMotorista: z.string().optional().nullable(),
+  cpfMotorista: CpfSchema.optional().nullable(),
+  observacoes: z.string().optional().nullable(),
+})
+export type AtualizarMTRDTO = z.infer<typeof AtualizarMTRSchema>
+
 export interface MTRResponseDTO {
   id: string
   numeroMTR?: string | null
   status: string
   clienteId: string
+  fonteGeradoraId: string
   transportadoraId: string
   destinadorId: string
+  tipoDestinacao: string
   volume: number
   unidadeMedida: string
   dataEmissao: Date
+  dataColeta?: Date | null
+  dataRecebimento?: Date | null
+  placaVeiculo?: string | null
+  nomeMotorista?: string | null
+  cpfMotorista?: string | null
+  observacoes?: string | null
 }
 
 export const AvancarStatusMTRSchema = z.object({
@@ -239,4 +315,20 @@ export interface FonteGeradoraResponseDTO {
   clienteId: string
   descricao?: string | null
   ativa: boolean
+}
+
+export interface FonteGeradoraOptionDTO {
+  id: string
+  clienteId: string
+  descricao?: string | null
+  unidadeMedida: string
+  ativa: boolean
+}
+
+export interface ParceiroResponseDTO {
+  id: string
+  nome: string
+  tipo: string
+  licencaAtiva: boolean
+  licencaValidade?: Date | null
 }
