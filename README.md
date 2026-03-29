@@ -456,6 +456,29 @@ POST   /api/mtrs/:id/cdf                              Upload do CDF — encerra 
 3. CANCELADO só é possível a partir de EMITIDO (antes da coleta)
 4. Um MTR COM_DIVERGENCIA bloqueia o avanço automático e requer revisão manual
 
+### Módulo Documental — Classificação e Catálogo
+
+**Endpoints principais:**
+
+```
+GET    /api/documentos/catalogo                       Listar tipos documentais suportados e campos esperados
+GET    /api/documentos/contrato-extracao             Retornar contrato de extração por perfil de cliente
+POST   /api/documentos/ingestao                       Ingerir arquivo com idempotencia por hash e enfileirar processamento
+POST   /api/documentos/classificar                    Classificar documento por nome/caminho (heurística inicial)
+POST   /api/documentos/validar-geoespacial            Validar pacotes QGIS/shapefile/KML do lote enviado
+GET    /api/dashboard/documentos/pipeline             Painel operacional da fila documental (backlog, sucesso/falha, tempo médio)
+GET    /api/dashboard/documentos/pipeline/itens       Listar itens recentes da fila documental com filtro por status
+```
+
+**Notas de implementação:**
+
+1. Catálogo versionado para rastrear evolução de regras por consultoria/cliente
+2. Contrato de extração suporta `perfilCliente` para ajuste dos campos obrigatórios/opcionais por tipo documental
+3. Ingestão documental via `multipart/form-data` no campo `arquivo`, com idempotência por hash
+4. Classificação inicial baseada em palavras-chave + extensão + contexto de pasta
+5. Resultado já retorna campos obrigatórios e opcionais para pré-preenchimento guiado
+6. Dashboard operacional da fila documental expõe taxa de sucesso, falhas, tempo médio e backlog para monitoramento contínuo
+
 ---
 
 ## 7. Banco de Dados
@@ -763,6 +786,11 @@ API_URL=http://localhost:3333
 LICENCA_RENOVACAO_ANTECEDENCIA_DIAS=120
 CONDICIONANTE_ALERTA_DIAS=30
 PARCEIRO_LICENCA_ALERTA_DIAS=60
+
+# Worker documental (Sprint 4)
+ENABLE_DOCUMENTO_WORKER=false
+DOCUMENTOS_WORKER_CONCURRENCY=2
+DOCUMENTOS_UPLOAD_MAX_MB=20
 ```
 
 ### `apps/web/.env`

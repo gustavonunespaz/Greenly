@@ -1,4 +1,11 @@
 import { z } from 'zod'
+import {
+  campoDocumentoAmbientalValues,
+  categoriaDocumentoAmbientalValues,
+  origemProcessamentoDocumentoValues,
+  perfilDocumentoClienteValues,
+  tipoDocumentoAmbientalValues,
+} from './types/documento.types'
 
 // ─── Shared Validators ──────────────────
 export const CnpjSchema = z.string().length(14).regex(/^\d+$/)
@@ -188,6 +195,38 @@ export interface InstalacaoResponseDTO {
   estado?: string | null
   ativa: boolean
 }
+
+// ─── Documentos ────────────────────────
+export const CategoriaDocumentoAmbientalSchema = z.enum(categoriaDocumentoAmbientalValues)
+export const TipoDocumentoAmbientalSchema = z.enum(tipoDocumentoAmbientalValues)
+export const CampoDocumentoAmbientalSchema = z.enum(campoDocumentoAmbientalValues)
+
+export const ClassificarDocumentoSchema = z.object({
+  nomeArquivo: z.string().min(3),
+  caminhoArquivo: z.string().optional(),
+  mimeType: z.string().optional(),
+})
+export type ClassificarDocumentoDTO = z.infer<typeof ClassificarDocumentoSchema>
+
+export const OrigemProcessamentoDocumentoSchema = z.enum(origemProcessamentoDocumentoValues)
+export const IngerirDocumentoMetadataSchema = z.object({
+  clienteId: z.string().uuid().optional(),
+  licencaId: z.string().uuid().optional(),
+  origem: OrigemProcessamentoDocumentoSchema.default('UPLOAD_GERAL'),
+  tipoDeclarado: TipoDocumentoAmbientalSchema.optional(),
+  categoriaDeclarada: CategoriaDocumentoAmbientalSchema.optional(),
+})
+
+export const PerfilDocumentoClienteSchema = z.enum(perfilDocumentoClienteValues)
+export const ListarContratoExtracaoDocumentoSchema = z.object({
+  perfilCliente: PerfilDocumentoClienteSchema.default('GLOBAL'),
+})
+export type ListarContratoExtracaoDocumentoDTO = z.infer<typeof ListarContratoExtracaoDocumentoSchema>
+
+export const ValidarPacoteGeoespacialSchema = z.object({
+  arquivos: z.array(z.string().min(1)).min(1),
+})
+export type ValidarPacoteGeoespacialDTO = z.infer<typeof ValidarPacoteGeoespacialSchema>
 
 // ─── Licença ────────────────────────────
 export const CriarLicencaSchema = z.object({

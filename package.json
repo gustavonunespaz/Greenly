@@ -13,6 +13,7 @@
     "test:cdf:smoke": "node ./scripts/smoke-cdf-flow.mjs",
     "test:sprint3:smoke": "node ./scripts/smoke-sprint3-flow.mjs",
     "gate:sprint3": "bash ./scripts/gate-sprint3.sh",
+    "gate:pre-sprint4": "bash ./scripts/gate-pre-sprint4.sh",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {
