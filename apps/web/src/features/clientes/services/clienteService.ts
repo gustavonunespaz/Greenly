@@ -7,6 +7,27 @@ import {
   AtualizarClienteDTO,
 } from '@greenly/shared'
 
+export type CnpjLookupResponseDTO = {
+  cnpj: string
+  razaoSocial?: string
+  nomeFantasia?: string
+  email?: string
+  telefone?: string
+  cnae?: string
+  cnaeDescricao?: string
+  cep?: string
+  logradouro?: string
+  numero?: string
+  complemento?: string
+  bairro?: string
+  cidade?: string
+  estado?: string
+  situacaoCadastral?: string
+  dataSituacaoCadastral?: string
+  porte?: string
+  naturezaJuridica?: string
+}
+
 export const clienteService = {
   async listar(): Promise<ClienteResponseDTO[]> {
     const { data } = await api.get<ClienteResponseDTO[]>('/clientes')
@@ -30,5 +51,11 @@ export const clienteService = {
   async criarInstalacao(dto: CriarInstalacaoDTO): Promise<InstalacaoResponseDTO> {
     const { data } = await api.post<InstalacaoResponseDTO>('/clientes/instalacoes', dto)
     return data
-  }
+  },
+
+  async buscarCnpj(cnpj: string): Promise<CnpjLookupResponseDTO> {
+    const normalizedCnpj = cnpj.replace(/\D/g, '')
+    const { data } = await api.get<CnpjLookupResponseDTO>(`/clientes/cnpj/${normalizedCnpj}`)
+    return data
+  },
 }

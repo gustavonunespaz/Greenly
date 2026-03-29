@@ -61,6 +61,14 @@ O sistema resolve três problemas críticos do setor:
 | Condicionantes não cumpridas               | Autuação pelo órgão ambiental, cassação de licença | Motor de alertas periódicos com rastreamento por ciclo                  |
 | Resíduos sem rastreabilidade completa      | Responsabilidade civil solidária na cadeia         | Controle de MTR do berço ao CDF, validação de terceiros                 |
 
+Atualização funcional mais recente (2026-03-28):
+
+- Consulta automática de CNPJ no cadastro de clientes com autopreenchimento de dados cadastrais e endereço.
+- Dashboard expandido com KPIs de conformidade, resíduos, emissões/recursos, visão setorial, timeline de vencimentos e drill-down de rastreabilidade.
+- Consolidação de risco com leitura imediata de ativas/pendentes/vencidas e insights proativos.
+- Hardening de responsividade para telas menores (tabelas e CRUDs sem vazamento, com rolagem horizontal quando necessário).
+- Índice de documentos do projeto publicado em `docs/README.md`.
+
 ### Quem usa o Greenly
 
 ```

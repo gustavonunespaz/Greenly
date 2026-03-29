@@ -22,6 +22,10 @@ import { Search, Plus, Building2, Pencil, Trash2, Save, Loader2 } from 'lucide-r
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useClientes } from '@/features/clientes/hooks/useClientes'
+import {
+  clienteService,
+  type CnpjLookupResponseDTO,
+} from '@/features/clientes/services/clienteService'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { toast } from '@/components/ui/sonner'
 import type { ClienteResponseDTO } from '@greenly/shared'
@@ -160,6 +164,35 @@ function formatCepInput(value: string) {
   return `${p1}-${p2}`
 }
 
+function inferSetorPorCnae(input?: CnpjLookupResponseDTO | null): string | undefined {
+  const content = `${input?.cnaeDescricao || ''} ${input?.cnae || ''}`
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+
+  if (!content) return undefined
+  if (content.includes('agro') || content.includes('pecuaria') || content.includes('cultivo'))
+    return 'AGRONEGOCIO'
+  if (content.includes('alimento') || content.includes('bebida')) return 'ALIMENTOS_BEBIDAS'
+  if (content.includes('construcao') || content.includes('obra')) return 'CONSTRUCAO_CIVIL'
+  if (content.includes('energia') || content.includes('eletric')) return 'ENERGIA'
+  if (content.includes('hospital') || content.includes('saude') || content.includes('clinica'))
+    return 'HOSPITALAR_SAUDE'
+  if (content.includes('logistica') || content.includes('transporte')) return 'LOGISTICA_TRANSPORTE'
+  if (content.includes('miner') || content.includes('extracao')) return 'MINERACAO'
+  if (content.includes('quimic') || content.includes('petro')) return 'QUIMICO_PETROQUIMICO'
+  if (content.includes('saneamento') || content.includes('esgoto') || content.includes('agua'))
+    return 'SANEAMENTO'
+  if (
+    content.includes('industria') ||
+    content.includes('industrial') ||
+    content.includes('fabrica')
+  )
+    return 'INDUSTRIA'
+  if (content.includes('servico')) return 'SERVICOS'
+  return undefined
+}
+
 function SkeletonList() {
   return (
     <div className="glass-card overflow-hidden p-4 space-y-3">
@@ -199,6 +232,7 @@ export default function ClientesPage() {
   const [cidades, setCidades] = useState<CidadeOption[]>([])
   const [isLoadingEstados, setIsLoadingEstados] = useState(false)
   const [isLoadingCidades, setIsLoadingCidades] = useState(false)
+  const [isBuscandoCnpj, setIsBuscandoCnpj] = useState(false)
   const [isBuscandoCep, setIsBuscandoCep] = useState(false)
   const hasClientes = (clientes || []).length > 0
   const hasSearchApplied = !!search.trim()
@@ -434,6 +468,56 @@ export default function ClientesPage() {
         buildActionableFormError(error, 'Não foi possível salvar o cliente.'),
         'api',
       )
+    }
+  }
+
+  async function handleBuscarCnpj() {
+    const normalizedCnpj = digitsOnly(form.cnpj)
+    if (normalizedCnpj.length !== 14) {
+      applyTrackedFormError(
+        buildValidationFormError('Informe um CNPJ válido com 14 dígitos para consultar.'),
+        'validation',
+      )
+      return
+    }
+
+    setFormError(null)
+    setIsBuscandoCnpj(true)
+
+    try {
+      const empresa = await clienteService.buscarCnpj(normalizedCnpj)
+      const setorInferido = inferSetorPorCnae(empresa)
+
+      setForm((state) => ({
+        ...state,
+        cnpj: formatCnpjInput(empresa.cnpj || normalizedCnpj),
+        nome: empresa.razaoSocial || empresa.nomeFantasia || state.nome,
+        email: empresa.email || state.email,
+        telefone: empresa.telefone || state.telefone,
+        cnae: empresa.cnae || state.cnae,
+        setor: setorInferido || state.setor,
+        cep: empresa.cep ? formatCepInput(empresa.cep) : state.cep,
+        logradouro: empresa.logradouro || state.logradouro,
+        numero: empresa.numero || state.numero,
+        complemento: empresa.complemento || state.complemento,
+        bairro: empresa.bairro || state.bairro,
+        cidade: empresa.cidade || state.cidade,
+        estado: (empresa.estado || state.estado || '').toUpperCase(),
+      }))
+
+      trackFirstValidAction('clientes', 'consultar_cnpj')
+      trackFlowCompleted('clientes', 'cnpj_autopreenchido', {
+        estado: empresa.estado ?? null,
+        cidade: empresa.cidade ?? null,
+        cnae: empresa.cnae ?? null,
+      })
+
+      toast.success('Dados preenchidos automaticamente a partir do CNPJ.')
+    } catch (error: unknown) {
+      const message = getApiErrorMessage(error, 'Falha ao consultar CNPJ agora. Tente novamente.')
+      toast.error(message)
+    } finally {
+      setIsBuscandoCnpj(false)
     }
   }
 
@@ -675,13 +759,30 @@ export default function ClientesPage() {
               />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-2">
               <Label>CNPJ *</Label>
-              <Input
-                value={form.cnpj}
-                onChange={(e) => setForm((s) => ({ ...s, cnpj: formatCnpjInput(e.target.value) }))}
-                placeholder="00.000.000/0000-00"
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  value={form.cnpj}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, cnpj: formatCnpjInput(e.target.value) }))
+                  }
+                  placeholder="00.000.000/0000-00"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 gap-2"
+                  onClick={() => void handleBuscarCnpj()}
+                  disabled={isBuscandoCnpj}
+                >
+                  {isBuscandoCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  Buscar CNPJ
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground/70">
+                Consulta automática para preencher razão social, contato, CNAE e endereço.
+              </p>
             </div>
 
             <div className="space-y-2">

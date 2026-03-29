@@ -2,6 +2,61 @@
 
 Todas as mudanças relevantes do Greenly serão registradas aqui.
 
+## [2026-03-28] - Consulta automática de CNPJ no cadastro de clientes
+
+### API de consulta de CNPJ
+
+- Novo endpoint autenticado para consulta por CNPJ:
+  - `GET /api/clientes/cnpj/:cnpj`
+- Integração no backend com a BrasilAPI para retorno normalizado de dados cadastrais.
+- Tratamento explícito de cenários de erro:
+  - CNPJ inválido (422),
+  - CNPJ não encontrado (404),
+  - indisponibilidade/limite do provedor externo (502/503).
+
+### Autopreenchimento no frontend
+
+- Formulário de clientes ganhou ação `Buscar CNPJ` ao lado do campo CNPJ.
+- Após consulta bem-sucedida, o sistema preenche automaticamente:
+  - razão social/nome,
+  - e-mail e telefone,
+  - CNAE e sugestão de setor,
+  - CEP, logradouro, número, complemento, bairro, cidade e estado.
+- Telemetria adicionada para rastrear uso do fluxo (`consultar_cnpj` e `cnpj_autopreenchido`).
+
+## [2026-03-28] - Dashboard ambiental expandido + responsividade anti-overflow
+
+### Dashboard e inteligência de risco
+
+- Dashboard principal reformulado para modelo de "radar ambiental" com foco em ação imediata.
+- Novo pipeline de consolidação no frontend via `useDashboardIntelligence` unificando:
+  - conformidade legal (licenças/condicionantes),
+  - operação de resíduos (MTR/CDF),
+  - recorte setorial (agronegócio, energia, saúde).
+- Novos painéis visuais:
+  - `RiskConsolidationPanel` (score de risco + insights),
+  - `UpcomingDeadlinesTimeline` (vencimentos próximos por urgência),
+  - `KpiSectionsPanel` (KPIs por categoria),
+  - `SustainabilityTrendPanel` (tendência histórica comparativa),
+  - `TraceabilityPanel` (drill-down de rastreabilidade até MTR/CDF/custo).
+
+### Resíduos e rastreabilidade
+
+- Camada de resíduos no frontend estendida para listar CDF por cliente e consultoria.
+- Hook dedicado de CDF (`useCDFs`) integrado à leitura analítica do dashboard.
+- Drill-down do dashboard conectado com navegação para registros operacionais de origem.
+
+### UX responsiva e contenção de layout
+
+- Hardening de responsividade para evitar vazamento visual em notebook e telas menores.
+- `DialogContent` atualizado para respeitar viewport com:
+  - largura máxima dinâmica,
+  - altura máxima com scroll interno,
+  - contenção de overscroll.
+- `AppLayout` e páginas de CRUD ajustados com `min-w-0`, wrappers `overflow-x-auto` e tabelas com largura mínima controlada.
+- Formulários longos em modal ajustados para scroll interno vertical sem cortar ações.
+- Base global de estilos atualizada para bloquear overflow horizontal de página (`body { overflow-x: hidden; }`).
+
 ## [2026-03-28] - Cadastro de clientes com localidade oficial
 
 ### CRUD de clientes

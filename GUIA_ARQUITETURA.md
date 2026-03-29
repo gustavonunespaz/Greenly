@@ -1,70 +1,91 @@
-# Guia de Arquitetura: Greenly (Vertical Slice)
+# Guia de Arquitetura Greenly
 
-Este documento descreve a nova estrutura organizacional do projeto Greenly, as instruções para execução via Docker e como acessar o ambiente de desenvolvimento.
+Este guia resume a arquitetura atual do monorepo e serve como referência rápida para onboarding técnico.
 
-## 🏗️ Estrutura de Pastas (Vertical Slice)
+## Visão geral
 
-Abandonamos a arquitetura de camadas horizontais (DDD clássico) para focar em **Vertical Slices** (fatias verticais). Isso significa que o código é organizado pelo "o que ele faz" (Feature) e não pelo "o que o arquivo é".
+- Monorepo com `pnpm workspaces`.
+- Dois apps principais:
+  - `apps/api` (backend HTTP e jobs),
+  - `apps/web` (frontend React).
+- Pacote compartilhado em `packages/shared` para tipos e contratos comuns.
 
-### 🟢 Back-end (`apps/api/src`)
-- **`modules/`**: Cada pasta aqui é uma funcionalidade isolada.
-    - `[modulo].controller.ts`: Porta de entrada (Express), lida com a requisição e validação.
-    - `[modulo].service.ts`: Onde reside a inteligência e as regras de negócio.
-    - `[modulo].repository.ts`: Abstração de acesso ao banco (Drizzle), se houver necessidade de queries complexas.
-    - `[modulo].routes.ts`: Definição das rotas específicas do módulo.
-- **`shared/`**: Recursos compartilhados (cliente Drizzle, Middlewares de Auth, Erros Globais, Container de DI).
+## Backend (`apps/api`)
 
-### 🔵 Front-end (`apps/web/src`)
-- **`features/`**: Inteligência isolada por funcionalidade.
-    - `services/`: Chamadas Axios específicas.
-    - `hooks/`: Gerenciamento de estado (TanStack Query) e lógica de UI.
-    - `components/`: Listas, cards e widgets específicos dessa feature.
-- **`pages/`**: Apenas containers de rota que montam as features.
-- **`components/ui/`**: Componentes básicos e "burros" (botões, inputs, modais) do Shadcn UI.
+Arquitetura modular por domínio, com composição via container e roteador central:
 
-### 🟡 A Ponte (`packages/shared`)
-- **Single Source of Truth**: Contém os Schemas Zod e as Interfaces TypeScript que tanto o Front quanto o Back usam. Se mudar um campo aqui, o erro aparece nos dois apps simultaneamente.
-
----
-
-## 🐳 Executando com Docker
-
-O projeto está configurado para subir todo o ambiente (Banco, Redis, Mailhog, API e Front) com um único comando.
-
-### 🚀 Como subir o sistema:
-Na raiz do projeto, execute:
-```bash
-docker-compose up --build
+```text
+apps/api/src/
+├── app.ts
+├── server.ts
+├── db/
+│   └── schema/
+├── modules/
+│   ├── auth/
+│   ├── cliente/
+│   ├── consultoria/
+│   ├── dashboard/
+│   ├── licenca/
+│   ├── notificacao/
+│   ├── auditoria/
+│   ├── residuo/
+│   └── integracao-governo/
+└── shared/
+    ├── container.ts
+    ├── router.ts
+    ├── authMiddleware.ts
+    ├── jobs/
+    └── config/
 ```
 
-### 🌍 Portas de Acesso:
-- **Frontend**: [http://localhost:8080](http://localhost:8080)
-- **Backend API**: [http://localhost:3333](http://localhost:3333)
-- **Mailhog (E-mails de teste)**: [http://localhost:8025](http://localhost:8025)
+Pontos chave:
 
----
+- API REST em `/api/*`.
+- Persistência em PostgreSQL via Drizzle.
+- Alertas e processos assíncronos com BullMQ + Redis.
+- Isolamento multi-tenant com `consultoriaId`.
 
-## 💾 Acesso ao Banco de Dados (PostgreSQL)
+## Frontend (`apps/web`)
 
-O banco roda dentro de um container Docker, mas a porta está exposta para o seu Windows/Host.
+Estrutura por feature com páginas como containers de rota:
 
-- **Host**: `localhost` (ou o IP do seu WSL)
-- **Porta**: `5435`
-- **Usuário**: `postgres`
-- **Senha**: `greenly`
-- **Database**: `greenly`
+```text
+apps/web/src/
+├── App.tsx
+├── pages/
+├── features/
+├── components/
+├── hooks/
+└── lib/
+```
 
-> [!TIP]
-> Você pode usar ferramentas como **DBeaver** ou **TablePlus** no Windows para conectar usando essas credenciais.
+Pontos chave:
 
----
+- Estado remoto com TanStack Query.
+- Dashboard com consolidação analítica em `useDashboardIntelligence`.
+- Responsividade reforçada para CRUDs e modais (sem overflow horizontal visível).
 
-## 🛠️ Comandos Úteis (WSL/Terminal)
+## Dados e integrações
 
-- **Instalar tudo**: `pnpm install`
-- **Rodar em modo Dev (sem Docker)**: `pnpm dev`
-- **Sincronizar schema com banco (local)**: `pnpm --filter @greenly/api db:push`
-- **Abrir Drizzle Studio**: `pnpm --filter @greenly/api db:studio`
+- Banco primário: PostgreSQL.
+- Fila/cache: Redis.
+- Documentos e anexos: storage local configurável por ambiente.
+- Integrações governamentais: módulo dedicado (`integracao-governo`) preparado para evolução.
 
----
-**Status da Migração:** Arquitetura 100% modularizada e pronta para escala.
+## Execução local (resumo)
+
+```bash
+pnpm install
+cp apps/api/.env.example apps/api/.env
+echo "VITE_API_URL=http://localhost:3333/api" > apps/web/.env
+docker compose up -d postgres redis mailhog
+pnpm --filter @greenly/api db:push
+pnpm --filter @greenly/api db:seed
+pnpm dev
+```
+
+## Leitura recomendada
+
+- Visão completa: `README.md`
+- Banco e migrations: `apps/api/db_README.md`
+- Contexto de produto e planejamento: `docs/README.md`
