@@ -36,6 +36,15 @@ import { toast } from "@/components/ui/sonner";
 import type { LicencaResponseDTO } from "@greenly/shared";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getApiErrorMessage } from "@/lib/http-error";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FormErrorCallout } from "@/components/ui/form-error-callout";
+import {
+  ActionableFormError,
+  buildActionableFormError,
+  buildValidationFormError,
+} from "@/lib/form-actionable-error";
+import { useTrackViewLoaded } from "@/hooks/use-track-view-loaded";
+import { trackFirstValidAction, trackFlowCompleted, trackFormError } from "@/lib/telemetry";
 
 const item = {
   hidden: { opacity: 0, y: 8 },
@@ -109,20 +118,6 @@ function toDateInput(value?: string | Date | null) {
   return date.toISOString().slice(0, 10);
 }
 
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4 emerald-glow">
-        <FileCheck className="h-8 w-8 text-primary/70" strokeWidth={1.2} />
-      </div>
-      <h3 className="text-base font-medium text-foreground mb-1">Nenhuma licença encontrada</h3>
-      <p className="text-sm text-muted-foreground/60 max-w-sm">
-        Cadastre a primeira licença ambiental para monitorar prazos e condicionantes.
-      </p>
-    </div>
-  );
-}
-
 function SkeletonTable() {
   return (
     <div className="glass-card overflow-hidden">
@@ -165,6 +160,7 @@ export default function LicencasPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<LicencaResponseDTO | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
+  const [formError, setFormError] = useState<ActionableFormError | null>(null);
 
   const clientMap = useMemo(() => {
     return new Map(clientes.map((c) => [c.id, c.nome]));
@@ -184,10 +180,26 @@ export default function LicencasPage() {
 
   const filters = ["TODAS", "ATIVA", "VENCIDA", "EM_RENOVACAO", "AGUARDANDO_EMISSAO"];
   const isSaving = isCriando || isAtualizando;
+  const hasLicencas = (licencas || []).length > 0;
+  const hasActiveFilter = filter !== "TODAS" || !!search.trim();
+  const isFormReady = !!form.clienteId && !!form.tipo && (!!editing || !!form.orgaoAmbientalId);
+  useTrackViewLoaded("licencas");
+
+  function applyTrackedFormError(
+    nextError: ActionableFormError,
+    source: "validation" | "api",
+  ) {
+    setFormError(nextError);
+    trackFormError("licencas", "licenca_form", nextError, {
+      mode: editing ? "edit" : "create",
+      source,
+    });
+  }
 
   function openCreate() {
     setEditing(null);
     setForm(defaultForm);
+    setFormError(null);
     setOpen(true);
   }
 
@@ -233,23 +245,35 @@ export default function LicencasPage() {
       dataValidade: toDateInput(lic.dataValidade),
       observacoes: "",
     });
+    setFormError(null);
     setOpen(true);
   }
 
   async function handleSave() {
     try {
+      setFormError(null);
+
       if (!form.clienteId) {
-        toast.error("Selecione o cliente da licença.");
+        applyTrackedFormError(
+          buildValidationFormError("Selecione o cliente da licença."),
+          "validation",
+        );
         return;
       }
 
       if (!form.tipo) {
-        toast.error("Selecione o tipo da licença.");
+        applyTrackedFormError(
+          buildValidationFormError("Selecione o tipo da licença."),
+          "validation",
+        );
         return;
       }
 
       if (!editing && !form.orgaoAmbientalId) {
-        toast.error("Selecione o órgão ambiental.");
+        applyTrackedFormError(
+          buildValidationFormError("Selecione o órgão ambiental."),
+          "validation",
+        );
         return;
       }
 
@@ -270,6 +294,11 @@ export default function LicencasPage() {
           },
         });
         toast.success("Licença atualizada com sucesso.");
+        trackFirstValidAction("licencas", "editar_licenca");
+        trackFlowCompleted("licencas", "licenca_atualizada", {
+          tipo: form.tipo,
+          status: form.status,
+        });
       } else {
         await criarLicenca({
           clienteId: form.clienteId,
@@ -284,12 +313,20 @@ export default function LicencasPage() {
           observacoes: form.observacoes || undefined,
         });
         toast.success("Licença criada com sucesso.");
+        trackFirstValidAction("licencas", "criar_licenca");
+        trackFlowCompleted("licencas", "licenca_criada", {
+          tipo: form.tipo,
+          status: form.status,
+        });
       }
 
+      setFormError(null);
       setOpen(false);
     } catch (error: unknown) {
-      const message = getApiErrorMessage(error, "Não foi possível salvar a licença.");
-      toast.error(message);
+      applyTrackedFormError(
+        buildActionableFormError(error, "Não foi possível salvar a licença."),
+        "api",
+      );
     }
   }
 
@@ -348,7 +385,28 @@ export default function LicencasPage() {
         {isLoading ? (
           <SkeletonTable />
         ) : filtered.length === 0 ? (
-          <EmptyState />
+          <EmptyState
+            icon={FileCheck}
+            title={
+              hasLicencas && hasActiveFilter
+                ? "Nenhuma licença para o filtro atual"
+                : "Nenhuma licença encontrada"
+            }
+            description={
+              hasLicencas && hasActiveFilter
+                ? "Limpe filtros e busca para visualizar os registros já cadastrados."
+                : "Cadastre a primeira licença ambiental para monitorar prazos e condicionantes."
+            }
+            actionLabel={hasLicencas && hasActiveFilter ? "Limpar filtros" : "Nova licença"}
+            onAction={
+              hasLicencas && hasActiveFilter
+                ? () => {
+                    setFilter("TODAS");
+                    setSearch("");
+                  }
+                : openCreate
+            }
+          />
         ) : (
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto">
@@ -434,7 +492,15 @@ export default function LicencasPage() {
         )}
       </motion.div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (!nextOpen) {
+            setFormError(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar Licença" : "Nova Licença"}</DialogTitle>
@@ -445,9 +511,24 @@ export default function LicencasPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <FormErrorCallout
+            error={formError}
+            onAction={() => {
+              if (!formError) return;
+              if (formError.actionKind === "retry") {
+                void handleSave();
+                return;
+              }
+              setFormError(null);
+            }}
+          />
+          <p className="text-[11px] text-muted-foreground/70">
+            Campos marcados com * são obrigatórios para salvar.
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
             <div className="space-y-2">
-              <Label>Cliente</Label>
+              <Label>Cliente *</Label>
               <Select value={form.clienteId} onValueChange={(v) => setForm((s) => ({ ...s, clienteId: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um cliente" />
@@ -463,7 +544,7 @@ export default function LicencasPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Órgão Ambiental</Label>
+              <Label>{editing ? "Órgão Ambiental" : "Órgão Ambiental *"}</Label>
               <Select value={form.orgaoAmbientalId} onValueChange={(v) => setForm((s) => ({ ...s, orgaoAmbientalId: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o órgão" />
@@ -479,7 +560,7 @@ export default function LicencasPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Tipo</Label>
+              <Label>Tipo *</Label>
               <Select value={form.tipo} onValueChange={(v) => setForm((s) => ({ ...s, tipo: v }))}>
                 <SelectTrigger>
                   <SelectValue />
@@ -550,7 +631,7 @@ export default function LicencasPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+            <Button onClick={handleSave} disabled={isSaving || !isFormReady} className="gap-2">
               <Save className="h-4 w-4" />
               {isSaving ? "Salvando..." : "Salvar"}
             </Button>

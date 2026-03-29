@@ -10,9 +10,9 @@ Abandonamos a arquitetura de camadas horizontais (DDD clássico) para focar em *
 - **`modules/`**: Cada pasta aqui é uma funcionalidade isolada.
     - `[modulo].controller.ts`: Porta de entrada (Express), lida com a requisição e validação.
     - `[modulo].service.ts`: Onde reside a inteligência e as regras de negócio.
-    - `[modulo].repository.ts`: Abstração de acesso ao banco (Prisma), se houver necessidade de queries complexas.
+    - `[modulo].repository.ts`: Abstração de acesso ao banco (Drizzle), se houver necessidade de queries complexas.
     - `[modulo].routes.ts`: Definição das rotas específicas do módulo.
-- **`shared/`**: Recursos compartilhados (Prisma Client, Middlewares de Auth, Erros Globais, Container de DI).
+- **`shared/`**: Recursos compartilhados (cliente Drizzle, Middlewares de Auth, Erros Globais, Container de DI).
 
 ### 🔵 Front-end (`apps/web/src`)
 - **`features/`**: Inteligência isolada por funcionalidade.
@@ -63,8 +63,8 @@ O banco roda dentro de um container Docker, mas a porta está exposta para o seu
 
 - **Instalar tudo**: `pnpm install`
 - **Rodar em modo Dev (sem Docker)**: `pnpm dev`
-- **Gerar Prisma Client**: `pnpm --filter @greenly/api prisma:generate`
-- **Migrar Banco**: `pnpm --filter @greenly/api prisma:migrate`
+- **Sincronizar schema com banco (local)**: `pnpm --filter @greenly/api db:push`
+- **Abrir Drizzle Studio**: `pnpm --filter @greenly/api db:studio`
 
 ---
 **Status da Migração:** Arquitetura 100% modularizada e pronta para escala.

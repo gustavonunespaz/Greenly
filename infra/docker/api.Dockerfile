@@ -25,9 +25,6 @@ COPY tsconfig.base.json ./
 RUN pnpm --filter @greenly/shared build
 RUN pnpm --filter @greenly/api build
 
-# Gera Prisma Client
-RUN pnpm --filter @greenly/api prisma:generate
-
 # =============================================================
 # Stage 2: Production
 # =============================================================
@@ -41,8 +38,6 @@ ENV NODE_ENV=production
 
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/node_modules ./node_modules
-COPY --from=builder /app/apps/api/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 RUN addgroup -g 1001 -S greenly && adduser -S greenly -u 1001
 USER greenly

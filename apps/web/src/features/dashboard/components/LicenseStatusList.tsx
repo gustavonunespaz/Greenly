@@ -1,5 +1,6 @@
 import { useLicencas } from "@/features/licencas/hooks/useLicencas";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
 import { motion } from "framer-motion";
 import { FileCheck, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -43,13 +44,14 @@ export function LicenseStatusList() {
           ))}
         </div>
       ) : critical.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-10 text-center">
-          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
-            <FileCheck className="h-6 w-6 text-primary" strokeWidth={1.5} />
-          </div>
-          <p className="text-sm text-foreground font-medium">Tudo em dia!</p>
-          <p className="text-xs text-muted-foreground/50 mt-1">Nenhuma licença crítica encontrada</p>
-        </div>
+        <EmptyState
+          icon={FileCheck}
+          title="Tudo em dia!"
+          description="Nenhuma licença crítica encontrada."
+          actionLabel="Cadastrar licença"
+          onAction={() => navigate("/licencas?quickAction=nova-licenca")}
+          compact
+        />
       ) : (
         <div className="space-y-1">
           {critical.map((lic, i) => (

@@ -41,6 +41,15 @@ import { toast } from "@/components/ui/sonner";
 import type { MTRResponseDTO } from "@greenly/shared";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getApiErrorMessage } from "@/lib/http-error";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FormErrorCallout } from "@/components/ui/form-error-callout";
+import {
+  ActionableFormError,
+  buildActionableFormError,
+  buildValidationFormError,
+} from "@/lib/form-actionable-error";
+import { useTrackViewLoaded } from "@/hooks/use-track-view-loaded";
+import { trackFirstValidAction, trackFlowCompleted, trackFormError } from "@/lib/telemetry";
 
 const steps = [
   { key: "EMITIDO", label: "Emitido", icon: Circle },
@@ -203,6 +212,7 @@ export default function MTRsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<MTRResponseDTO | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
+  const [formError, setFormError] = useState<ActionableFormError | null>(null);
 
   const { data: fontesGeradoras = [], isLoading: isLoadingFontes } = useQuery({
     queryKey: ["fontes-geradoras", form.clienteId],
@@ -217,11 +227,32 @@ export default function MTRsPage() {
     return map;
   }, [transportadoras, destinadores]);
 
+  const volumeNumber = Number(form.volume);
+  const isFormReady =
+    !!form.clienteId &&
+    !!form.fonteGeradoraId &&
+    !!form.transportadoraId &&
+    !!form.destinadorId &&
+    Number.isFinite(volumeNumber) &&
+    volumeNumber > 0;
   const isSaving = isEmitindo || isAtualizando || isAvancandoStatus;
+  useTrackViewLoaded("mtrs");
+
+  function applyTrackedFormError(
+    nextError: ActionableFormError,
+    source: "validation" | "api",
+  ) {
+    setFormError(nextError);
+    trackFormError("mtrs", "mtr_form", nextError, {
+      mode: editing ? "edit" : "create",
+      source,
+    });
+  }
 
   function openCreate() {
     setEditing(null);
     setForm(defaultForm);
+    setFormError(null);
     setOpen(true);
   }
 
@@ -269,19 +300,27 @@ export default function MTRsPage() {
       observacoes: mtr.observacoes || "",
       status: mtr.status,
     });
+    setFormError(null);
     setOpen(true);
   }
 
   async function handleSave() {
     try {
+      setFormError(null);
       if (!form.clienteId || !form.fonteGeradoraId || !form.transportadoraId || !form.destinadorId) {
-        toast.error("Preencha cliente, fonte, transportadora e destinador.");
+        applyTrackedFormError(
+          buildValidationFormError("Preencha cliente, fonte geradora, transportadora e destinador."),
+          "validation",
+        );
         return;
       }
 
       const volume = Number(form.volume);
       if (!Number.isFinite(volume) || volume <= 0) {
-        toast.error("Informe um volume válido maior que zero.");
+        applyTrackedFormError(
+          buildValidationFormError("Informe um volume válido maior que zero."),
+          "validation",
+        );
         return;
       }
 
@@ -309,6 +348,11 @@ export default function MTRsPage() {
         }
 
         toast.success("MTR atualizado com sucesso.");
+        trackFirstValidAction("mtrs", "editar_mtr");
+        trackFlowCompleted("mtrs", "mtr_atualizado", {
+          status: form.status,
+          tipoDestinacao: form.tipoDestinacao,
+        });
       } else {
         await emitirMTR({
           clienteId: form.clienteId,
@@ -325,12 +369,20 @@ export default function MTRsPage() {
           observacoes: form.observacoes || undefined,
         });
         toast.success("MTR emitido com sucesso.");
+        trackFirstValidAction("mtrs", "emitir_mtr");
+        trackFlowCompleted("mtrs", "mtr_emitido", {
+          status: form.status,
+          tipoDestinacao: form.tipoDestinacao,
+        });
       }
 
+      setFormError(null);
       setOpen(false);
     } catch (error: unknown) {
-      const message = getApiErrorMessage(error, "Não foi possível salvar o MTR.");
-      toast.error(message);
+      applyTrackedFormError(
+        buildActionableFormError(error, "Não foi possível salvar o MTR."),
+        "api",
+      );
     }
   }
 
@@ -361,13 +413,13 @@ export default function MTRsPage() {
         {isLoading ? (
           <SkeletonMTR />
         ) : !mtrs || mtrs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4 emerald-glow">
-              <Truck className="h-8 w-8 text-primary/70" strokeWidth={1.2} />
-            </div>
-            <h3 className="text-base font-medium text-foreground mb-1">Nenhum MTR emitido</h3>
-            <p className="text-sm text-muted-foreground/60">Emita o primeiro manifesto para iniciar o controle.</p>
-          </div>
+          <EmptyState
+            icon={Truck}
+            title="Nenhum MTR emitido"
+            description="Emita o primeiro manifesto para iniciar o controle."
+            actionLabel="Novo MTR"
+            onAction={openCreate}
+          />
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             {mtrs.map((mtr, i) => (
@@ -423,7 +475,15 @@ export default function MTRsPage() {
         )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (!nextOpen) {
+            setFormError(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar MTR" : "Novo MTR"}</DialogTitle>
@@ -432,9 +492,24 @@ export default function MTRsPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <FormErrorCallout
+            error={formError}
+            onAction={() => {
+              if (!formError) return;
+              if (formError.actionKind === "retry") {
+                void handleSave();
+                return;
+              }
+              setFormError(null);
+            }}
+          />
+          <p className="text-[11px] text-muted-foreground/70">
+            Campos marcados com * são obrigatórios para salvar.
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2 max-h-[70vh] overflow-y-auto pr-1">
             <div className="space-y-2">
-              <Label>Cliente</Label>
+              <Label>Cliente *</Label>
               <Select value={form.clienteId} onValueChange={(v) => setForm((s) => ({ ...s, clienteId: v, fonteGeradoraId: "" }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um cliente" />
@@ -450,7 +525,7 @@ export default function MTRsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Fonte Geradora</Label>
+              <Label>Fonte Geradora *</Label>
               <Select value={form.fonteGeradoraId} onValueChange={(v) => setForm((s) => ({ ...s, fonteGeradoraId: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder={isLoadingFontes ? "Carregando fontes..." : "Selecione a fonte"} />
@@ -466,7 +541,7 @@ export default function MTRsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Transportadora</Label>
+              <Label>Transportadora *</Label>
               <Select value={form.transportadoraId} onValueChange={(v) => setForm((s) => ({ ...s, transportadoraId: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a transportadora" />
@@ -482,7 +557,7 @@ export default function MTRsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Destinador</Label>
+              <Label>Destinador *</Label>
               <Select value={form.destinadorId} onValueChange={(v) => setForm((s) => ({ ...s, destinadorId: v }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o destinador" />
@@ -530,7 +605,7 @@ export default function MTRsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Volume</Label>
+              <Label>Volume *</Label>
               <Input value={form.volume} onChange={(e) => setForm((s) => ({ ...s, volume: e.target.value }))} placeholder="0.000" />
             </div>
 
@@ -580,7 +655,7 @@ export default function MTRsPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+            <Button onClick={handleSave} disabled={isSaving || !isFormReady} className="gap-2">
               <Save className="h-4 w-4" />
               {isSaving ? "Salvando..." : "Salvar"}
             </Button>

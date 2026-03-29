@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { useTrackViewLoaded } from "@/hooks/use-track-view-loaded";
+import { trackFirstValidAction, trackFlowCompleted } from "@/lib/telemetry";
 
 const container = {
   hidden: { opacity: 0 },
@@ -88,6 +90,7 @@ function SkeletonDashboard() {
 export default function DashboardPage() {
   const { metrics, isLoading } = useDashboard();
   const { user } = useAuth();
+  useTrackViewLoaded("dashboard");
 
   if (isLoading) {
     return (
@@ -123,6 +126,16 @@ export default function DashboardPage() {
                 <Link
                   key={action.label}
                   to={action.to}
+                  onClick={() => {
+                    trackFirstValidAction("dashboard", "quick_action_click", {
+                      target: action.to,
+                      actionLabel: action.label,
+                    });
+                    trackFlowCompleted("dashboard", "quick_action_navigation", {
+                      target: action.to,
+                      actionLabel: action.label,
+                    });
+                  }}
                   className="glass-card-interactive p-4 flex items-start gap-3 group"
                 >
                   <div className="h-9 w-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">

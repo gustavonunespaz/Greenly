@@ -27,6 +27,16 @@ import { useClientes } from "@/features/clientes/hooks/useClientes";
 import { toast } from "@/components/ui/sonner";
 import type { StatusCondicionante } from "@greenly/shared";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { EmptyState } from "@/components/ui/empty-state";
+import { getApiErrorMessage } from "@/lib/http-error";
+import { FormErrorCallout } from "@/components/ui/form-error-callout";
+import {
+  ActionableFormError,
+  buildActionableFormError,
+  buildValidationFormError,
+} from "@/lib/form-actionable-error";
+import { useTrackViewLoaded } from "@/hooks/use-track-view-loaded";
+import { trackFirstValidAction, trackFlowCompleted, trackFormError } from "@/lib/telemetry";
 
 const filterLabels: Record<string, string> = {
   TODAS: "Todas",
@@ -74,6 +84,7 @@ export default function CondicionantesPage() {
   const [openCreate, setOpenCreate] = useState(false);
   const [condicionanteDestacadaId, setCondicionanteDestacadaId] = useState<string | null>(null);
   const [novoForm, setNovoForm] = useState<NovoCondicionanteForm>(defaultNovoCondicionanteForm);
+  const [formError, setFormError] = useState<ActionableFormError | null>(null);
   const sorted = [...condicionantes]
     .filter((c) => filter === "TODAS" || c.status === filter)
     .sort((a, b) => {
@@ -83,6 +94,10 @@ export default function CondicionantesPage() {
     });
 
   const filters = ["TODAS", "A_CUMPRIR", "EM_ANDAMENTO", "ATRASADA", "CUMPRIDA"];
+  const hasCondicionantes = condicionantes.length > 0;
+  const hasFilterApplied = filter !== "TODAS";
+  const isCreateFormReady = !!novoForm.licencaId && !!novoForm.descricao.trim();
+  useTrackViewLoaded("condicionantes");
   const clienteMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.nome])), [clientes]);
   const licencasParaSelecao = useMemo(() => {
     return [...licencas].sort((a, b) => {
@@ -92,8 +107,20 @@ export default function CondicionantesPage() {
     });
   }, [licencas, clienteMap]);
 
+  function applyTrackedFormError(
+    nextError: ActionableFormError,
+    source: "validation" | "api",
+  ) {
+    setFormError(nextError);
+    trackFormError("condicionantes", "condicionante_form", nextError, {
+      source,
+      tipo: novoForm.tipo,
+    });
+  }
+
   function openCreateDialog() {
     setNovoForm(defaultNovoCondicionanteForm);
+    setFormError(null);
     setOpenCreate(true);
   }
 
@@ -143,13 +170,20 @@ export default function CondicionantesPage() {
 
   async function handleCriarCondicionante() {
     try {
+      setFormError(null);
       if (!novoForm.licencaId) {
-        toast.error("Selecione uma licença para vincular a condicionante.");
+        applyTrackedFormError(
+          buildValidationFormError("Selecione uma licença para vincular a condicionante."),
+          "validation",
+        );
         return;
       }
 
       if (!novoForm.descricao.trim()) {
-        toast.error("Descreva a condicionante antes de salvar.");
+        applyTrackedFormError(
+          buildValidationFormError("Descreva a condicionante antes de salvar."),
+          "validation",
+        );
         return;
       }
 
@@ -166,16 +200,17 @@ export default function CondicionantesPage() {
       });
 
       toast.success("Condicionante cadastrada com sucesso.");
+      trackFirstValidAction("condicionantes", "criar_condicionante");
+      trackFlowCompleted("condicionantes", "condicionante_criada", {
+        tipo: novoForm.tipo,
+      });
+      setFormError(null);
       setOpenCreate(false);
     } catch (error: unknown) {
-      const message =
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error &&
-        typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error === "string"
-          ? (error as { response: { data: { error: string } } }).response.data.error
-          : "Não foi possível cadastrar a condicionante.";
-      toast.error(message);
+      applyTrackedFormError(
+        buildActionableFormError(error, "Não foi possível cadastrar a condicionante."),
+        "api",
+      );
     }
   }
 
@@ -189,14 +224,12 @@ export default function CondicionantesPage() {
         },
       });
       toast.success("Status da condicionante atualizado.");
+      trackFirstValidAction("condicionantes", "atualizar_status_condicionante");
+      trackFlowCompleted("condicionantes", "condicionante_status_atualizado", {
+        status,
+      });
     } catch (error: unknown) {
-      const message =
-        typeof error === "object" &&
-        error !== null &&
-        "response" in error &&
-        typeof (error as { response?: { data?: { error?: string } } }).response?.data?.error === "string"
-          ? (error as { response: { data: { error: string } } }).response.data.error
-          : "Não foi possível atualizar o status.";
+      const message = getApiErrorMessage(error, "Não foi possível atualizar o status.");
       toast.error(message);
     }
   }
@@ -247,13 +280,25 @@ export default function CondicionantesPage() {
             ))}
           </div>
         ) : sorted.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4 emerald-glow">
-              <ClipboardList className="h-8 w-8 text-primary/70" strokeWidth={1.2} />
-            </div>
-            <h3 className="text-base font-medium text-foreground mb-1">Nenhuma condicionante encontrada</h3>
-            <p className="text-sm text-muted-foreground/50">Altere os filtros para visualizar condicionantes</p>
-          </div>
+          <EmptyState
+            icon={ClipboardList}
+            title={
+              hasCondicionantes && hasFilterApplied
+                ? "Nenhuma condicionante para o filtro atual"
+                : "Nenhuma condicionante encontrada"
+            }
+            description={
+              hasCondicionantes && hasFilterApplied
+                ? "Volte para 'Todas' para revisar o backlog completo."
+                : "Cadastre a primeira condicionante para iniciar o acompanhamento."
+            }
+            actionLabel={hasCondicionantes && hasFilterApplied ? "Ver todas" : "Nova condicionante"}
+            onAction={
+              hasCondicionantes && hasFilterApplied
+                ? () => setFilter("TODAS")
+                : openCreateDialog
+            }
+          />
         ) : (
           <div className="space-y-3">
             {sorted.map((c, i) => (
@@ -333,7 +378,15 @@ export default function CondicionantesPage() {
         )}
       </motion.div>
 
-      <Dialog open={openCreate} onOpenChange={setOpenCreate}>
+      <Dialog
+        open={openCreate}
+        onOpenChange={(nextOpen) => {
+          setOpenCreate(nextOpen);
+          if (!nextOpen) {
+            setFormError(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Nova Condicionante</DialogTitle>
@@ -342,9 +395,24 @@ export default function CondicionantesPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <FormErrorCallout
+            error={formError}
+            onAction={() => {
+              if (!formError) return;
+              if (formError.actionKind === "retry") {
+                void handleCriarCondicionante();
+                return;
+              }
+              setFormError(null);
+            }}
+          />
+          <p className="text-[11px] text-muted-foreground/70">
+            Campos marcados com * são obrigatórios para salvar.
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
             <div className="space-y-2 md:col-span-2">
-              <Label>Licença vinculada</Label>
+              <Label>Licença vinculada *</Label>
               <Select
                 value={novoForm.licencaId}
                 onValueChange={(value) => setNovoForm((s) => ({ ...s, licencaId: value }))}
@@ -363,7 +431,7 @@ export default function CondicionantesPage() {
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <Label>Descrição</Label>
+              <Label>Descrição *</Label>
               <Input
                 value={novoForm.descricao}
                 onChange={(e) => setNovoForm((s) => ({ ...s, descricao: e.target.value }))}
@@ -419,7 +487,7 @@ export default function CondicionantesPage() {
             <Button variant="outline" onClick={() => setOpenCreate(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleCriarCondicionante} disabled={isCriando}>
+            <Button onClick={handleCriarCondicionante} disabled={isCriando || !isCreateFormReady}>
               {isCriando ? "Salvando..." : "Salvar condicionante"}
             </Button>
           </DialogFooter>

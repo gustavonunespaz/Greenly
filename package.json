@@ -10,6 +10,9 @@
     "test:e2e": "pnpm --filter web test:e2e",
     "test:sprint1:smoke": "node ./scripts/smoke-sprint1-flow.mjs",
     "test:sprint2:smoke": "node ./scripts/smoke-sprint2-flow.mjs",
+    "test:cdf:smoke": "node ./scripts/smoke-cdf-flow.mjs",
+    "test:sprint3:smoke": "node ./scripts/smoke-sprint3-flow.mjs",
+    "gate:sprint3": "bash ./scripts/gate-sprint3.sh",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
   },
   "devDependencies": {

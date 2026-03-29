@@ -264,19 +264,29 @@ export interface CondicionanteListItemDTO {
 }
 
 // ─── Resíduos ───────────────────────────
+export const MTRResiduoItemSchema = z.object({
+  tipoResiduoId: z.string().uuid().optional(),
+  codigoIbama: z.string().optional(),
+  descricao: z.string().min(1),
+  quantidade: z.number().positive(),
+  unidadeMedida: z.string().min(1),
+})
+export type MTRResiduoItemDTO = z.infer<typeof MTRResiduoItemSchema>
+
 export const EmitirMTRSchema = z.object({
   clienteId: z.string().uuid(),
   fonteGeradoraId: z.string().uuid(),
   transportadoraId: z.string().uuid(),
   destinadorId: z.string().uuid(),
   tipoDestinacao: z.string(),
-  volume: z.number().positive(),
-  unidadeMedida: z.string(),
+  volume: z.number().positive().optional(),
+  unidadeMedida: z.string().optional(),
   numeroMTR: z.string().optional(),
   placaVeiculo: z.string().optional(),
   nomeMotorista: z.string().optional(),
   cpfMotorista: CpfSchema.optional(),
   observacoes: z.string().optional(),
+  residuos: z.array(MTRResiduoItemSchema).min(1).optional(),
   criadoPorId: z.string().uuid().optional(),
 })
 export type EmitirMTRDTO = z.infer<typeof EmitirMTRSchema>
@@ -294,6 +304,7 @@ export const AtualizarMTRSchema = z.object({
   nomeMotorista: z.string().optional().nullable(),
   cpfMotorista: CpfSchema.optional().nullable(),
   observacoes: z.string().optional().nullable(),
+  residuos: z.array(MTRResiduoItemSchema).min(1).optional(),
 })
 export type AtualizarMTRDTO = z.infer<typeof AtualizarMTRSchema>
 
@@ -315,6 +326,7 @@ export interface MTRResponseDTO {
   nomeMotorista?: string | null
   cpfMotorista?: string | null
   observacoes?: string | null
+  residuos?: MTRResiduoItemDTO[]
 }
 
 export const AvancarStatusMTRSchema = z.object({
@@ -322,6 +334,32 @@ export const AvancarStatusMTRSchema = z.object({
   novoStatus: z.string(),
 })
 export type AvancarStatusMTRDTO = z.infer<typeof AvancarStatusMTRSchema>
+
+export const EmitirCDFSchema = z.object({
+  clienteId: z.string().uuid(),
+  destinadorId: z.string().uuid(),
+  mtrIds: z.array(z.string().uuid()).min(1),
+  sistema: z.enum(['SINIR', 'SIGOR']).optional(),
+  numeroCdf: z.string().optional(),
+  numeroCdfExterno: z.string().optional(),
+  dataEmissao: z.coerce.date().optional(),
+  observacoes: z.string().optional(),
+  criadoPorId: z.string().uuid().optional(),
+})
+export type EmitirCDFDTO = z.infer<typeof EmitirCDFSchema>
+
+export interface CDFResponseDTO {
+  id: string
+  clienteId: string
+  destinadorId: string
+  sistema: 'SINIR' | 'SIGOR'
+  status: string
+  numeroCdf: string
+  numeroCdfExterno?: string | null
+  dataEmissao: Date
+  observacoes?: string | null
+  mtrIds: string[]
+}
 
 export const CriarFonteGeradoraSchema = z.object({
   clienteId: z.string().uuid(),
@@ -354,4 +392,28 @@ export interface ParceiroResponseDTO {
   tipo: string
   licencaAtiva: boolean
   licencaValidade?: Date | null
+}
+
+export const CriarParceiroSchema = z.object({
+  nome: z.string().min(2),
+  cnpj: CnpjSchema,
+  tipo: z.enum(['TRANSPORTADORA', 'DESTINADOR_FINAL', 'TRANSPORTADORA_E_DESTINADOR']),
+  email: z.string().email().optional(),
+  telefone: z.string().optional(),
+  cidade: z.string().optional(),
+  estado: z.string().max(2).optional(),
+  licencaNumero: z.string().optional(),
+  licencaValidade: z.coerce.date().optional(),
+  licencaUrl: z.string().optional(),
+  licencaAtiva: z.boolean().optional(),
+})
+export type CriarParceiroDTO = z.infer<typeof CriarParceiroSchema>
+
+export interface TipoResiduoOptionDTO {
+  id: string
+  codigoIbama?: string | null
+  descricao: string
+  classe: string
+  estadoFisico: string
+  perigoso: boolean
 }

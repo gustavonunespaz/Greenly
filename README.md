@@ -11,7 +11,7 @@
 
 **Plataforma SaaS B2B de Gestão e Compliance Ambiental**
 
-*Centralize operações. Elimine riscos legais. Rastreie do berço ao túmulo.*
+_Centralize operações. Elimine riscos legais. Rastreie do berço ao túmulo._
 
 ---
 
@@ -55,11 +55,11 @@ O **Greenly** é uma plataforma SaaS B2B construída para consultorias ambientai
 
 O sistema resolve três problemas críticos do setor:
 
-| Problema | Consequência sem o Greenly | Como o Greenly resolve |
-|---|---|---|
-| Licenças ambientais vencendo sem renovação | Multas, embargos, interrupção de operação | Dashboard com alertas proativos em 120/60/30 dias (janela configuravel) |
-| Condicionantes não cumpridas | Autuação pelo órgão ambiental, cassação de licença | Motor de alertas periódicos com rastreamento por ciclo |
-| Resíduos sem rastreabilidade completa | Responsabilidade civil solidária na cadeia | Controle de MTR do berço ao CDF, validação de terceiros |
+| Problema                                   | Consequência sem o Greenly                         | Como o Greenly resolve                                                  |
+| ------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------- |
+| Licenças ambientais vencendo sem renovação | Multas, embargos, interrupção de operação          | Dashboard com alertas proativos em 120/60/30 dias (janela configuravel) |
+| Condicionantes não cumpridas               | Autuação pelo órgão ambiental, cassação de licença | Motor de alertas periódicos com rastreamento por ciclo                  |
+| Resíduos sem rastreabilidade completa      | Responsabilidade civil solidária na cadeia         | Controle de MTR do berço ao CDF, validação de terceiros                 |
 
 ### Quem usa o Greenly
 
@@ -89,11 +89,13 @@ Hoje, esse trabalho é feito em planilhas Excel, e-mails e memória humana.
 ### Riscos Gerenciados pelo Greenly
 
 **Eixo Legal — Licenças e Condicionantes**
+
 - Licença Prévia (LP), de Instalação (LI) e de Operação (LO) têm validades distintas e exigem renovação protocolar 120 dias antes do vencimento
 - Cada licença pode conter dezenas de **condicionantes** — exigências que o empreendimento deve cumprir periodicamente (relatórios, monitoramentos, plantios, laudos)
 - O descumprimento é autuado pelo órgão licenciador e pode gerar cassação da licença
 
 **Eixo Operacional — Resíduos Sólidos**
+
 - A PNRS (Política Nacional de Resíduos Sólidos) exige rastreabilidade total dos resíduos gerados
 - O **MTR (Manifesto de Transporte de Resíduos)** documenta cada saída, e o **CDF (Certificado de Destinação Final)** encerra o ciclo
 - Uma transportadora ou destinador com licença vencida torna a empresa co-responsável pelo passivo ambiental gerado
@@ -104,24 +106,25 @@ Hoje, esse trabalho é feito em planilhas Excel, e-mails e memória humana.
 
 ### Por que cada tecnologia foi escolhida
 
-| Tecnologia | Versão | Papel | Justificativa |
-|---|---|---|---|
-| **TypeScript** | 5.x | Linguagem core (front + back) | Contratos estritos entre camadas, detecção de erros em compile-time, autocomplete rico para regras de negócio complexas |
-| **Node.js** | 22.x LTS | Runtime do backend | Assíncrono por natureza, ideal para I/O intensivo (BD, Redis, uploads), ecossistema maduro |
-| **Express.js** | 5.x | HTTP Server | Minimalista, compositional, permite estruturar middleware sem opiniões que conflitem com Clean Architecture |
-| **React** | 18.x | Frontend SPA | Componentização para painéis de controle complexos, ecossistema rico, base madura para evolução incremental |
-| **Vite** | 8.x | Build tool do frontend | HMR instantâneo, tree-shaking agressivo, build de produção otimizado |
-| **PostgreSQL** | 16 | Banco relacional principal | ACID compliance obrigatório para dados legais/transacionais, suporte robusto a multi-tenant via RLS ou column-level isolation, JSON nativo para auditoria |
-| **Drizzle ORM** | 0.31.x | ORM / Data Access Layer | Type-safe com SQL explícito, schema em TypeScript e integração direta com PostgreSQL |
-| **Redis** | 7.x | Cache + Mensageria | Cache de queries pesadas do dashboard, sessões, filas de background jobs via BullMQ |
-| **BullMQ** | 5.x | Sistema de filas (sobre Redis) | Processamento confiável de jobs com retry, delay, concorrência e observabilidade |
-| **Docker** | 26.x | Conteinerização | Ambientes reproduzíveis, multistage builds para imagens enxutas |
-| **Kubernetes** | 1.30+ | Orquestração | Self-healing, HPA para scale horizontal, rolling deployments sem downtime |
-| **Nginx** | 1.26 | Reverse proxy / Static files | Roteamento de tráfego, compressão gzip, servir assets do frontend |
+| Tecnologia      | Versão   | Papel                          | Justificativa                                                                                                                                             |
+| --------------- | -------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **TypeScript**  | 5.x      | Linguagem core (front + back)  | Contratos estritos entre camadas, detecção de erros em compile-time, autocomplete rico para regras de negócio complexas                                   |
+| **Node.js**     | 22.x LTS | Runtime do backend             | Assíncrono por natureza, ideal para I/O intensivo (BD, Redis, uploads), ecossistema maduro                                                                |
+| **Express.js**  | 5.x      | HTTP Server                    | Minimalista, compositional, permite estruturar middleware sem opiniões que conflitem com Clean Architecture                                               |
+| **React**       | 18.x     | Frontend SPA                   | Componentização para painéis de controle complexos, ecossistema rico, base madura para evolução incremental                                               |
+| **Vite**        | 8.x      | Build tool do frontend         | HMR instantâneo, tree-shaking agressivo, build de produção otimizado                                                                                      |
+| **PostgreSQL**  | 16       | Banco relacional principal     | ACID compliance obrigatório para dados legais/transacionais, suporte robusto a multi-tenant via RLS ou column-level isolation, JSON nativo para auditoria |
+| **Drizzle ORM** | 0.31.x   | ORM / Data Access Layer        | Type-safe com SQL explícito, schema em TypeScript e integração direta com PostgreSQL                                                                      |
+| **Redis**       | 7.x      | Cache + Mensageria             | Cache de queries pesadas do dashboard, sessões, filas de background jobs via BullMQ                                                                       |
+| **BullMQ**      | 5.x      | Sistema de filas (sobre Redis) | Processamento confiável de jobs com retry, delay, concorrência e observabilidade                                                                          |
+| **Docker**      | 26.x     | Conteinerização                | Ambientes reproduzíveis, multistage builds para imagens enxutas                                                                                           |
+| **Kubernetes**  | 1.30+    | Orquestração                   | Self-healing, HPA para scale horizontal, rolling deployments sem downtime                                                                                 |
+| **Nginx**       | 1.26     | Reverse proxy / Static files   | Roteamento de tráfego, compressão gzip, servir assets do frontend                                                                                         |
 
 ### Bibliotecas de Suporte
 
 **Backend**
+
 ```
 zod              — Validação e parsing de DTOs com TypeScript inference
 jsonwebtoken     — Geração e verificação de JWTs
@@ -135,6 +138,7 @@ dayjs            — Manipulação de datas (cálculo de prazos, vencimentos)
 ```
 
 **Frontend**
+
 ```
 react-router-dom — Roteamento SPA
 @tanstack/react-query — Server state, cache de requisições, invalidação automática
@@ -148,6 +152,7 @@ tailwindcss      — Utility-first CSS
 ```
 
 **DevOps / Tooling**
+
 ```
 pnpm             — Package manager (workspaces para o monorepo)
 eslint + prettier — Qualidade e formatação de código
@@ -163,6 +168,7 @@ playwright       — E2E tests
 ### Padrão: Monolítico Modular com Clean Architecture
 
 O Greenly é um **monolito**, escolhido deliberadamente para o MVP:
+
 - Menor complexidade operacional (sem latência de rede entre serviços)
 - Deploy simplificado no Kubernetes
 - Refatoração para microsserviços possível no futuro sem reescrever o domínio
@@ -276,7 +282,6 @@ apps/api/
 ├── drizzle.config.ts
 ├── .env.example
 ├── db_README.md
-├── prisma/                         # legado (schema/SQL histórico)
 └── src/
     ├── app.ts
     ├── server.ts
@@ -488,15 +493,15 @@ Renovação (POST /api/auth/refresh)
 
 ### RBAC — Controle de Acesso por Role
 
-| Recurso | ADMIN | ANALISTA | VIEWER |
-|---|---|---|---|
-| Gerenciar usuários da consultoria | ✅ | ❌ | ❌ |
-| Ver todos os clientes | ✅ | ❌ (só designados) | ❌ (só o próprio) |
-| CRUD de licenças | ✅ | ✅ | ❌ |
-| Emitir MTR | ✅ | ✅ | ❌ |
-| Ver dashboard própria empresa | ✅ | ✅ | ✅ |
-| Exportar relatórios | ✅ | ✅ | ❌ |
-| Configurações da consultoria | ✅ | ❌ | ❌ |
+| Recurso                           | ADMIN | ANALISTA           | VIEWER            |
+| --------------------------------- | ----- | ------------------ | ----------------- |
+| Gerenciar usuários da consultoria | ✅    | ❌                 | ❌                |
+| Ver todos os clientes             | ✅    | ❌ (só designados) | ❌ (só o próprio) |
+| CRUD de licenças                  | ✅    | ✅                 | ❌                |
+| Emitir MTR                        | ✅    | ✅                 | ❌                |
+| Ver dashboard própria empresa     | ✅    | ✅                 | ✅                |
+| Exportar relatórios               | ✅    | ✅                 | ❌                |
+| Configurações da consultoria      | ✅    | ❌                 | ❌                |
 
 ---
 
@@ -506,29 +511,33 @@ O sistema de alertas é construído sobre **Redis + BullMQ**, operando com dois 
 
 ### Cron Jobs (node-cron)
 
-| Job | Frequência | O que faz |
-|---|---|---|
-| `VarreduraAlertasCron` | Todo dia as 07:00 | Varre licencas e condicionantes proximas do prazo e enfileira alertas |
-| `StatusUpdaterCron` | Todo dia as 00:30 | Atualiza status de licencas vencidas e condicionantes atrasadas automaticamente |
+| Job                    | Frequência        | O que faz                                                                       |
+| ---------------------- | ----------------- | ------------------------------------------------------------------------------- |
+| `VarreduraAlertasCron` | Todo dia as 07:00 | Varre licencas e condicionantes proximas do prazo e enfileira alertas           |
+| `StatusUpdaterCron`    | Todo dia as 00:30 | Atualiza status de licencas vencidas e condicionantes atrasadas automaticamente |
 
 ### Regras de Alerta
 
 **Licencas:**
+
 - Janela legal de renovacao (padrao: 120 dias) -> alerta preventivo
 - 60 dias -> alerta de urgencia
 - 30 dias -> alerta critico
 
 **Condicionantes:**
+
 - Janela configuravel (padrao: 30 dias) -> lembrete
 - 7 dias antes -> urgencia
 - No dia -> critico
 - Apos o prazo -> status muda para ATRASADA automaticamente
 
 **MTRs:**
+
 - 30 dias sem CDF apos emissao -> lembrete
 - 60 dias -> urgencia
 
 **Parceiros:**
+
 - Janela configuravel (padrao: 60 dias) antes do vencimento da licenca -> alerta preventivo
 
 ### Filas BullMQ
@@ -546,6 +555,7 @@ greenly:notificacoes     — Fila para notificações in-app
 ### Docker
 
 **Multistage Build da API:**
+
 ```
 Stage 1 (builder): node:22-alpine → instala deps, compila TypeScript
 Stage 2 (prod):    node:22-alpine → copia apenas dist/ e node_modules de prod
@@ -553,9 +563,9 @@ Tamanho final: ~150MB
 ```
 
 **docker-compose.yml (desenvolvimento local):**
+
 ```yaml
-Serviços:
-  api       → localhost:3333
+Serviços: api       → localhost:3333
   web       → localhost:8081 (container Nginx servindo o build)
   postgres  → localhost:5435
   redis     → localhost:6379
@@ -566,14 +576,14 @@ Serviços:
 
 **Componentes:**
 
-| Recurso | Configuração |
-|---|---|
-| `api-deployment` | 2 réplicas mínimas, rolling update |
-| `api-hpa` | CPU > 70% → escala até 10 réplicas |
-| `web-deployment` | 2 réplicas (Nginx servindo build React) |
-| `ingress` | TLS via cert-manager, roteamento `/api` → api, `/` → web |
-| `configmap` | `NODE_ENV`, `LOG_LEVEL`, `REDIS_HOST` |
-| `secrets` | Referências ao AWS Secrets Manager (não commitados) |
+| Recurso          | Configuração                                             |
+| ---------------- | -------------------------------------------------------- |
+| `api-deployment` | 2 réplicas mínimas, rolling update                       |
+| `api-hpa`        | CPU > 70% → escala até 10 réplicas                       |
+| `web-deployment` | 2 réplicas (Nginx servindo build React)                  |
+| `ingress`        | TLS via cert-manager, roteamento `/api` → api, `/` → web |
+| `configmap`      | `NODE_ENV`, `LOG_LEVEL`, `REDIS_HOST`                    |
+| `secrets`        | Referências ao AWS Secrets Manager (não commitados)      |
 
 **PostgreSQL e Redis em produção:** Serviços gerenciados externos ao cluster (ex: AWS RDS + ElastiCache) para garantir persistência, backups automatizados e segurança.
 
@@ -682,6 +692,18 @@ pnpm test:e2e
 
 # Watch mode (desenvolvimento)
 pnpm --filter @greenly/api test:watch
+
+# Smokes de fluxo (API/Web)
+pnpm test:sprint1:smoke
+pnpm test:sprint2:smoke
+pnpm test:cdf:smoke
+pnpm test:sprint3:smoke
+
+# Gate técnico completo da Sprint 3
+pnpm gate:sprint3
+
+# Operação de homologação externa (guiada)
+# ver: docs/sprint3_homologacao_externa_runbook.md
 ```
 
 ---
@@ -747,16 +769,16 @@ VITE_API_URL=http://localhost:3333/api
 
 ### Nomenclatura
 
-| Artefato | Convenção | Exemplo |
-|---|---|---|
-| Arquivos de domínio | `PascalCase.ts` | `Licenca.ts`, `Email.vo.ts` |
-| Use Cases | `VerbSubstantivoUseCase.ts` | `CriarLicencaUseCase.ts` |
-| Interfaces (Ports) | `IPascalCase.ts` | `ILicencaRepository.ts` |
-| Controllers | `kebab-case.controller.ts` | `licencas.controller.ts` |
-| DTOs | `acao-recurso.dto.ts` | `criar-licenca.dto.ts` |
-| Erros de domínio | `NomeCamelCase.error.ts` | `LicencaVencida.error.ts` |
-| Componentes React | `PascalCase.tsx` | `LicencaStatusBadge.tsx` |
-| Hooks | `useCamelCase.ts` | `useLicencas.ts` |
+| Artefato            | Convenção                   | Exemplo                     |
+| ------------------- | --------------------------- | --------------------------- |
+| Arquivos de domínio | `PascalCase.ts`             | `Licenca.ts`, `Email.vo.ts` |
+| Use Cases           | `VerbSubstantivoUseCase.ts` | `CriarLicencaUseCase.ts`    |
+| Interfaces (Ports)  | `IPascalCase.ts`            | `ILicencaRepository.ts`     |
+| Controllers         | `kebab-case.controller.ts`  | `licencas.controller.ts`    |
+| DTOs                | `acao-recurso.dto.ts`       | `criar-licenca.dto.ts`      |
+| Erros de domínio    | `NomeCamelCase.error.ts`    | `LicencaVencida.error.ts`   |
+| Componentes React   | `PascalCase.tsx`            | `LicencaStatusBadge.tsx`    |
+| Hooks               | `useCamelCase.ts`           | `useLicencas.ts`            |
 
 ### Commits
 
@@ -788,7 +810,11 @@ As camadas `domain/` e `application/` não podem importar nada de `infrastructur
 
 ## 15. Roadmap
 
+Status da Onda 1 (Sprints 1-3): concluída tecnicamente.
+Observação: o checklist abaixo inclui metas ampliadas de MVP/pós-MVP, portanto alguns itens permanecem abertos mesmo com a Onda 1 encerrada.
+
 ### MVP (atual)
+
 - [x] Schema do banco de dados completo
 - [ ] Autenticação JWT + RBAC
 - [ ] Módulo de Licenças (CRUD + upload de documentos)
@@ -800,6 +826,7 @@ As camadas `domain/` e `application/` não podem importar nada de `infrastructur
 - [ ] Deploy K8s no ambiente de staging
 
 ### Pós-MVP (v1.1)
+
 - [ ] Relatórios exportáveis em PDF (inventário anual de resíduos, condicionantes cumpridas)
 - [ ] Portal do cliente (self-service para o visualizador)
 - [ ] Integração com SINIR (Sistema Nacional de Informações sobre a Gestão de Resíduos)
@@ -807,6 +834,7 @@ As camadas `domain/` e `application/` não podem importar nada de `infrastructur
 - [ ] API pública para integração com sistemas dos clientes
 
 ### Futuro (v2.0)
+
 - [ ] Módulo de Outorgas (uso de recursos hídricos)
 - [ ] Módulo de PPRA/PCMSO (saúde e segurança do trabalho)
 - [ ] Georreferenciamento de áreas de influência
@@ -839,6 +867,7 @@ main          ←── PRs aprovados (deploy automático para produção)
 ### Abrindo Issues
 
 Use os templates disponíveis em `.github/ISSUE_TEMPLATE/`:
+
 - `bug_report.md` — para bugs encontrados
 - `feature_request.md` — para novas funcionalidades
 - `adr.md` — para propor decisões arquiteturais
@@ -847,7 +876,7 @@ Use os templates disponíveis em `.github/ISSUE_TEMPLATE/`:
 
 ## 🔑 Credenciais Padrão
 
-- **Banco de Dados**: 
+- **Banco de Dados**:
   - Usuário: `postgres`
   - Senha: `greenly`
   - Banco: `greenly`
@@ -861,6 +890,6 @@ Use os templates disponíveis em `.github/ISSUE_TEMPLATE/`:
 
 **Greenly** — Construído com propósito. Para um compliance ambiental sem surpresas.
 
-*Desenvolvido por Gu & Kara* 🌿
+_Desenvolvido por Gu & Kara_ 🌿
 
 </div>

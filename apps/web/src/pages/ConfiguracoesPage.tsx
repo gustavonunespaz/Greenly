@@ -4,10 +4,30 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { User, Building2, Bell, Shield, Save, CheckCircle2 } from "lucide-react";
+import {
+  User,
+  Building2,
+  Bell,
+  Shield,
+  Save,
+  CheckCircle2,
+  BarChart3,
+  RefreshCcw,
+  Eraser,
+  Gauge,
+  Target,
+  AlertTriangle,
+  Copy,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useState } from "react";
+import { useTrackViewLoaded } from "@/hooks/use-track-view-loaded";
+import { useTelemetryBaseline } from "@/hooks/use-telemetry-baseline";
+import {
+  formatTelemetryBaselineMarkdown,
+  type BaselineTargetStatus,
+} from "@/lib/telemetry-baseline";
 
 const container = {
   hidden: { opacity: 0 },
@@ -18,10 +38,32 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" } },
 };
 
+function formatMetric(value: number | null, suffix = "", digits = 1) {
+  if (value === null) return "Sem dados";
+  return `${value.toFixed(digits)}${suffix}`;
+}
+
+function targetLabel(status: BaselineTargetStatus) {
+  if (status === "on_track") return "Na meta";
+  if (status === "off_track") return "Fora da meta";
+  return "Dados insuficientes";
+}
+
+function targetClassName(status: BaselineTargetStatus) {
+  if (status === "on_track") return "bg-primary/10 text-primary ring-primary/20";
+  if (status === "off_track") return "bg-destructive/10 text-destructive ring-destructive/20";
+  return "bg-muted/50 text-muted-foreground ring-border";
+}
+
 export default function ConfiguracoesPage() {
   const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isRefreshingBaseline, setIsRefreshingBaseline] = useState(false);
+  const [isClearingBaseline, setIsClearingBaseline] = useState(false);
+  const [copiedBaseline, setCopiedBaseline] = useState(false);
+  const { report, refresh, clear } = useTelemetryBaseline(7);
+  useTrackViewLoaded("configuracoes");
 
   const handleSave = () => {
     setIsSaving(true);
@@ -31,6 +73,54 @@ export default function ConfiguracoesPage() {
       setTimeout(() => setSaved(false), 2000);
     }, 1000);
   };
+
+  const handleRefreshBaseline = () => {
+    setIsRefreshingBaseline(true);
+    refresh();
+    setTimeout(() => setIsRefreshingBaseline(false), 300);
+  };
+
+  const handleClearBaseline = () => {
+    const confirmed = window.confirm(
+      "Limpar os eventos locais de telemetria deste navegador?",
+    );
+    if (!confirmed) return;
+
+    setIsClearingBaseline(true);
+    clear();
+    setTimeout(() => setIsClearingBaseline(false), 300);
+  };
+
+  async function handleCopyBaselineSnapshot() {
+    const content = formatTelemetryBaselineMarkdown(report);
+
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedBaseline(true);
+      setTimeout(() => setCopiedBaseline(false), 2000);
+      return;
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = content;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "absolute";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textarea);
+      setCopiedBaseline(true);
+      setTimeout(() => setCopiedBaseline(false), 2000);
+    }
+  }
+
+  const activeScreens = report.screens.filter(
+    (screen) =>
+      screen.views > 0 ||
+      screen.firstValidActions > 0 ||
+      screen.flowCompleted > 0 ||
+      screen.formErrors > 0,
+  );
 
   return (
     <AppLayout title="Configurações">
@@ -180,6 +270,199 @@ export default function ConfiguracoesPage() {
             </div>
           </motion.div>
         </div>
+
+        <motion.div variants={item}>
+          <div className="glass-card overflow-hidden">
+            <div className="p-5 border-b border-white/[0.06] bg-white/[0.01] flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <BarChart3 className="h-5 w-5 text-primary" strokeWidth={1.5} />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Painel Interno de Produto</h3>
+                  <p className="text-xs text-muted-foreground/60">
+                    Baseline Sprint 3 com dados locais dos últimos {report.windowDays} dias.
+                  </p>
+                </div>
+              </div>
+              <Badge variant="outline" className="bg-white/[0.03] border-white/[0.06] text-[10px] uppercase tracking-wider">
+                Atualizado em {new Date(report.generatedAt).toLocaleString("pt-BR")}
+              </Badge>
+            </div>
+
+            <div className="p-5 space-y-5">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs text-muted-foreground/70">
+                  Métricas calculadas sobre eventos de `view_loaded`, `first_valid_action`, `flow_completed` e `form_error`.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs bg-white/[0.03] border-white/[0.06]"
+                    onClick={handleRefreshBaseline}
+                    disabled={isRefreshingBaseline}
+                  >
+                    <RefreshCcw className={`h-3.5 w-3.5 mr-1.5 ${isRefreshingBaseline ? "animate-spin" : ""}`} />
+                    Atualizar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs bg-white/[0.03] border-white/[0.06]"
+                    onClick={handleClearBaseline}
+                    disabled={isClearingBaseline}
+                  >
+                    <Eraser className="h-3.5 w-3.5 mr-1.5" />
+                    Limpar baseline local
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs bg-white/[0.03] border-white/[0.06]"
+                    onClick={() => {
+                      void handleCopyBaselineSnapshot();
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    Copiar baseline
+                  </Button>
+                </div>
+              </div>
+              {copiedBaseline && (
+                <p className="text-[11px] text-primary/80">
+                  Snapshot copiado em Markdown para colar no relatório de usabilidade.
+                </p>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground/60 uppercase tracking-wider">TTFV Médio</p>
+                    <Gauge className="h-3.5 w-3.5 text-primary/70" />
+                  </div>
+                  <p className="text-2xl font-semibold text-foreground tabular-nums">
+                    {formatMetric(report.summary.ttfvAvgSeconds, "s")}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-muted-foreground/60">
+                      Meta: ≤ {report.targets.ttfvAvgSeconds}s
+                    </p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ring-1 ${targetClassName(report.summary.statuses.ttfv)}`}>
+                      {targetLabel(report.summary.statuses.ttfv)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground/60 uppercase tracking-wider">Conclusão de Fluxos</p>
+                    <Target className="h-3.5 w-3.5 text-primary/70" />
+                  </div>
+                  <p className="text-2xl font-semibold text-foreground tabular-nums">
+                    {formatMetric(report.summary.completionRatePct, "%")}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-muted-foreground/60">
+                      Meta: ≥ {report.targets.completionRatePct}%
+                    </p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ring-1 ${targetClassName(report.summary.statuses.completion)}`}>
+                      {targetLabel(report.summary.statuses.completion)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground/60 uppercase tracking-wider">Erros por Sessão</p>
+                    <AlertTriangle className="h-3.5 w-3.5 text-warning" />
+                  </div>
+                  <p className="text-2xl font-semibold text-foreground tabular-nums">
+                    {formatMetric(report.summary.errorsPerSession, "", 2)}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-muted-foreground/60">
+                      Meta: ≤ {report.targets.errorsPerSession}
+                    </p>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full ring-1 ${targetClassName(report.summary.statuses.errors)}`}>
+                      {targetLabel(report.summary.statuses.errors)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground/60 uppercase tracking-wider">Volume da Base</p>
+                    <BarChart3 className="h-3.5 w-3.5 text-primary/70" />
+                  </div>
+                  <p className="text-2xl font-semibold text-foreground tabular-nums">
+                    {report.summary.sessionCount}
+                  </p>
+                  <div className="text-[11px] text-muted-foreground/60">
+                    {report.summary.totalEvents} eventos capturados
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.01] p-4">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-3">Leitura por Tela</p>
+                  <div className="space-y-2">
+                    {activeScreens.length === 0 ? (
+                      <p className="text-xs text-muted-foreground/60">
+                        Ainda sem dados suficientes. Navegue nas telas e execute ações para gerar baseline.
+                      </p>
+                    ) : (
+                      activeScreens.map((screen) => (
+                        <div key={screen.screen} className="rounded-lg border border-white/[0.05] px-3 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm text-foreground font-medium">{screen.label}</p>
+                            <span className="text-[10px] text-muted-foreground/70 px-2 py-0.5 rounded-full bg-white/[0.03] ring-1 ring-white/[0.06]">
+                              {screen.completionRatePct === null
+                                ? "Sem taxa"
+                                : `${screen.completionRatePct.toFixed(1)}%`}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground/65 mt-1">
+                            Views {screen.views} · Ações {screen.firstValidActions} · Conclusões {screen.flowCompleted} · Erros {screen.formErrors}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground/55 mt-0.5">
+                            TTFV médio: {screen.ttfvAvgSeconds === null ? "Sem dados" : `${screen.ttfvAvgSeconds.toFixed(1)}s`}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.01] p-4">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground/60 mb-3">Fluxos Mais Concluídos</p>
+                  <div className="space-y-2">
+                    {report.flows.length === 0 ? (
+                      <p className="text-xs text-muted-foreground/60">
+                        Nenhum fluxo concluído registrado no período selecionado.
+                      </p>
+                    ) : (
+                      report.flows.slice(0, 6).map((flow) => (
+                        <div key={flow.flow} className="rounded-lg border border-white/[0.05] px-3 py-2 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm text-foreground truncate">{flow.flow}</p>
+                            <p className="text-[11px] text-muted-foreground/60">
+                              {flow.completed} conclusão(ões)
+                            </p>
+                          </div>
+                          <span className="text-[11px] text-primary font-medium tabular-nums">
+                            {flow.sharePct.toFixed(1)}%
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Action bar */}
         <motion.div variants={item} className="flex justify-end pt-6 border-t border-white/[0.06] pb-10">

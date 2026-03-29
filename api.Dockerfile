@@ -2,7 +2,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Instalar dependências de sistema para o Prisma e pnpm
+# Instalar dependências de sistema e pnpm
 RUN apk add --no-cache openssl libc6-compat
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
@@ -18,9 +18,6 @@ RUN pnpm install --no-frozen-lockfile
 # Copiar o código fonte
 COPY apps/api ./apps/api
 COPY packages/shared ./packages/shared
-
-# Gerar o Prisma Client
-RUN cd apps/api && pnpm exec prisma generate
 
 # Build dos pacotes
 RUN cd packages/shared && pnpm run build
@@ -41,7 +38,6 @@ COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
-COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 
 WORKDIR /app/apps/api

@@ -2,9 +2,118 @@
 
 Todas as mudanças relevantes do Greenly serão registradas aqui.
 
+## [2026-03-28] - Hardening relacional e remoção de legado ORM
+
+### Banco de dados (Drizzle)
+
+- Modelo relacional reforçado para MTR/CDF:
+  - nova tabela `mtr_itens` (detalhamento 1:N de resíduos por MTR),
+  - novas tabelas `cdfs` e `cdf_mtrs` (vínculo formal CDF ↔ múltiplos MTRs).
+- Integridade referencial fechada para IDs pendentes:
+  - `condicionantes.responsavelId` -> `usuarios`,
+  - `historico_licencas.usuarioId` -> `usuarios`,
+  - `historico_condicionantes.usuarioId` -> `usuarios`,
+  - `historico_mtr.usuarioId` -> `usuarios`.
+- Auditoria estruturada com FKs tipadas por entidade em `logs_auditoria`:
+  - `clienteId`, `licencaId`, `condicionanteId`, `mtrId`, `parceiroId`, `cdfId`, `notificacaoId`.
+- Índices/uniques críticos adicionados:
+  - `licencas_parceiro(parceiroId, numero)` único,
+  - índices de suporte em `mtrs.fonteGeradoraId`, `condicionantes.responsavelId` e históricos.
+
+### Backend operacional
+
+- Fluxo de resíduos evoluído:
+  - emissão de MTR agora persiste itens em `mtr_itens`,
+  - atualização de MTR suporta substituição dos itens de resíduos.
+- Novo fluxo de CDF na API de resíduos:
+  - emissão de CDF com vínculo explícito de múltiplos MTRs,
+  - atualização automática dos MTRs vinculados para `CDF_EMITIDO`.
+- Endpoints de apoio para operação e smoke de CDF:
+  - `POST /residuos/parceiros` (cadastro operacional de parceiro),
+  - `GET /residuos/tipos-residuo` (catálogo para criação de fonte geradora).
+
+### Qualidade e validação
+
+- Novo smoke test dedicado de CDF ponta a ponta:
+  - `scripts/smoke-cdf-flow.mjs`,
+  - script raiz `test:cdf:smoke`.
+- Cobertura do smoke:
+  - cliente dedicado de teste,
+  - provisionamento de parceiros e fonte geradora,
+  - emissão de MTR -> avanço para `RECEBIDO` -> emissão de CDF,
+  - validação de status final `CDF_EMITIDO` e trilha de auditoria (`entidade=CDF`).
+- Gate técnico automatizado da Sprint 3:
+  - script local `scripts/gate-sprint3.sh`,
+  - comando raiz `pnpm gate:sprint3`,
+  - workflow CI `.github/workflows/sprint3-gate.yml` com Postgres/Redis.
+
+### Motor de alertas
+
+- `alertas_agendados` integrado ao fluxo real:
+  - cron persiste alertas na tabela antes de enfileirar jobs,
+  - worker atualiza tentativas, erro e `processadoEm`.
+
+### Governança técnica
+
+- Removidos artefatos legados de ORM:
+  - pasta legada de schema/seed excluída.
+- Documentação atualizada para Drizzle:
+  - `apps/api/db_README.md`,
+  - `README.md`,
+  - `GUIA_ARQUITETURA.md`,
+  - Dockerfiles sem comandos/cópias legados.
+
+## [2026-03-28] - Sprint 3 encerrada (fechamento técnico)
+
+### Governança de sprint
+
+- Sprint 3 marcada como concluída tecnicamente no plano mestre:
+  - `docs/plano_acao_benchmarking_ambisis.md`.
+- Decisão de gate consolidada no relatório de usabilidade:
+  - `docs/sprint3_usabilidade_resultados.md`.
+
+### Operação de homologação externa
+
+- Publicado runbook operacional para rodada externa com 5 usuários reais:
+  - `docs/sprint3_homologacao_externa_runbook.md`.
+- Validação externa passa a ser trilha contínua de produto (não bloqueante para encerramento técnico da sprint).
+
+## [2026-03-28] - Onda 1 clean-up técnico
+
+### Qualidade de monorepo
+
+- `apps/web_backup` removido do workspace ativo para não contaminar os gates globais (`test`, `typecheck`):
+  - atualização em `pnpm-workspace.yaml`.
+
+### Lint e governança técnica
+
+- Lint da API padronizado com ESLint flat config:
+  - novo `apps/api/eslint.config.mjs`,
+  - dependências de lint adicionadas em `apps/api/package.json`.
+- Lint do web estabilizado sem warnings recorrentes de Fast Refresh:
+  - ajuste em `apps/web/eslint.config.js` para remover ruído não acionável nos componentes UI compartilhados.
+
+### Build frontend
+
+- Build do web sem warnings de depreciação/chunk oversized no gate:
+  - migração de `@vitejs/plugin-react-swc` para `@vitejs/plugin-react` em `apps/web/vite.config.ts`,
+  - roteamento com lazy loading das páginas em `apps/web/src/App.tsx` para reduzir bundle inicial.
+
+### Estabilidade de smoke
+
+- Smoke de CDF ajustado para reduzir resíduos operacionais:
+  - passa a reaproveitar cliente base (`SMOKE CDF CLIENTE BASE`) quando existir,
+  - evita exclusão do cliente base no cleanup para favorecer reuso entre execuções.
+
+### Documentação
+
+- README alinhado com o fechamento da Onda 1:
+  - nota explícita de Onda 1 concluída tecnicamente e diferenciação para metas ampliadas de MVP.
+
 ## [2026-03-28] - Sprint 2 encerrada e Sprint 3 iniciada
 
 ### Fechamento da Sprint 2
+
 - Gate da Sprint 2 encerrado como concluido (execucao antecipada).
 - Escopo fechado cumprido:
   - notificacoes acionaveis com "marcar todas como lidas",
@@ -12,23 +121,111 @@ Todas as mudanças relevantes do Greenly serão registradas aqui.
   - quick actions no dashboard.
 
 ### Abertura da Sprint 3
+
 - Sprint 3 iniciada em 2026-03-28 (execucao antecipada) com foco em:
   - padrao unico de estados vazios com CTA principal,
   - padrao unico para erros acionaveis em formularios,
   - telemetria base (TTFV, taxa de conclusao por fluxo, erros por sessao).
 - Plano mestre atualizado para refletir a troca de sprint em andamento.
 
+### Sprint 3 - Incremento 1
+
+- Padrao unico de empty state criado no web:
+  - `apps/web/src/components/ui/empty-state.tsx`.
+- Aplicacao do padrao nas telas prioritarias:
+  - `dashboard` (licencas criticas),
+  - `licencas`,
+  - `condicionantes`,
+  - `mtrs`,
+  - `clientes`.
+- CTA principal contextualizado por estado:
+  - criar novo registro quando base vazia,
+  - limpar filtros/busca quando nao ha resultados.
+
+### Sprint 3 - Incremento 2
+
+- Padrao unico de erro acionavel para formularios implementado no web.
+- Novo util de classificacao de erro e fallback tecnico:
+  - `apps/web/src/lib/form-actionable-error.ts`.
+- Novo callout reutilizavel para formularios:
+  - `apps/web/src/components/ui/form-error-callout.tsx`.
+- Aplicacao nas telas prioritarias:
+  - `licencas`,
+  - `condicionantes`,
+  - `mtrs`,
+  - `clientes`.
+
+### Sprint 3 - Incremento 3
+
+- Telemetria base instrumentada no frontend para os eventos:
+  - `view_loaded`,
+  - `first_valid_action`,
+  - `flow_completed`,
+  - `form_error`.
+- Nova camada de telemetria com persistencia local:
+  - `apps/web/src/lib/telemetry.ts` (buffer em memoria + `localStorage`).
+- Novo hook para rastrear carregamento de tela uma vez por view:
+  - `apps/web/src/hooks/use-track-view-loaded.ts`.
+- Instrumentacao aplicada nas telas prioritarias:
+  - `dashboard`,
+  - `licencas`,
+  - `condicionantes`,
+  - `mtrs`,
+  - `clientes`.
+
+### Sprint 3 - Incremento 4
+
+- Baseline inicial de metricas da Sprint 3 publicada em painel interno no frontend:
+  - integrado na tela `Configuracoes`.
+- Nova camada de agregacao de metrica semanal (7 dias):
+  - `apps/web/src/lib/telemetry-baseline.ts`.
+- Novo hook para consumo de baseline com refresh/limpeza local:
+  - `apps/web/src/hooks/use-telemetry-baseline.ts`.
+- Metas semanais explicitas no painel:
+  - TTFV medio <= 45s,
+  - taxa de conclusao >= 70%,
+  - erros por sessao <= 1.5.
+- Cobertura de teste para calculo de baseline:
+  - `apps/web/src/lib/telemetry-baseline.test.ts`.
+
+### Sprint 3 - Incremento 5
+
+- Smoke test dedicado da Sprint 3 implementado:
+  - `scripts/smoke-sprint3-flow.mjs`
+  - script raiz `test:sprint3:smoke`.
+- O smoke valida contratos de:
+  - padrao de UX (empty state + erro acionavel),
+  - telemetria base e baseline semanal,
+  - disponibilidade do painel interno de produto.
+- Kit de usabilidade para fechamento de gate publicado:
+  - `docs/sprint3_usabilidade_roteiro.md`,
+  - `docs/sprint3_usabilidade_resultados.md`.
+
+### Sprint 3 - Incremento 6
+
+- Rodada proxy interna de usabilidade registrada com 5 sessões:
+  - consolidado em `docs/sprint3_usabilidade_resultados.md`.
+- Ajustes de UX priorizados aplicados nos fluxos core:
+  - indicação explícita de campos obrigatórios (`*`) nos formulários,
+  - desabilitação de `Salvar` quando campos mínimos obrigatórios estão inválidos,
+  - máscara de CNPJ no formulário de clientes,
+  - detalhe técnico de erro recolhido por padrão no callout de formulário.
+- Painel interno ganhou ação de cópia da baseline em Markdown para evidência rápida da rodada.
+
 ## [2026-03-28] - Sprint 2 iniciada
 
 ### Planejamento operacional
+
 - Sprint 2 iniciada no plano mestre com status `EM ANDAMENTO` (execucao antecipada).
 - Definido escopo fechado da Sprint 2 para manter a regra "um por vez".
 
 ### Governanca de demandas adiadas
+
 - Criado backlog oficial para registrar tarefas fora de escopo da sprint atual:
   - `docs/backlog_pos_plano_acao.md`
 
 ### Entregue no incremento 1
+
 - Endpoint `PATCH /api/notificacoes/marcar-todas-lidas` implementado.
 - Fluxo de notificacoes melhorado:
   - marcar todas como lidas pela UI;
@@ -41,6 +238,7 @@ Todas as mudanças relevantes do Greenly serão registradas aqui.
 - Fluxo de "acoes rapidas" abre dialogo de criacao diretamente nas paginas de destino.
 
 ### Entregue no incremento 2
+
 - Deep links de notificacao com `/:id` passaram a abrir o item correto:
   - licencas: abre dialogo de edicao da licenca de destino;
   - MTRs: abre dialogo de edicao do MTR de destino;
@@ -52,6 +250,7 @@ Todas as mudanças relevantes do Greenly serão registradas aqui.
   - `apps/api`: `typecheck`.
 
 ### Entregue no incremento 3
+
 - Smoke test dedicado da Sprint 2 implementado:
   - `scripts/smoke-sprint2-flow.mjs`
   - script raiz `test:sprint2:smoke`
@@ -66,6 +265,7 @@ Todas as mudanças relevantes do Greenly serão registradas aqui.
   - `docs/compliance_sprint2_mtr_licenciamento.md`
 
 ### Entregue no incremento 4
+
 - Esqueleto do modulo de integracao governamental criado no backend:
   - `apps/api/src/modules/integracao-governo/`
   - contratos tipados para MTR/CDF (`GovMtrClient`/`GovCdfClient`);
@@ -78,6 +278,7 @@ Todas as mudanças relevantes do Greenly serão registradas aqui.
 ## [2026-03-28] - Sprint 1 encerrada
 
 ### Entregue
+
 - Condicionantes saíram de mock e passaram a operar com API real.
 - Dashboard passou a expor métricas reais de risco:
   - `pendenciasCriticas`
@@ -87,6 +288,7 @@ Todas as mudanças relevantes do Greenly serão registradas aqui.
   - login -> cliente -> licença -> condicionante -> dashboard.
 
 ### Segurança e governança
+
 - Adicionada trilha de auditoria para ações críticas no backend (quem fez, o que mudou, onde, quando).
 - Middleware de autenticação reforçado:
   - usuário removido/inexistente não acessa.
@@ -96,4 +298,5 @@ Todas as mudanças relevantes do Greenly serão registradas aqui.
   - filtros: `evento`, `entidade`, `usuarioId`, `dataInicio`, `dataFim`, `limit`, `offset`.
 
 ### Observação operacional
+
 - Exclusões seguem soft delete para preservar rastreabilidade e histórico legal.

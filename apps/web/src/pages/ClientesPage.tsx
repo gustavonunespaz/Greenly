@@ -30,6 +30,15 @@ import { toast } from "@/components/ui/sonner";
 import type { ClienteResponseDTO } from "@greenly/shared";
 import { useSearchParams } from "react-router-dom";
 import { getApiErrorMessage } from "@/lib/http-error";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FormErrorCallout } from "@/components/ui/form-error-callout";
+import {
+  ActionableFormError,
+  buildActionableFormError,
+  buildValidationFormError,
+} from "@/lib/form-actionable-error";
+import { useTrackViewLoaded } from "@/hooks/use-track-view-loaded";
+import { trackFirstValidAction, trackFlowCompleted, trackFormError } from "@/lib/telemetry";
 
 const item = {
   hidden: { opacity: 0, y: 12 },
@@ -75,18 +84,19 @@ function formatCnpj(value?: string | null) {
   return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
 
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-center col-span-full">
-      <div className="h-16 w-16 rounded-2xl bg-primary/10 border border-primary/15 flex items-center justify-center mb-4 emerald-glow">
-        <Building2 className="h-8 w-8 text-primary/70" strokeWidth={1.2} />
-      </div>
-      <h3 className="text-base font-medium text-foreground mb-1">Nenhum cliente cadastrado</h3>
-      <p className="text-sm text-muted-foreground/60 max-w-sm">
-        Cadastre o primeiro cliente para iniciar a gestão de licenças e MTRs.
-      </p>
-    </div>
-  );
+function formatCnpjInput(value: string) {
+  const digits = digitsOnly(value).slice(0, 14);
+  const p1 = digits.slice(0, 2);
+  const p2 = digits.slice(2, 5);
+  const p3 = digits.slice(5, 8);
+  const p4 = digits.slice(8, 12);
+  const p5 = digits.slice(12, 14);
+
+  if (!p2) return p1;
+  if (!p3) return `${p1}.${p2}`;
+  if (!p4) return `${p1}.${p2}.${p3}`;
+  if (!p5) return `${p1}.${p2}.${p3}/${p4}`;
+  return `${p1}.${p2}.${p3}/${p4}-${p5}`;
 }
 
 function SkeletonGrid() {
@@ -133,6 +143,10 @@ export default function ClientesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ClienteResponseDTO | null>(null);
   const [form, setForm] = useState<ClienteFormState>(defaultForm);
+  const [formError, setFormError] = useState<ActionableFormError | null>(null);
+  const hasClientes = (clientes || []).length > 0;
+  const hasSearchApplied = !!search.trim();
+  useTrackViewLoaded("clientes");
 
   const filtered = useMemo(() => {
     const term = search.toLowerCase();
@@ -145,10 +159,23 @@ export default function ClientesPage() {
   }, [clientes, search]);
 
   const isSaving = isCriando || isAtualizando;
+  const isFormReady = !!form.nome.trim() && digitsOnly(form.cnpj).length === 14;
+
+  function applyTrackedFormError(
+    nextError: ActionableFormError,
+    source: "validation" | "api",
+  ) {
+    setFormError(nextError);
+    trackFormError("clientes", "cliente_form", nextError, {
+      mode: editing ? "edit" : "create",
+      source,
+    });
+  }
 
   function openNew() {
     setEditing(null);
     setForm(defaultForm);
+    setFormError(null);
     setOpen(true);
   }
 
@@ -175,26 +202,34 @@ export default function ClientesPage() {
       estado: cliente.estado || "",
       ativo: cliente.ativo,
     });
+    setFormError(null);
     setOpen(true);
   }
 
   async function handleSave() {
     try {
+      setFormError(null);
       const consultoriaId = user?.consultoriaId;
       const cnpj = digitsOnly(form.cnpj);
 
       if (!form.nome.trim()) {
-        toast.error("Informe o nome do cliente.");
+        applyTrackedFormError(buildValidationFormError("Informe o nome do cliente."), "validation");
         return;
       }
 
       if (cnpj.length !== 14) {
-        toast.error("CNPJ inválido. Informe 14 dígitos.");
+        applyTrackedFormError(
+          buildValidationFormError("CNPJ inválido. Informe 14 dígitos."),
+          "validation",
+        );
         return;
       }
 
       if (!editing && !consultoriaId) {
-        toast.error("Consultoria não identificada no seu usuário.");
+        applyTrackedFormError(
+          buildValidationFormError("Consultoria não identificada no usuário autenticado."),
+          "validation",
+        );
         return;
       }
 
@@ -213,6 +248,11 @@ export default function ClientesPage() {
       if (editing) {
         await atualizarCliente({ id: editing.id, dto: payload });
         toast.success("Cliente atualizado com sucesso.");
+        trackFirstValidAction("clientes", "editar_cliente");
+        trackFlowCompleted("clientes", "cliente_atualizado", {
+          ativo: payload.ativo,
+          setor: payload.setor ?? null,
+        });
       } else {
         await criarCliente({
           consultoriaId: consultoriaId!,
@@ -231,12 +271,20 @@ export default function ClientesPage() {
         } else {
           toast.success("Cliente criado com sucesso.");
         }
+        trackFirstValidAction("clientes", "criar_cliente");
+        trackFlowCompleted("clientes", "cliente_criado", {
+          ativo: payload.ativo,
+          setor: payload.setor ?? null,
+        });
       }
 
+      setFormError(null);
       setOpen(false);
     } catch (error: unknown) {
-      const message = getApiErrorMessage(error, "Não foi possível salvar o cliente.");
-      toast.error(message);
+      applyTrackedFormError(
+        buildActionableFormError(error, "Não foi possível salvar o cliente."),
+        "api",
+      );
     }
   }
 
@@ -278,7 +326,22 @@ export default function ClientesPage() {
         ) : (
           <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.length === 0 ? (
-              <EmptyState />
+              <EmptyState
+                icon={Building2}
+                title={
+                  hasClientes && hasSearchApplied
+                    ? "Nenhum cliente para a busca atual"
+                    : "Nenhum cliente cadastrado"
+                }
+                description={
+                  hasClientes && hasSearchApplied
+                    ? "Limpe a busca para visualizar todos os clientes já cadastrados."
+                    : "Cadastre o primeiro cliente para iniciar a gestão de licenças e MTRs."
+                }
+                actionLabel={hasClientes && hasSearchApplied ? "Limpar busca" : "Novo cliente"}
+                onAction={hasClientes && hasSearchApplied ? () => setSearch("") : openNew}
+                className="col-span-full"
+              />
             ) : (
               filtered.map((cliente) => (
                 <motion.div key={cliente.id} variants={item}>
@@ -359,7 +422,15 @@ export default function ClientesPage() {
         )}
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (!nextOpen) {
+            setFormError(null);
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
@@ -370,17 +441,32 @@ export default function ClientesPage() {
             </DialogDescription>
           </DialogHeader>
 
+          <FormErrorCallout
+            error={formError}
+            onAction={() => {
+              if (!formError) return;
+              if (formError.actionKind === "retry") {
+                void handleSave();
+                return;
+              }
+              setFormError(null);
+            }}
+          />
+          <p className="text-[11px] text-muted-foreground/70">
+            Campos marcados com * são obrigatórios para salvar.
+          </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
             <div className="space-y-2 md:col-span-2">
-              <Label>Nome</Label>
+              <Label>Nome *</Label>
               <Input value={form.nome} onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))} placeholder="Razão social / nome do cliente" />
             </div>
 
             <div className="space-y-2">
-              <Label>CNPJ</Label>
+              <Label>CNPJ *</Label>
               <Input
                 value={form.cnpj}
-                onChange={(e) => setForm((s) => ({ ...s, cnpj: e.target.value }))}
+                onChange={(e) => setForm((s) => ({ ...s, cnpj: formatCnpjInput(e.target.value) }))}
                 placeholder="00.000.000/0000-00"
               />
             </div>
@@ -432,7 +518,7 @@ export default function ClientesPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
+            <Button onClick={handleSave} disabled={isSaving || !isFormReady} className="gap-2">
               <Save className="h-4 w-4" />
               {isSaving ? "Salvando..." : "Salvar"}
             </Button>
