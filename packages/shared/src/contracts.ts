@@ -4,6 +4,7 @@ import {
   categoriaDocumentoAmbientalValues,
   origemProcessamentoDocumentoValues,
   perfilDocumentoClienteValues,
+  statusRevisaoDocumentoValues,
   tipoDocumentoAmbientalValues,
 } from './types/documento.types'
 
@@ -227,6 +228,34 @@ export const ValidarPacoteGeoespacialSchema = z.object({
   arquivos: z.array(z.string().min(1)).min(1),
 })
 export type ValidarPacoteGeoespacialDTO = z.infer<typeof ValidarPacoteGeoespacialSchema>
+
+export const StatusRevisaoDocumentoSchema = z.enum(statusRevisaoDocumentoValues)
+
+export const ListarPendentesRevisaoDocumentoSchema = z.object({
+  statusRevisao: StatusRevisaoDocumentoSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+})
+export type ListarPendentesRevisaoDocumentoDTO = z.infer<
+  typeof ListarPendentesRevisaoDocumentoSchema
+>
+
+export const RevisarDocumentoCampoSchema = z.object({
+  campo: CampoDocumentoAmbientalSchema,
+  valorFinal: z.string().trim().max(500).nullable(),
+})
+
+export const RevisarDocumentoSchema = z.object({
+  statusRevisao: z.enum(['APROVADO_SEM_AJUSTES', 'APROVADO_COM_AJUSTES', 'REJEITADO']),
+  tempoRevisaoSegundos: z.coerce.number().int().min(0).max(86400).optional(),
+  observacoes: z.string().trim().max(1000).optional(),
+  campos: z.array(RevisarDocumentoCampoSchema).min(1),
+})
+export type RevisarDocumentoDTO = z.infer<typeof RevisarDocumentoSchema>
+
+export const DocumentoQualidadeQuerySchema = z.object({
+  periodoDias: z.coerce.number().int().min(1).max(365).default(30),
+})
+export type DocumentoQualidadeQueryDTO = z.infer<typeof DocumentoQualidadeQuerySchema>
 
 // ─── Licença ────────────────────────────
 export const CriarLicencaSchema = z.object({

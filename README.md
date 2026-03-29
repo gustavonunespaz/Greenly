@@ -61,13 +61,14 @@ O sistema resolve três problemas críticos do setor:
 | Condicionantes não cumpridas               | Autuação pelo órgão ambiental, cassação de licença | Motor de alertas periódicos com rastreamento por ciclo                  |
 | Resíduos sem rastreabilidade completa      | Responsabilidade civil solidária na cadeia         | Controle de MTR do berço ao CDF, validação de terceiros                 |
 
-Atualização funcional mais recente (2026-03-28):
+Atualização funcional mais recente (2026-03-29):
 
 - Consulta automática de CNPJ no cadastro de clientes com autopreenchimento de dados cadastrais e endereço.
 - Dashboard expandido com KPIs de conformidade, resíduos, emissões/recursos, visão setorial, timeline de vencimentos e drill-down de rastreabilidade.
 - Consolidação de risco com leitura imediata de ativas/pendentes/vencidas e insights proativos.
 - Hardening de responsividade para telas menores (tabelas e CRUDs sem vazamento, com rolagem horizontal quando necessário).
 - Índice de documentos do projeto publicado em `docs/README.md`.
+- Sprint 5 documental concluída tecnicamente com revisão humana de extração, auditoria de correções e dashboard de qualidade por tipo documental.
 
 ### Quem usa o Greenly
 
@@ -466,8 +467,12 @@ GET    /api/documentos/contrato-extracao             Retornar contrato de extra�
 POST   /api/documentos/ingestao                       Ingerir arquivo com idempotencia por hash e enfileirar processamento
 POST   /api/documentos/classificar                    Classificar documento por nome/caminho (heurística inicial)
 POST   /api/documentos/validar-geoespacial            Validar pacotes QGIS/shapefile/KML do lote enviado
+GET    /api/documentos/revisao/pendentes              Listar fila de revisao humana por status/filtros
+GET    /api/documentos/:processamentoDocumentoId/revisao  Obter detalhe de revisao por campo extraido
+POST   /api/documentos/:processamentoDocumentoId/revisao  Registrar revisao humana (aprovar/ajustar/rejeitar)
 GET    /api/dashboard/documentos/pipeline             Painel operacional da fila documental (backlog, sucesso/falha, tempo médio)
 GET    /api/dashboard/documentos/pipeline/itens       Listar itens recentes da fila documental com filtro por status
+GET    /api/dashboard/documentos/qualidade            Métricas de qualidade da extração documental por período/tipo
 ```
 
 **Notas de implementação:**
@@ -479,6 +484,8 @@ GET    /api/dashboard/documentos/pipeline/itens       Listar itens recentes da f
 5. Resultado já retorna campos obrigatórios e opcionais para pré-preenchimento guiado
 6. Dashboard operacional da fila documental expõe taxa de sucesso, falhas, tempo médio e backlog para monitoramento contínuo
 7. Modo de lançamento sem custo: armazenamento local com retenção por criticidade (crítico/padrão/temporário) e expurgo automático de originais expirados
+8. Sprint 5 adiciona revisão humana por campo com status de aprovação, motivo de inferência e trilha de correções para calibragem
+9. Dashboard de qualidade documental expõe acurácia média, taxa de retrabalho e tempo médio de revisão
 
 ---
 
@@ -731,12 +738,16 @@ pnpm test:sprint2:smoke
 pnpm test:cdf:smoke
 pnpm test:sprint3:smoke
 pnpm test:sprint4:smoke
+pnpm test:sprint5:smoke
 
 # Gate técnico completo da Sprint 3
 pnpm gate:sprint3
 
 # Gate técnico pré-Sprint 4
 pnpm gate:pre-sprint4
+
+# Gate técnico da Sprint 5
+pnpm gate:sprint5
 
 # Operação de homologação externa (guiada)
 # ver: docs/sprint3_homologacao_externa_runbook.md
@@ -861,6 +872,7 @@ As camadas `domain/` e `application/` não podem importar nada de `infrastructur
 ## 15. Roadmap
 
 Status da Onda 1 (Sprints 1-3): concluída tecnicamente.
+Status da Onda 2 (Sprints 4-5): Sprint 4 e Sprint 5 concluídas tecnicamente (execução antecipada).
 Observação: o checklist abaixo inclui metas ampliadas de MVP/pós-MVP, portanto alguns itens permanecem abertos mesmo com a Onda 1 encerrada.
 
 ### MVP (atual)

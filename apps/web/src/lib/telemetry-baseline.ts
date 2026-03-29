@@ -56,6 +56,7 @@ type BaselineOptions = {
 const DEFAULT_WINDOW_DAYS = 7;
 const SCREEN_ORDER: TelemetryScreen[] = [
   "dashboard",
+  "documentos",
   "licencas",
   "condicionantes",
   "mtrs",
@@ -66,6 +67,7 @@ const SCREEN_ORDER: TelemetryScreen[] = [
 
 const SCREEN_LABELS: Record<TelemetryScreen, string> = {
   dashboard: "Dashboard",
+  documentos: "Documentos",
   licencas: "Licenças",
   condicionantes: "Condicionantes",
   mtrs: "MTRs",

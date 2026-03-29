@@ -8,6 +8,8 @@ Este diretório concentra documentos de produto, operação e histórico de spri
   - Plano mestre de evolução por ondas/sprints.
 - `operacao_pipeline_documental_sem_custo.md`
   - Manual operacional da estrategia documental sem custo (ingestao, retencao, expurgo e trilha de auditoria).
+- `sprint5_extracao_revisao_documental.md`
+  - Fechamento tecnico da Sprint 5 (extracao de campos, revisao humana, qualidade e validacao operacional).
 - `backlog_pos_plano_acao.md`
   - Backlog de itens adiados para pós-plano.
 - `compliance_sprint2_mtr_licenciamento.md`

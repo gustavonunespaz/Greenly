@@ -10,9 +10,10 @@ coverage/
 *.tsbuildinfo
 uploads/
 *:Zone.Identifier
-docs/
+docs/*
 !docs/README.md
-docs/plano_acao_benchmarking_ambisis.md
-docs/backlog_pos_plano_acao.md
+!docs/plano_acao_benchmarking_ambisis.md
+!docs/operacao_pipeline_documental_sem_custo.md
+!docs/sprint5_extracao_revisao_documental.md
 docs/analise_de_benchmarking_de_solucoes_digitais.docx
 Aludrol/

@@ -9,6 +9,7 @@ import { AuthProvider } from '@/features/auth/components/AuthProvider'
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
 
 const Index = lazy(() => import('./pages/Index'))
+const DocumentosPage = lazy(() => import('./pages/DocumentosPage'))
 const LicencasPage = lazy(() => import('./pages/LicencasPage'))
 const MTRsPage = lazy(() => import('./pages/MTRsPage'))
 const CondicionantesPage = lazy(() => import('./pages/CondicionantesPage'))
@@ -50,6 +51,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <Index />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/documentos"
+                  element={
+                    <ProtectedRoute>
+                      <DocumentosPage />
                     </ProtectedRoute>
                   }
                 />

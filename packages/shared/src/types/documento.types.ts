@@ -172,3 +172,92 @@ export interface IngerirDocumentoResponseDTO {
     jobId: string
   } | null
 }
+
+export const statusRevisaoDocumentoValues = [
+  'PENDENTE_REVISAO',
+  'APROVADO_SEM_AJUSTES',
+  'APROVADO_COM_AJUSTES',
+  'REJEITADO',
+] as const
+
+export type StatusRevisaoDocumento = (typeof statusRevisaoDocumentoValues)[number]
+
+export type OrigemExtracaoCampoDocumento =
+  | 'REGEX'
+  | 'HEURISTICA'
+  | 'INFERENCIA_PERFIL'
+  | 'NAO_ENCONTRADO'
+
+export interface DocumentoCampoExtraidoDTO {
+  campo: CampoDocumentoAmbiental
+  valor: string | null
+  confianca: number
+  motivo: string
+  obrigatorio: boolean
+  origem: OrigemExtracaoCampoDocumento
+}
+
+export interface DocumentoRevisaoPendenteItemDTO {
+  processamentoDocumentoId: string
+  documentoNome: string
+  tipo: TipoDocumentoAmbiental
+  categoria: CategoriaDocumentoAmbiental
+  perfilCliente: PerfilDocumentoCliente
+  revisaoStatus: StatusRevisaoDocumento
+  confiancaMediaExtracao: number
+  camposObrigatoriosTotal: number
+  camposObrigatoriosPendentes: number
+  recebidoEm: Date
+  atualizadoEm: Date
+}
+
+export interface DocumentoRevisaoDetalheResponseDTO {
+  processamentoDocumentoId: string
+  documentoNome: string
+  tipo: TipoDocumentoAmbiental
+  categoria: CategoriaDocumentoAmbiental
+  perfilCliente: PerfilDocumentoCliente
+  statusProcessamento: IngerirDocumentoResponseDTO['status']
+  revisaoStatus: StatusRevisaoDocumento
+  confiancaMediaExtracao: number
+  recebidoEm: Date
+  concluidoEm: Date | null
+  textoSnippet: string | null
+  camposObrigatorios: CampoDocumentoAmbiental[]
+  camposOpcionais: CampoDocumentoAmbiental[]
+  campos: DocumentoCampoExtraidoDTO[]
+}
+
+export interface RevisarDocumentoCampoDTO {
+  campo: CampoDocumentoAmbiental
+  valorFinal: string | null
+}
+
+export interface RevisarDocumentoResponseDTO {
+  processamentoDocumentoId: string
+  revisaoStatus: Exclude<StatusRevisaoDocumento, 'PENDENTE_REVISAO'>
+  camposAvaliados: number
+  camposCorrigidos: number
+  acuraciaPct: number
+  revisadoEm: Date
+}
+
+export interface DocumentoQualidadeTipoItemDTO {
+  tipo: TipoDocumentoAmbiental
+  revisados: number
+  aprovadosComAjustes: number
+  acuraciaMediaPct: number
+  taxaRetrabalhoPct: number
+}
+
+export interface DocumentoQualidadeMetricsResponseDTO {
+  periodoDias: number
+  revisadosTotal: number
+  aprovadosSemAjustes: number
+  aprovadosComAjustes: number
+  rejeitados: number
+  acuraciaMediaPct: number
+  taxaRetrabalhoPct: number
+  tempoMedioRevisaoSegundos: number
+  porTipo: DocumentoQualidadeTipoItemDTO[]
+}

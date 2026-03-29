@@ -6,6 +6,7 @@ export type TelemetryEventName =
 
 export type TelemetryScreen =
   | "dashboard"
+  | "documentos"
   | "licencas"
   | "condicionantes"
   | "mtrs"

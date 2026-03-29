@@ -13,6 +13,7 @@ interface AppLayoutProps {
 
 const breadcrumbMap: Record<string, string> = {
   '/': 'Dashboard',
+  '/documentos': 'Revisao Documental',
   '/licencas': 'Licenças Ambientais',
   '/condicionantes': 'Condicionantes',
   '/mtrs': 'Manifestos de Transporte',

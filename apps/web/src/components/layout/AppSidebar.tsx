@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   FileCheck,
   Truck,
+  FileSearch,
   ClipboardList,
   Building2,
   Settings,
@@ -28,6 +29,7 @@ import { motion } from "framer-motion";
 
 const mainNav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Documentos", url: "/documentos", icon: FileSearch },
   { title: "Licenças", url: "/licencas", icon: FileCheck },
   { title: "Condicionantes", url: "/condicionantes", icon: ClipboardList },
   { title: "MTRs", url: "/mtrs", icon: Truck },
