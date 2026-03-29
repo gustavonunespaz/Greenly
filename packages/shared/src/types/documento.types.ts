@@ -165,6 +165,8 @@ export interface IngerirDocumentoResponseDTO {
   tipo: TipoDocumentoAmbiental
   categoria: CategoriaDocumentoAmbiental
   confiancaClassificacao: number
+  retencaoDias: number
+  expirarEm: Date | null
   fila: {
     nome: string
     jobId: string

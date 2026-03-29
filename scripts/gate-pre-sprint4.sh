@@ -13,7 +13,8 @@ run() {
 run pnpm --filter @greenly/shared build
 run pnpm --filter @greenly/api typecheck
 run pnpm --filter @greenly/api lint
-run pnpm --filter @greenly/api test -- src/modules/documento/documento.service.test.ts src/modules/dashboard/dashboard.service.test.ts
+run pnpm --filter @greenly/api test -- src/modules/documento/documento.service.test.ts src/modules/documento/documento.processing.test.ts src/modules/dashboard/dashboard.service.test.ts
+run node --check ./scripts/smoke-sprint4-documentos.mjs
 run pnpm --filter ./apps/web typecheck
 
 echo

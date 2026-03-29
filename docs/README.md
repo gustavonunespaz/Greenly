@@ -6,6 +6,8 @@ Este diretório concentra documentos de produto, operação e histórico de spri
 
 - `plano_acao_benchmarking_ambisis.md`
   - Plano mestre de evolução por ondas/sprints.
+- `operacao_pipeline_documental_sem_custo.md`
+  - Manual operacional da estrategia documental sem custo (ingestao, retencao, expurgo e trilha de auditoria).
 - `backlog_pos_plano_acao.md`
   - Backlog de itens adiados para pós-plano.
 - `compliance_sprint2_mtr_licenciamento.md`

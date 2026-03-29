@@ -478,6 +478,7 @@ GET    /api/dashboard/documentos/pipeline/itens       Listar itens recentes da f
 4. Classificação inicial baseada em palavras-chave + extensão + contexto de pasta
 5. Resultado já retorna campos obrigatórios e opcionais para pré-preenchimento guiado
 6. Dashboard operacional da fila documental expõe taxa de sucesso, falhas, tempo médio e backlog para monitoramento contínuo
+7. Modo de lançamento sem custo: armazenamento local com retenção por criticidade (crítico/padrão/temporário) e expurgo automático de originais expirados
 
 ---
 
@@ -729,9 +730,13 @@ pnpm test:sprint1:smoke
 pnpm test:sprint2:smoke
 pnpm test:cdf:smoke
 pnpm test:sprint3:smoke
+pnpm test:sprint4:smoke
 
 # Gate técnico completo da Sprint 3
 pnpm gate:sprint3
+
+# Gate técnico pré-Sprint 4
+pnpm gate:pre-sprint4
 
 # Operação de homologação externa (guiada)
 # ver: docs/sprint3_homologacao_externa_runbook.md
@@ -791,6 +796,15 @@ PARCEIRO_LICENCA_ALERTA_DIAS=60
 ENABLE_DOCUMENTO_WORKER=false
 DOCUMENTOS_WORKER_CONCURRENCY=2
 DOCUMENTOS_UPLOAD_MAX_MB=20
+DOCUMENTOS_MODO_SEM_CUSTO=true
+DOCUMENTOS_RETENCAO_CRITICO_DIAS=1825
+DOCUMENTOS_RETENCAO_PADRAO_DIAS=90
+DOCUMENTOS_RETENCAO_TEMPORARIO_DIAS=30
+DOCUMENTOS_EXPURGO_HABILITADO=true
+DOCUMENTOS_EXPURGO_CRON="15 1 * * *"
+DOCUMENTOS_EXPURGO_BATCH_SIZE=200
+DOCUMENTOS_TEXTO_EXTRAIDO_MAX_CHARS=120000
+DOCUMENTOS_TEXTO_SNIPPET_CHARS=4000
 ```
 
 ### `apps/web/.env`
