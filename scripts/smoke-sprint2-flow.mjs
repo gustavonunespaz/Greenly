@@ -78,18 +78,30 @@ async function validarContratoFrontend() {
   );
   expectContains(notificacoesPage, 'if (tipo === "mtr") return "/mtrs";', 'fallback de MTR ausente');
 
-  expectContains(licencasPage, 'quickAction !== "nova-licenca"', 'handler quick action licença ausente');
-  expectContains(mtrsPage, 'quickAction !== "novo-mtr"', 'handler quick action MTR ausente');
+  expectContains(
+    licencasPage,
+    /quickAction\s*!==\s*['"]nova-licenca['"]/,
+    'handler quick action licença ausente',
+  );
+  expectContains(
+    mtrsPage,
+    /quickAction\s*!==\s*['"]novo-mtr['"]/,
+    'handler quick action MTR ausente',
+  );
   expectContains(
     condicionantesPage,
-    'quickAction !== "nova-condicionante"',
+    /quickAction\s*!==\s*['"]nova-condicionante['"]/,
     'handler quick action condicionante ausente',
   );
-  expectContains(clientesPage, 'quickAction !== "novo-cliente"', 'handler quick action cliente ausente');
+  expectContains(
+    clientesPage,
+    /quickAction\s*!==\s*['"]novo-cliente['"]/,
+    'handler quick action cliente ausente',
+  );
 
   expectContains(
     condicionantesPage,
-    'setCondicionanteDestacadaId(condicionante.id);',
+    /setCondicionanteDestacadaId\(condicionante\.id\);?/,
     'destaque de condicionante no deep link ausente',
   );
 }

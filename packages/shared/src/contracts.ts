@@ -4,6 +4,24 @@ import { z } from 'zod'
 export const CnpjSchema = z.string().length(14).regex(/^\d+$/)
 export const CpfSchema = z.string().length(11).regex(/^\d+$/)
 
+export const tipoCadastroClienteValues = [
+  'GERADOR_RESIDUO',
+  'PRESTADOR_SERVICO',
+  'TRANSPORTADOR',
+  'DESTINADOR',
+  'MULTI_PAPEL',
+  'OUTRO',
+] as const
+export const TipoCadastroClienteSchema = z.enum(tipoCadastroClienteValues)
+
+export const papelClienteParceiroValues = [
+  'TRANSPORTADORA',
+  'DESTINADOR_FINAL',
+  'PRESTADOR_SERVICO',
+  'OUTRO',
+] as const
+export const PapelClienteParceiroSchema = z.enum(papelClienteParceiroValues)
+
 export type { UserRole } from './types/usuario.types'
 
 // ─── Auth ───────────────────────────────
@@ -88,6 +106,7 @@ export const CriarClienteSchema = z.object({
   consultoriaId: z.string().uuid(),
   nome: z.string().min(2),
   cnpj: CnpjSchema,
+  tipoCadastro: TipoCadastroClienteSchema.optional(),
   email: z.string().email().optional(),
   telefone: z.string().optional(),
   setor: z.string().optional(),
@@ -108,6 +127,7 @@ export type CriarClienteDTO = z.infer<typeof CriarClienteSchema>
 export const AtualizarClienteSchema = z.object({
   nome: z.string().min(2).optional(),
   cnpj: CnpjSchema.optional(),
+  tipoCadastro: TipoCadastroClienteSchema.optional(),
   email: z.string().email().optional().nullable(),
   telefone: z.string().optional().nullable(),
   setor: z.string().optional().nullable(),
@@ -131,11 +151,17 @@ export interface ClienteResponseDTO {
   consultoriaId: string
   nome: string
   cnpj: string
+  tipoCadastro: (typeof tipoCadastroClienteValues)[number]
   email?: string | null
   telefone?: string | null
   setor?: string | null
   cnae?: string | null
   ativo: boolean
+  cep?: string | null
+  logradouro?: string | null
+  numero?: string | null
+  complemento?: string | null
+  bairro?: string | null
   cidade?: string | null
   estado?: string | null
 }
@@ -392,12 +418,24 @@ export interface ParceiroResponseDTO {
   tipo: string
   licencaAtiva: boolean
   licencaValidade?: Date | null
+  sistemaPrincipal?: 'SINIR' | 'SIGOR'
+  sinirHabilitado?: boolean
+  sinirCadastroId?: string | null
+  sigorHabilitado?: boolean
+  sigorCadastroId?: string | null
+  tipoServico?: string | null
 }
 
 export const CriarParceiroSchema = z.object({
   nome: z.string().min(2),
   cnpj: CnpjSchema,
   tipo: z.enum(['TRANSPORTADORA', 'DESTINADOR_FINAL', 'TRANSPORTADORA_E_DESTINADOR']),
+  sistemaPrincipal: z.enum(['SINIR', 'SIGOR']).optional(),
+  sinirHabilitado: z.boolean().optional(),
+  sinirCadastroId: z.string().optional(),
+  sigorHabilitado: z.boolean().optional(),
+  sigorCadastroId: z.string().optional(),
+  tipoServico: z.string().optional(),
   email: z.string().email().optional(),
   telefone: z.string().optional(),
   cidade: z.string().optional(),
@@ -408,6 +446,28 @@ export const CriarParceiroSchema = z.object({
   licencaAtiva: z.boolean().optional(),
 })
 export type CriarParceiroDTO = z.infer<typeof CriarParceiroSchema>
+
+export const VincularParceiroClienteSchema = z.object({
+  clienteId: z.string().uuid(),
+  parceiroId: z.string().uuid(),
+  papel: PapelClienteParceiroSchema,
+  sistemaIntegracao: z.enum(['SINIR', 'SIGOR']).optional(),
+  codigoCadastroExterno: z.string().optional(),
+  observacoes: z.string().optional(),
+})
+export type VincularParceiroClienteDTO = z.infer<typeof VincularParceiroClienteSchema>
+
+export interface ClienteParceiroVinculoResponseDTO {
+  id: string
+  clienteId: string
+  parceiroId: string
+  papel: (typeof papelClienteParceiroValues)[number]
+  sistemaIntegracao: 'SINIR' | 'SIGOR'
+  codigoCadastroExterno?: string | null
+  observacoes?: string | null
+  ativo: boolean
+  parceiro: ParceiroResponseDTO
+}
 
 export interface TipoResiduoOptionDTO {
   id: string

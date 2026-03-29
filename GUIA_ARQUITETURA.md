@@ -38,7 +38,7 @@ docker-compose up --build
 ```
 
 ### 🌍 Portas de Acesso:
-- **Frontend**: [http://localhost:8081](http://localhost:8081)
+- **Frontend**: [http://localhost:8080](http://localhost:8080)
 - **Backend API**: [http://localhost:3333](http://localhost:3333)
 - **Mailhog (E-mails de teste)**: [http://localhost:8025](http://localhost:8025)
 

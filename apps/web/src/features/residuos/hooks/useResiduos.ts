@@ -88,3 +88,23 @@ export function useResiduos(options?: UseResiduosOptions) {
     isRemovendo: removerMutation.isPending,
   }
 }
+
+export function useCDFs(options?: UseResiduosOptions) {
+  const clienteId = options?.clienteId
+
+  const { data: cdfs, isLoading, error } = useQuery({
+    queryKey: ['cdfs', clienteId ?? 'consultoria'],
+    queryFn: () => {
+      if (clienteId) {
+        return residuoService.listarCDFs(clienteId)
+      }
+      return residuoService.listarCDFsConsultoria()
+    },
+  })
+
+  return {
+    cdfs: cdfs ?? [],
+    isLoading,
+    error,
+  }
+}

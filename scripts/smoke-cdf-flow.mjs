@@ -19,6 +19,7 @@ function randomDigits(length) {
 
 function isParceiroLicenciado(parceiro) {
   if (!parceiro?.licencaAtiva) return false
+  if (!parceiro?.sinirHabilitado) return false
   if (!parceiro?.licencaValidade) return true
   const validade = new Date(parceiro.licencaValidade)
   return !Number.isNaN(validade.getTime()) && validade >= new Date()
@@ -66,6 +67,9 @@ async function ensureParceiro(token, tipo, runId) {
       nome: `SMOKE ${prefixo} ${runId}`,
       cnpj: randomDigits(14),
       tipo,
+      sistemaPrincipal: 'SINIR',
+      sinirHabilitado: true,
+      sinirCadastroId: `${prefixo}-SINIR-${runId}`,
       cidade: 'Curitiba',
       estado: 'PR',
       licencaNumero: `${prefixo}-${runId}`,
@@ -76,6 +80,26 @@ async function ensureParceiro(token, tipo, runId) {
 
   assert(typeof criado?.id === 'string', `Falha ao criar parceiro ${tipo}`)
   return { parceiroId: criado.id, reused: false }
+}
+
+async function ensureVinculoParceiroCliente(token, clienteId, parceiroId, papel) {
+  const vinculos = await request(`/residuos/clientes/${clienteId}/parceiros?papel=${papel}`, {
+    token,
+  })
+  assert(Array.isArray(vinculos), `Resposta inválida na listagem de vínculos ${papel}`)
+
+  const existente = vinculos.find((item) => item?.parceiroId === parceiroId && item?.ativo)
+  if (existente) return
+
+  await request(`/residuos/clientes/${clienteId}/parceiros`, {
+    method: 'POST',
+    token,
+    body: {
+      parceiroId,
+      papel,
+      sistemaIntegracao: 'SINIR',
+    },
+  })
 }
 
 async function ensureFonteGeradora(token, clienteId, runId) {
@@ -161,10 +185,19 @@ async function main() {
     const transportadora = await ensureParceiro(token, 'TRANSPORTADORA', runId)
     const destinador = await ensureParceiro(token, 'DESTINADOR_FINAL', runId)
 
-    console.log('4) Garantir fonte geradora para o cliente...')
+    console.log('4) Garantir vínculos operacionais cliente ↔ parceiros...')
+    await ensureVinculoParceiroCliente(
+      token,
+      clienteId,
+      transportadora.parceiroId,
+      'TRANSPORTADORA',
+    )
+    await ensureVinculoParceiroCliente(token, clienteId, destinador.parceiroId, 'DESTINADOR_FINAL')
+
+    console.log('5) Garantir fonte geradora para o cliente...')
     const fonte = await ensureFonteGeradora(token, clienteId, runId)
 
-    console.log('5) Emitir MTR...')
+    console.log('6) Emitir MTR...')
     const mtr = await request('/residuos/mtr', {
       method: 'POST',
       token,
@@ -187,7 +220,7 @@ async function main() {
     assert(typeof mtrId === 'string', 'MTR não foi emitido corretamente')
     assert(mtr.status === 'EMITIDO', 'Status inicial do MTR deveria ser EMITIDO')
 
-    console.log('6) Avançar MTR para RECEBIDO...')
+    console.log('7) Avançar MTR para RECEBIDO...')
     await request(`/residuos/mtr/${mtrId}/status`, {
       method: 'PATCH',
       token,
@@ -199,7 +232,7 @@ async function main() {
       body: { novoStatus: 'RECEBIDO' },
     })
 
-    console.log('7) Emitir CDF vinculado ao MTR...')
+    console.log('8) Emitir CDF vinculado ao MTR...')
     const cdf = await request('/residuos/cdf', {
       method: 'POST',
       token,
@@ -221,7 +254,7 @@ async function main() {
       'CDF não retornou vínculo esperado com o MTR',
     )
 
-    console.log('8) Validar status final do MTR e listagem de CDF...')
+    console.log('9) Validar status final do MTR e listagem de CDF...')
     const mtrsCliente = await request(`/residuos/mtr/cliente/${clienteId}`, { token })
     assert(Array.isArray(mtrsCliente), 'Listagem de MTR por cliente inválida')
     const mtrAtualizado = mtrsCliente.find((item) => item.id === mtrId)
@@ -236,7 +269,7 @@ async function main() {
     const cdfListagem = cdfsCliente.find((item) => item.id === cdf.id)
     assert(!!cdfListagem, 'CDF emitido não foi encontrado na listagem do cliente')
 
-    console.log('9) Validar trilha de auditoria do CDF...')
+    console.log('10) Validar trilha de auditoria do CDF...')
     const auditoria = await request('/auditoria?entidade=CDF&limit=50', { token })
     assert(Array.isArray(auditoria), 'Resposta de auditoria inválida')
     const logCdf = auditoria.find(

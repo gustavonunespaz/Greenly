@@ -1,8 +1,8 @@
-import { AppLayout } from "@/components/layout/AppLayout";
-import { StatusBadge } from "@/components/ui/status-badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { AppLayout } from '@/components/layout/AppLayout'
+import { StatusBadge } from '@/components/ui/status-badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -10,65 +10,65 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { motion } from "framer-motion";
-import { Clock, CheckCircle2, ClipboardList, Filter, PlayCircle, Plus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useCondicionantes } from "@/features/licencas/hooks/useCondicionantes";
-import { useLicencas } from "@/features/licencas/hooks/useLicencas";
-import { useClientes } from "@/features/clientes/hooks/useClientes";
-import { toast } from "@/components/ui/sonner";
-import type { StatusCondicionante } from "@greenly/shared";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { EmptyState } from "@/components/ui/empty-state";
-import { getApiErrorMessage } from "@/lib/http-error";
-import { FormErrorCallout } from "@/components/ui/form-error-callout";
+} from '@/components/ui/select'
+import { motion } from 'framer-motion'
+import { CheckCircle2, ClipboardList, Filter, PlayCircle, Plus } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCondicionantes } from '@/features/licencas/hooks/useCondicionantes'
+import { useLicencas } from '@/features/licencas/hooks/useLicencas'
+import { useClientes } from '@/features/clientes/hooks/useClientes'
+import { toast } from '@/components/ui/sonner'
+import type { StatusCondicionante } from '@greenly/shared'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { EmptyState } from '@/components/ui/empty-state'
+import { getApiErrorMessage } from '@/lib/http-error'
+import { FormErrorCallout } from '@/components/ui/form-error-callout'
 import {
   ActionableFormError,
   buildActionableFormError,
   buildValidationFormError,
-} from "@/lib/form-actionable-error";
-import { useTrackViewLoaded } from "@/hooks/use-track-view-loaded";
-import { trackFirstValidAction, trackFlowCompleted, trackFormError } from "@/lib/telemetry";
+} from '@/lib/form-actionable-error'
+import { useTrackViewLoaded } from '@/hooks/use-track-view-loaded'
+import { trackFirstValidAction, trackFlowCompleted, trackFormError } from '@/lib/telemetry'
 
 const filterLabels: Record<string, string> = {
-  TODAS: "Todas",
-  A_CUMPRIR: "A Cumprir",
-  EM_ANDAMENTO: "Em Andamento",
-  ATRASADA: "Atrasadas",
-  CUMPRIDA: "Cumpridas",
-};
+  TODAS: 'Todas',
+  A_CUMPRIR: 'A Cumprir',
+  EM_ANDAMENTO: 'Em Andamento',
+  ATRASADA: 'Atrasadas',
+  CUMPRIDA: 'Cumpridas',
+}
 
 type NovoCondicionanteForm = {
-  licencaId: string;
-  descricao: string;
-  tipo: "PONTUAL" | "PERIODICA";
-  codigo: string;
-  prazo: string;
-  responsavelCliente: string;
-};
+  licencaId: string
+  descricao: string
+  tipo: 'PONTUAL' | 'PERIODICA'
+  codigo: string
+  prazo: string
+  responsavelCliente: string
+}
 
 const defaultNovoCondicionanteForm: NovoCondicionanteForm = {
-  licencaId: "",
-  descricao: "",
-  tipo: "PONTUAL",
-  codigo: "",
-  prazo: "",
-  responsavelCliente: "",
-};
+  licencaId: '',
+  descricao: '',
+  tipo: 'PONTUAL',
+  codigo: '',
+  prazo: '',
+  responsavelCliente: '',
+}
 
 export default function CondicionantesPage() {
-  const navigate = useNavigate();
-  const { id: condicionanteIdParam } = useParams<{ id: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const ultimoDeepLinkProcessado = useRef<string | null>(null);
+  const navigate = useNavigate()
+  const { id: condicionanteIdParam } = useParams<{ id: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const ultimoDeepLinkProcessado = useRef<string | null>(null)
   const {
     condicionantes,
     isLoading,
@@ -77,114 +77,111 @@ export default function CondicionantesPage() {
     isCriando,
     isAtualizandoStatus,
     condicionanteAtualizandoId,
-  } = useCondicionantes();
-  const { licencas = [] } = useLicencas();
-  const { clientes = [] } = useClientes();
-  const [filter, setFilter] = useState("TODAS");
-  const [openCreate, setOpenCreate] = useState(false);
-  const [condicionanteDestacadaId, setCondicionanteDestacadaId] = useState<string | null>(null);
-  const [novoForm, setNovoForm] = useState<NovoCondicionanteForm>(defaultNovoCondicionanteForm);
-  const [formError, setFormError] = useState<ActionableFormError | null>(null);
+  } = useCondicionantes()
+  const { licencas = [] } = useLicencas()
+  const { clientes = [] } = useClientes()
+  const [filter, setFilter] = useState('TODAS')
+  const [openCreate, setOpenCreate] = useState(false)
+  const [condicionanteDestacadaId, setCondicionanteDestacadaId] = useState<string | null>(null)
+  const [novoForm, setNovoForm] = useState<NovoCondicionanteForm>(defaultNovoCondicionanteForm)
+  const [formError, setFormError] = useState<ActionableFormError | null>(null)
   const sorted = [...condicionantes]
-    .filter((c) => filter === "TODAS" || c.status === filter)
+    .filter((c) => filter === 'TODAS' || c.status === filter)
     .sort((a, b) => {
-      const aDias = a.diasRestantes ?? Number.POSITIVE_INFINITY;
-      const bDias = b.diasRestantes ?? Number.POSITIVE_INFINITY;
-      return aDias - bDias;
-    });
+      const aDias = a.diasRestantes ?? Number.POSITIVE_INFINITY
+      const bDias = b.diasRestantes ?? Number.POSITIVE_INFINITY
+      return aDias - bDias
+    })
 
-  const filters = ["TODAS", "A_CUMPRIR", "EM_ANDAMENTO", "ATRASADA", "CUMPRIDA"];
-  const hasCondicionantes = condicionantes.length > 0;
-  const hasFilterApplied = filter !== "TODAS";
-  const isCreateFormReady = !!novoForm.licencaId && !!novoForm.descricao.trim();
-  useTrackViewLoaded("condicionantes");
-  const clienteMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.nome])), [clientes]);
+  const filters = ['TODAS', 'A_CUMPRIR', 'EM_ANDAMENTO', 'ATRASADA', 'CUMPRIDA']
+  const hasCondicionantes = condicionantes.length > 0
+  const hasFilterApplied = filter !== 'TODAS'
+  const isCreateFormReady = !!novoForm.licencaId && !!novoForm.descricao.trim()
+  useTrackViewLoaded('condicionantes')
+  const clienteMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.nome])), [clientes])
   const licencasParaSelecao = useMemo(() => {
     return [...licencas].sort((a, b) => {
-      const nomeA = (clienteMap.get(a.clienteId) || "").toLowerCase();
-      const nomeB = (clienteMap.get(b.clienteId) || "").toLowerCase();
-      return nomeA.localeCompare(nomeB);
-    });
-  }, [licencas, clienteMap]);
+      const nomeA = (clienteMap.get(a.clienteId) || '').toLowerCase()
+      const nomeB = (clienteMap.get(b.clienteId) || '').toLowerCase()
+      return nomeA.localeCompare(nomeB)
+    })
+  }, [licencas, clienteMap])
 
-  function applyTrackedFormError(
-    nextError: ActionableFormError,
-    source: "validation" | "api",
-  ) {
-    setFormError(nextError);
-    trackFormError("condicionantes", "condicionante_form", nextError, {
+  function applyTrackedFormError(nextError: ActionableFormError, source: 'validation' | 'api') {
+    setFormError(nextError)
+    trackFormError('condicionantes', 'condicionante_form', nextError, {
       source,
       tipo: novoForm.tipo,
-    });
+    })
   }
 
   function openCreateDialog() {
-    setNovoForm(defaultNovoCondicionanteForm);
-    setFormError(null);
-    setOpenCreate(true);
+    setNovoForm(defaultNovoCondicionanteForm)
+    setFormError(null)
+    setOpenCreate(true)
   }
 
   useEffect(() => {
-    const quickAction = searchParams.get("quickAction");
-    if (quickAction !== "nova-condicionante") return;
+    const quickAction = searchParams.get('quickAction')
+    if (quickAction !== 'nova-condicionante') return
 
-    openCreateDialog();
-    const params = new URLSearchParams(searchParams);
-    params.delete("quickAction");
-    setSearchParams(params, { replace: true });
-  }, [searchParams, setSearchParams]);
+    openCreateDialog()
+    const params = new URLSearchParams(searchParams)
+    params.delete('quickAction')
+    setSearchParams(params, { replace: true })
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
-    if (!condicionanteIdParam || isLoading) return;
-    if (ultimoDeepLinkProcessado.current === condicionanteIdParam) return;
+    if (!condicionanteIdParam || isLoading) return
+    if (ultimoDeepLinkProcessado.current === condicionanteIdParam) return
 
-    ultimoDeepLinkProcessado.current = condicionanteIdParam;
-    const condicionante = condicionantes.find((item) => item.id === condicionanteIdParam);
+    ultimoDeepLinkProcessado.current = condicionanteIdParam
+    const condicionante = condicionantes.find((item) => item.id === condicionanteIdParam)
 
     if (!condicionante) {
-      toast.error("A condicionante deste alerta não está mais disponível.");
-      navigate("/condicionantes", { replace: true });
-      return;
+      toast.error('A condicionante deste alerta não está mais disponível.')
+      navigate('/condicionantes', { replace: true })
+      return
     }
 
-    setFilter("TODAS");
-    setCondicionanteDestacadaId(condicionante.id);
+    setFilter('TODAS')
+    setCondicionanteDestacadaId(condicionante.id)
 
     window.setTimeout(() => {
-      const elemento = document.getElementById(`condicionante-${condicionante.id}`);
-      elemento?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 0);
+      const elemento = document.getElementById(`condicionante-${condicionante.id}`)
+      elemento?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 0)
 
-    navigate("/condicionantes", { replace: true });
-  }, [condicionanteIdParam, condicionantes, isLoading, navigate]);
+    navigate('/condicionantes', { replace: true })
+  }, [condicionanteIdParam, condicionantes, isLoading, navigate])
 
   useEffect(() => {
-    if (!condicionanteDestacadaId) return;
+    if (!condicionanteDestacadaId) return
 
     const timer = window.setTimeout(() => {
-      setCondicionanteDestacadaId(null);
-    }, 5000);
+      setCondicionanteDestacadaId(null)
+    }, 5000)
 
-    return () => window.clearTimeout(timer);
-  }, [condicionanteDestacadaId]);
+    return () => window.clearTimeout(timer)
+  }, [condicionanteDestacadaId])
 
   async function handleCriarCondicionante() {
     try {
-      setFormError(null);
+      setFormError(null)
       if (!novoForm.licencaId) {
         applyTrackedFormError(
-          buildValidationFormError("Selecione uma licença para vincular a condicionante."),
-          "validation",
-        );
-        return;
+          buildValidationFormError('Selecione uma licença para vincular a condicionante.'),
+          'validation',
+        )
+        return
       }
 
       if (!novoForm.descricao.trim()) {
         applyTrackedFormError(
-          buildValidationFormError("Descreva a condicionante antes de salvar."),
-          "validation",
-        );
-        return;
+          buildValidationFormError('Descreva a condicionante antes de salvar.'),
+          'validation',
+        )
+        return
       }
 
       await criarCondicionante({
@@ -197,20 +194,20 @@ export default function CondicionantesPage() {
           prazo: novoForm.prazo ? new Date(`${novoForm.prazo}T12:00:00`) : undefined,
           responsavelCliente: novoForm.responsavelCliente || undefined,
         },
-      });
+      })
 
-      toast.success("Condicionante cadastrada com sucesso.");
-      trackFirstValidAction("condicionantes", "criar_condicionante");
-      trackFlowCompleted("condicionantes", "condicionante_criada", {
+      toast.success('Condicionante cadastrada com sucesso.')
+      trackFirstValidAction('condicionantes', 'criar_condicionante')
+      trackFlowCompleted('condicionantes', 'condicionante_criada', {
         tipo: novoForm.tipo,
-      });
-      setFormError(null);
-      setOpenCreate(false);
+      })
+      setFormError(null)
+      setOpenCreate(false)
     } catch (error: unknown) {
       applyTrackedFormError(
-        buildActionableFormError(error, "Não foi possível cadastrar a condicionante."),
-        "api",
-      );
+        buildActionableFormError(error, 'Não foi possível cadastrar a condicionante.'),
+        'api',
+      )
     }
   }
 
@@ -220,17 +217,17 @@ export default function CondicionantesPage() {
         id,
         dto: {
           status,
-          dataCumprimento: status === "CUMPRIDA" ? new Date() : undefined,
+          dataCumprimento: status === 'CUMPRIDA' ? new Date() : undefined,
         },
-      });
-      toast.success("Status da condicionante atualizado.");
-      trackFirstValidAction("condicionantes", "atualizar_status_condicionante");
-      trackFlowCompleted("condicionantes", "condicionante_status_atualizado", {
+      })
+      toast.success('Status da condicionante atualizado.')
+      trackFirstValidAction('condicionantes', 'atualizar_status_condicionante')
+      trackFlowCompleted('condicionantes', 'condicionante_status_atualizado', {
         status,
-      });
+      })
     } catch (error: unknown) {
-      const message = getApiErrorMessage(error, "Não foi possível atualizar o status.");
-      toast.error(message);
+      const message = getApiErrorMessage(error, 'Não foi possível atualizar o status.')
+      toast.error(message)
     }
   }
 
@@ -247,14 +244,14 @@ export default function CondicionantesPage() {
                 onClick={() => setFilter(f)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all duration-200 ${
                   filter === f
-                    ? "bg-primary/15 text-primary ring-1 ring-primary/20"
-                    : "text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.04]"
+                    ? 'bg-primary/15 text-primary ring-1 ring-primary/20'
+                    : 'text-muted-foreground/60 hover:text-foreground hover:bg-white/[0.04]'
                 }`}
               >
                 {filterLabels[f]}
-                {f === "ATRASADA" && (
+                {f === 'ATRASADA' && (
                   <span className="ml-1.5 text-[9px] bg-destructive/20 text-destructive px-1.5 py-0.5 rounded-full">
-                    {condicionantes.filter((c) => c.status === "ATRASADA").length}
+                    {condicionantes.filter((c) => c.status === 'ATRASADA').length}
                   </span>
                 )}
               </button>
@@ -284,96 +281,124 @@ export default function CondicionantesPage() {
             icon={ClipboardList}
             title={
               hasCondicionantes && hasFilterApplied
-                ? "Nenhuma condicionante para o filtro atual"
-                : "Nenhuma condicionante encontrada"
+                ? 'Nenhuma condicionante para o filtro atual'
+                : 'Nenhuma condicionante encontrada'
             }
             description={
               hasCondicionantes && hasFilterApplied
                 ? "Volte para 'Todas' para revisar o backlog completo."
-                : "Cadastre a primeira condicionante para iniciar o acompanhamento."
+                : 'Cadastre a primeira condicionante para iniciar o acompanhamento.'
             }
-            actionLabel={hasCondicionantes && hasFilterApplied ? "Ver todas" : "Nova condicionante"}
+            actionLabel={hasCondicionantes && hasFilterApplied ? 'Ver todas' : 'Nova condicionante'}
             onAction={
-              hasCondicionantes && hasFilterApplied
-                ? () => setFilter("TODAS")
-                : openCreateDialog
+              hasCondicionantes && hasFilterApplied ? () => setFilter('TODAS') : openCreateDialog
             }
           />
         ) : (
-          <div className="space-y-3">
-            {sorted.map((c, i) => (
-              <motion.div
-                key={c.id}
-                id={`condicionante-${c.id}`}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04, duration: 0.3 }}
-                className={`glass-card-interactive p-5 ${
-                  condicionanteDestacadaId === c.id ? "ring-2 ring-primary/35" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2 flex-wrap">
-                      <span className="text-xs font-mono text-muted-foreground/70 bg-white/[0.04] px-2 py-1 rounded-lg ring-1 ring-white/[0.04]">
+          <div className="glass-card overflow-hidden">
+            <div className="overflow-x-auto max-w-full">
+              <table className="w-full min-w-[940px]">
+                <thead>
+                  <tr className="border-b border-white/[0.08]">
+                    <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                      Código
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                      Descrição
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                      Cliente
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                      Prazo
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                      Dias
+                    </th>
+                    <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-right text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((c, i) => (
+                    <motion.tr
+                      key={c.id}
+                      id={`condicionante-${c.id}`}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.03, duration: 0.2 }}
+                      className={`border-t border-white/[0.06] hover:bg-white/[0.02] ${
+                        condicionanteDestacadaId === c.id ? 'bg-primary/5' : ''
+                      }`}
+                    >
+                      <td className="px-4 py-3 text-xs font-mono text-muted-foreground">
                         {c.codigo || `ID-${c.id.substring(0, 8)}`}
-                      </span>
-                      <StatusBadge status={c.status} />
-                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground/40 bg-white/[0.02] px-2 py-0.5 rounded-lg">
-                        {c.tipo === "PERIODICA" ? "Periódica" : "Pontual"}
-                      </span>
-                    </div>
-                    <p className="text-[13px] text-foreground leading-relaxed">{c.descricao}</p>
-                    <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground/50">
-                      <span className="flex items-center gap-1.5">
-                        <Clock className="h-3 w-3" strokeWidth={1.5} />
-                        Prazo: {c.prazo ? new Date(c.prazo).toLocaleDateString("pt-BR") : "Não definido"}
-                      </span>
-                      <span>Responsável: {c.responsavelCliente || "Não definido"}</span>
-                      <span>Cliente: {c.clienteNome}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <span className={`text-2xl tabular-nums font-semibold ${
-                      (c.diasRestantes ?? 999999) < 0 ? "text-destructive" :
-                      (c.diasRestantes ?? 999999) <= 30 ? "text-warning" :
-                      "text-primary"
-                    }`}>
-                      {c.diasRestantes === null || c.diasRestantes === undefined
-                        ? "—"
-                        : `${Math.abs(c.diasRestantes)}d`}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground/40">
-                      {c.diasRestantes === null || c.diasRestantes === undefined
-                        ? "sem prazo"
-                        : c.diasRestantes < 0
-                        ? "atrasada"
-                        : "restantes"}
-                    </span>
-                    {c.status === "A_CUMPRIR" && (
-                      <button
-                        onClick={() => handleAtualizarStatus(c.id, "EM_ANDAMENTO")}
-                        disabled={isAtualizandoStatus && condicionanteAtualizandoId === c.id}
-                        className="mt-1 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06] text-xs text-muted-foreground/70 hover:text-primary hover:bg-primary/5 hover:border-primary/20 transition-all duration-200 flex items-center gap-1.5 disabled:opacity-60"
-                      >
-                        <PlayCircle className="h-3 w-3" strokeWidth={1.5} />
-                        Iniciar
-                      </button>
-                    )}
-                    {c.status !== "CUMPRIDA" && c.status !== "DISPENSADA" && (
-                      <button
-                        onClick={() => handleAtualizarStatus(c.id, "CUMPRIDA")}
-                        disabled={isAtualizandoStatus && condicionanteAtualizandoId === c.id}
-                        className="px-3 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-xs text-primary hover:bg-primary/15 transition-all duration-200 flex items-center gap-1.5 disabled:opacity-60"
-                      >
-                        <CheckCircle2 className="h-3 w-3" strokeWidth={1.5} />
-                        Marcar cumprida
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm text-foreground">{c.descricao}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {c.tipo === 'PERIODICA' ? 'Periódica' : 'Pontual'} · Responsável:{' '}
+                          {c.responsavelCliente || 'Não definido'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{c.clienteNome}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {c.prazo ? new Date(c.prazo).toLocaleDateString('pt-BR') : 'Não definido'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`text-xs font-semibold ${
+                            (c.diasRestantes ?? 999999) < 0
+                              ? 'text-destructive'
+                              : (c.diasRestantes ?? 999999) <= 30
+                                ? 'text-warning'
+                                : 'text-primary'
+                          }`}
+                        >
+                          {c.diasRestantes === null || c.diasRestantes === undefined
+                            ? '—'
+                            : `${c.diasRestantes}d`}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={c.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          {c.status === 'A_CUMPRIR' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAtualizarStatus(c.id, 'EM_ANDAMENTO')}
+                              disabled={isAtualizandoStatus && condicionanteAtualizandoId === c.id}
+                              className="h-8"
+                            >
+                              <PlayCircle className="h-3.5 w-3.5 mr-1" />
+                              Iniciar
+                            </Button>
+                          ) : null}
+                          {c.status !== 'CUMPRIDA' && c.status !== 'DISPENSADA' ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleAtualizarStatus(c.id, 'CUMPRIDA')}
+                              disabled={isAtualizandoStatus && condicionanteAtualizandoId === c.id}
+                              className="h-8"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                              Cumprir
+                            </Button>
+                          ) : null}
+                        </div>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </motion.div>
@@ -381,9 +406,9 @@ export default function CondicionantesPage() {
       <Dialog
         open={openCreate}
         onOpenChange={(nextOpen) => {
-          setOpenCreate(nextOpen);
+          setOpenCreate(nextOpen)
           if (!nextOpen) {
-            setFormError(null);
+            setFormError(null)
           }
         }}
       >
@@ -398,19 +423,19 @@ export default function CondicionantesPage() {
           <FormErrorCallout
             error={formError}
             onAction={() => {
-              if (!formError) return;
-              if (formError.actionKind === "retry") {
-                void handleCriarCondicionante();
-                return;
+              if (!formError) return
+              if (formError.actionKind === 'retry') {
+                void handleCriarCondicionante()
+                return
               }
-              setFormError(null);
+              setFormError(null)
             }}
           />
           <p className="text-[11px] text-muted-foreground/70">
             Campos marcados com * são obrigatórios para salvar.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2 max-h-[70vh] overflow-y-auto overflow-x-hidden pr-1">
             <div className="space-y-2 md:col-span-2">
               <Label>Licença vinculada *</Label>
               <Select
@@ -423,7 +448,8 @@ export default function CondicionantesPage() {
                 <SelectContent>
                   {licencasParaSelecao.map((licenca) => (
                     <SelectItem key={licenca.id} value={licenca.id}>
-                      {clienteMap.get(licenca.clienteId) || "Cliente"} - {licenca.numeroLicenca || licenca.tipo}
+                      {clienteMap.get(licenca.clienteId) || 'Cliente'} -{' '}
+                      {licenca.numeroLicenca || licenca.tipo}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -443,7 +469,9 @@ export default function CondicionantesPage() {
               <Label>Tipo</Label>
               <Select
                 value={novoForm.tipo}
-                onValueChange={(value: "PONTUAL" | "PERIODICA") => setNovoForm((s) => ({ ...s, tipo: value }))}
+                onValueChange={(value: 'PONTUAL' | 'PERIODICA') =>
+                  setNovoForm((s) => ({ ...s, tipo: value }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -488,11 +516,11 @@ export default function CondicionantesPage() {
               Cancelar
             </Button>
             <Button onClick={handleCriarCondicionante} disabled={isCriando || !isCreateFormReady}>
-              {isCriando ? "Salvando..." : "Salvar condicionante"}
+              {isCriando ? 'Salvando...' : 'Salvar condicionante'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppLayout>
-  );
+  )
 }

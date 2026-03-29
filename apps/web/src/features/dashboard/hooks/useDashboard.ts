@@ -1,8 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { dashboardService } from '../services/dashboardService'
+import { DashboardMetricKey, dashboardService } from '../services/dashboardService'
 
 export function useDashboard() {
-  const { data: metrics, isLoading, error } = useQuery({
+  const {
+    data: metrics,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['dashboard-metrics'],
     queryFn: dashboardService.getMetrics,
     refetchInterval: 1000 * 60 * 5, // 5 minutes
@@ -11,6 +15,20 @@ export function useDashboard() {
   return {
     metrics,
     isLoading,
-    error
+    error,
+  }
+}
+
+export function useDashboardMetricDetails(metricKey?: DashboardMetricKey | null) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['dashboard-metric-details', metricKey],
+    queryFn: () => dashboardService.getMetricDetails(metricKey as DashboardMetricKey),
+    enabled: !!metricKey,
+  })
+
+  return {
+    details: data ?? [],
+    isLoading,
+    error,
   }
 }

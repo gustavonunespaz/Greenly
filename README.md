@@ -20,7 +20,7 @@ _Centralize operações. Elimine riscos legais. Rastreie do berço ao túmulo._
 ![React](https://img.shields.io/badge/React-18.x-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-7.x-FF4438?style=flat-square&logo=redis&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-port_8081-2496ED?style=flat-square&logo=docker&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-port_8080-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Kubernetes](https://img.shields.io/badge/Kubernetes-orchestrated-326CE5?style=flat-square&logo=kubernetes&logoColor=white)
 ![Drizzle ORM](https://img.shields.io/badge/Drizzle-ORM-C5F74F?style=flat-square&logo=drizzle&logoColor=black)
 
@@ -566,7 +566,7 @@ Tamanho final: ~150MB
 
 ```yaml
 Serviços: api       → localhost:3333
-  web       → localhost:8081 (container Nginx servindo o build)
+  web       → localhost:8080 (container Nginx servindo o build)
   postgres  → localhost:5435
   redis     → localhost:6379
   mailhog   → localhost:8025 (captura e-mails em dev)

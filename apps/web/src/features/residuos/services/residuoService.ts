@@ -1,5 +1,8 @@
 import api from '@/lib/api'
 import {
+  CDFResponseDTO,
+  ClienteParceiroVinculoResponseDTO,
+  CriarParceiroDTO,
   MTRResponseDTO,
   EmitirMTRDTO,
   FonteGeradoraResponseDTO,
@@ -7,6 +10,7 @@ import {
   AtualizarMTRDTO,
   FonteGeradoraOptionDTO,
   ParceiroResponseDTO,
+  VincularParceiroClienteDTO,
 } from '@greenly/shared'
 
 export const residuoService = {
@@ -17,6 +21,16 @@ export const residuoService = {
 
   async listarMTRsConsultoria(): Promise<MTRResponseDTO[]> {
     const { data } = await api.get<MTRResponseDTO[]>('/residuos/mtr/consultoria')
+    return data
+  },
+
+  async listarCDFs(clienteId: string): Promise<CDFResponseDTO[]> {
+    const { data } = await api.get<CDFResponseDTO[]>(`/residuos/cdf/cliente/${clienteId}`)
+    return data
+  },
+
+  async listarCDFsConsultoria(): Promise<CDFResponseDTO[]> {
+    const { data } = await api.get<CDFResponseDTO[]>('/residuos/cdf/consultoria')
     return data
   },
 
@@ -44,12 +58,50 @@ export const residuoService = {
   },
 
   async listarFontesGeradoras(clienteId: string): Promise<FonteGeradoraOptionDTO[]> {
-    const { data } = await api.get<FonteGeradoraOptionDTO[]>(`/residuos/fontes-geradoras/cliente/${clienteId}`)
+    const { data } = await api.get<FonteGeradoraOptionDTO[]>(
+      `/residuos/fontes-geradoras/cliente/${clienteId}`,
+    )
     return data
   },
 
-  async listarParceiros(tipo?: 'TRANSPORTADORA' | 'DESTINADOR_FINAL'): Promise<ParceiroResponseDTO[]> {
-    const { data } = await api.get<ParceiroResponseDTO[]>('/residuos/parceiros', { params: { tipo } })
+  async listarParceiros(
+    tipo?: 'TRANSPORTADORA' | 'DESTINADOR_FINAL',
+  ): Promise<ParceiroResponseDTO[]> {
+    const { data } = await api.get<ParceiroResponseDTO[]>('/residuos/parceiros', {
+      params: { tipo },
+    })
     return data
-  }
+  },
+
+  async criarParceiro(dto: CriarParceiroDTO): Promise<ParceiroResponseDTO> {
+    const { data } = await api.post<ParceiroResponseDTO>('/residuos/parceiros', dto)
+    return data
+  },
+
+  async listarParceirosCliente(
+    clienteId: string,
+    papel?: 'TRANSPORTADORA' | 'DESTINADOR_FINAL' | 'PRESTADOR_SERVICO' | 'OUTRO',
+  ): Promise<ClienteParceiroVinculoResponseDTO[]> {
+    const { data } = await api.get<ClienteParceiroVinculoResponseDTO[]>(
+      `/residuos/clientes/${clienteId}/parceiros`,
+      { params: { papel } },
+    )
+    return data
+  },
+
+  async vincularParceiroCliente(
+    dto: Omit<VincularParceiroClienteDTO, 'clienteId'> & { clienteId: string },
+  ): Promise<ClienteParceiroVinculoResponseDTO> {
+    const { data } = await api.post<ClienteParceiroVinculoResponseDTO>(
+      `/residuos/clientes/${dto.clienteId}/parceiros`,
+      {
+        parceiroId: dto.parceiroId,
+        papel: dto.papel,
+        sistemaIntegracao: dto.sistemaIntegracao,
+        codigoCadastroExterno: dto.codigoCadastroExterno,
+        observacoes: dto.observacoes,
+      },
+    )
+    return data
+  },
 }

@@ -2,6 +2,24 @@
 
 Todas as mudanças relevantes do Greenly serão registradas aqui.
 
+## [2026-03-28] - Cadastro de clientes com localidade oficial
+
+### CRUD de clientes
+
+- Campo `setor` migrado para seleção em lista no formulário de clientes.
+- Endereço do cliente expandido no frontend e backend com:
+  - `cep`, `logradouro`, `numero`, `bairro`, `complemento`, `cidade`, `estado`.
+- `ClienteResponseDTO` atualizado para devolver todos os campos de endereço e suportar edição completa sem perda de dados.
+
+### Integrações oficiais de localidade
+
+- Nova camada de serviço no web para consumo direto de bases públicas:
+  - IBGE (`servicodados.ibge.gov.br`) para estados e municípios.
+  - ViaCEP (`viacep.com.br`) para consulta de CEP e autopreenchimento de endereço.
+- Formulário de clientes atualizado com:
+  - seleção encadeada de `estado` -> `cidade`,
+  - ação de busca por CEP com preenchimento automático de endereço.
+
 ## [2026-03-28] - Hardening relacional e remoção de legado ORM
 
 ### Banco de dados (Drizzle)
@@ -62,6 +80,39 @@ Todas as mudanças relevantes do Greenly serão registradas aqui.
   - `README.md`,
   - `GUIA_ARQUITETURA.md`,
   - Dockerfiles sem comandos/cópias legados.
+
+## [2026-03-28] - Modelo operacional MTR e UX em lista
+
+### Domínio de cadastro e vínculo operacional
+
+- Modelo de cliente evoluído com tipologia de cadastro:
+  - `clientes.tipoCadastro` (`GERADOR_RESIDUO`, `PRESTADOR_SERVICO`, `TRANSPORTADOR`, `DESTINADOR`, `MULTI_PAPEL`, `OUTRO`).
+- Modelo de parceiros evoluído para integrações governamentais:
+  - `sistemaPrincipal`, `sinirHabilitado`, `sinirCadastroId`, `sigorHabilitado`, `sigorCadastroId`, `tipoServico`.
+- Nova tabela relacional `cliente_parceiros` para vínculo por papel operacional:
+  - papéis suportados (`TRANSPORTADORA`, `DESTINADOR_FINAL`, `PRESTADOR_SERVICO`, `OUTRO`),
+  - vínculo por cliente e parceiro com unicidade por papel.
+- Emissão de MTR agora exige vínculo ativo cliente ↔ parceiro para transportadora e destinador.
+
+### API e fluxos de resíduos
+
+- Novos endpoints para operação de vínculo:
+  - `GET /residuos/clientes/:id/parceiros`
+  - `POST /residuos/clientes/:id/parceiros`
+- Fluxo de parceiro atualizado para incluir dados SINIR/SIGOR no cadastro.
+- Smoke de CDF ajustado para:
+  - criar parceiros com habilitação SINIR quando necessário,
+  - garantir vínculos cliente ↔ transportadora/destinador antes da emissão de MTR.
+
+### UX e dashboard
+
+- Telas core convertidas para visualização em lista/tabela (menos cards fragmentados):
+  - clientes,
+  - MTRs,
+  - condicionantes.
+- Dashboard com drill-down por métrica:
+  - clique nos cards de risco abre detalhamento dos itens que compõem cada indicador,
+  - links diretos para o registro de origem (cliente, licença, condicionante ou MTR).
 
 ## [2026-03-28] - Sprint 3 encerrada (fechamento técnico)
 

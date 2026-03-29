@@ -8,6 +8,11 @@ export interface ClienteDTO {
   setor?: string | null
   cnae?: string | null
   ativo: boolean
+  cep?: string | null
+  logradouro?: string | null
+  numero?: string | null
+  complemento?: string | null
+  bairro?: string | null
   cidade?: string | null
   estado?: string | null
   criadoEm: string | Date

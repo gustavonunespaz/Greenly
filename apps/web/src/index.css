@@ -133,8 +133,16 @@
     @apply border-border;
   }
 
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-height: 100%;
+  }
+
   body {
     @apply bg-background text-foreground font-outfit antialiased;
+    overflow-x: hidden;
   }
 
   /* Custom scrollbar */
