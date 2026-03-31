@@ -161,27 +161,30 @@ export default function LicencasPage() {
   const [editing, setEditing] = useState<LicencaResponseDTO | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
   const [formError, setFormError] = useState<ActionableFormError | null>(null);
+  const clienteIdFilter = searchParams.get("clienteId");
 
   const clientMap = useMemo(() => {
     return new Map(clientes.map((c) => [c.id, c.nome]));
   }, [clientes]);
+  const clienteFiltroNome = clienteIdFilter ? clientMap.get(clienteIdFilter) || "Cliente" : null;
 
   const filtered = useMemo(() => {
     return (licencas || []).filter((l) => {
+      const matchesCliente = !clienteIdFilter || l.clienteId === clienteIdFilter;
       const matchesFilter = filter === "TODAS" || l.status === filter;
       const matchesSearch =
         !search ||
         l.numeroLicenca?.toLowerCase().includes(search.toLowerCase()) ||
         l.tipo?.toLowerCase().includes(search.toLowerCase()) ||
         (clientMap.get(l.clienteId) || "").toLowerCase().includes(search.toLowerCase());
-      return matchesFilter && matchesSearch;
+      return matchesCliente && matchesFilter && matchesSearch;
     });
-  }, [licencas, filter, search, clientMap]);
+  }, [licencas, clienteIdFilter, filter, search, clientMap]);
 
   const filters = ["TODAS", "ATIVA", "VENCIDA", "EM_RENOVACAO", "AGUARDANDO_EMISSAO"];
   const isSaving = isCriando || isAtualizando;
   const hasLicencas = (licencas || []).length > 0;
-  const hasActiveFilter = filter !== "TODAS" || !!search.trim();
+  const hasActiveFilter = filter !== "TODAS" || !!search.trim() || !!clienteIdFilter;
   const isFormReady = !!form.clienteId && !!form.tipo && (!!editing || !!form.orgaoAmbientalId);
   useTrackViewLoaded("licencas");
 
@@ -196,9 +199,12 @@ export default function LicencasPage() {
     });
   }
 
-  function openCreate() {
+  function openCreate(initialClienteId?: string | null) {
     setEditing(null);
-    setForm(defaultForm);
+    setForm({
+      ...defaultForm,
+      clienteId: initialClienteId || "",
+    });
     setFormError(null);
     setOpen(true);
   }
@@ -207,11 +213,11 @@ export default function LicencasPage() {
     const quickAction = searchParams.get("quickAction");
     if (quickAction !== "nova-licenca") return;
 
-    openCreate();
+    openCreate(clienteIdFilter);
     const params = new URLSearchParams(searchParams);
     params.delete("quickAction");
     setSearchParams(params, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [clienteIdFilter, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!licencaIdParam || isLoading) return;
@@ -227,8 +233,9 @@ export default function LicencasPage() {
     }
 
     openEdit(licenca);
-    navigate("/licencas", { replace: true });
-  }, [licencaIdParam, isLoading, licencas, navigate]);
+    const query = searchParams.toString();
+    navigate(query ? `/licencas?${query}` : "/licencas", { replace: true });
+  }, [licencaIdParam, isLoading, licencas, navigate, searchParams]);
 
   function openEdit(lic: LicencaResponseDTO) {
     setEditing(lic);
@@ -375,12 +382,32 @@ export default function LicencasPage() {
                 className="h-9 pl-9 pr-3 rounded-xl bg-white/[0.03] border border-white/[0.08] text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/30 w-full sm:w-56"
               />
             </div>
-            <button onClick={openCreate} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all duration-200">
+            <button onClick={() => openCreate(clienteIdFilter)} className="h-9 px-4 rounded-xl bg-primary text-primary-foreground text-xs font-medium flex items-center gap-1.5 hover:bg-primary/90 transition-all duration-200">
               <Plus className="h-3.5 w-3.5" strokeWidth={2} />
               Nova Licença
             </button>
           </div>
         </div>
+
+        {clienteFiltroNome ? (
+          <div className="glass-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm text-muted-foreground/80">
+              Exibindo visão micro de <span className="text-foreground font-medium">{clienteFiltroNome}</span>.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const params = new URLSearchParams(searchParams);
+                params.delete("clienteId");
+                setSearchParams(params, { replace: true });
+              }}
+              className="rounded-xl"
+            >
+              Ver todos
+            </Button>
+          </div>
+        ) : null}
 
         {isLoading ? (
           <SkeletonTable />
@@ -404,7 +431,7 @@ export default function LicencasPage() {
                     setFilter("TODAS");
                     setSearch("");
                   }
-                : openCreate
+                : () => openCreate(clienteIdFilter)
             }
           />
         ) : (

@@ -1,5 +1,6 @@
 import api from '@/lib/api'
 import {
+  ClientePainelResponseDTO,
   ClienteResponseDTO,
   CriarClienteDTO,
   CriarInstalacaoDTO,
@@ -50,6 +51,11 @@ export const clienteService = {
 
   async criarInstalacao(dto: CriarInstalacaoDTO): Promise<InstalacaoResponseDTO> {
     const { data } = await api.post<InstalacaoResponseDTO>('/clientes/instalacoes', dto)
+    return data
+  },
+
+  async obterPainel(id: string): Promise<ClientePainelResponseDTO> {
+    const { data } = await api.get<ClientePainelResponseDTO>(`/clientes/${id}/painel`)
     return data
   },
 

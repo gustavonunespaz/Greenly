@@ -1,5 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout'
 import { StatusBadge } from '@/components/ui/status-badge'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -20,14 +21,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { motion } from 'framer-motion'
-import { Truck, Plus, Pencil, Trash2, Save, Link2 } from 'lucide-react'
+import { Truck, Plus, Pencil, Trash2, Save, Link2, Activity, RefreshCcw, Send } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useResiduos } from '@/features/residuos/hooks/useResiduos'
 import { residuoService } from '@/features/residuos/services/residuoService'
+import { integracaoGovernoService } from '@/features/residuos/services/integracaoGovernoService'
 import { useClientes } from '@/features/clientes/hooks/useClientes'
 import { toast } from '@/components/ui/sonner'
-import type { CriarParceiroDTO, MTRResponseDTO } from '@greenly/shared'
+import type { CriarParceiroDTO, GovResourceIntegrationSummaryDTO, MTRResponseDTO } from '@greenly/shared'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getApiErrorMessage } from '@/lib/http-error'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -125,6 +127,41 @@ function SkeletonMTR() {
   )
 }
 
+function formatIntegracaoFase(fase?: GovResourceIntegrationSummaryDTO['fase'] | null) {
+  switch (fase) {
+    case 'ENFILEIRADO':
+      return 'Na fila'
+    case 'PROCESSANDO':
+      return 'Processando'
+    case 'AGUARDANDO_RECONCILIACAO':
+      return 'Aguardando retorno'
+    case 'SINCRONIZADO':
+      return 'Sincronizado'
+    case 'FALHA':
+      return 'Falha'
+    case 'DLQ':
+      return 'DLQ'
+    default:
+      return 'Sem envio'
+  }
+}
+
+function integrationBadgeClass(fase?: GovResourceIntegrationSummaryDTO['fase'] | null) {
+  switch (fase) {
+    case 'SINCRONIZADO':
+      return 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30'
+    case 'AGUARDANDO_RECONCILIACAO':
+    case 'PROCESSANDO':
+    case 'ENFILEIRADO':
+      return 'bg-amber-500/15 text-amber-100 border-amber-400/30'
+    case 'DLQ':
+    case 'FALHA':
+      return 'bg-rose-500/15 text-rose-100 border-rose-400/30'
+    default:
+      return 'bg-muted/40 text-muted-foreground border-white/10'
+  }
+}
+
 export default function MTRsPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -148,9 +185,12 @@ export default function MTRsPage() {
   const [open, setOpen] = useState(false)
   const [openVinculo, setOpenVinculo] = useState(false)
   const [openNovoParceiro, setOpenNovoParceiro] = useState(false)
+  const [openIntegracaoDetalhe, setOpenIntegracaoDetalhe] = useState(false)
+  const [integracaoDetalheId, setIntegracaoDetalheId] = useState<string | null>(null)
   const [editing, setEditing] = useState<MTRResponseDTO | null>(null)
   const [form, setForm] = useState<FormState>(defaultForm)
   const [formError, setFormError] = useState<ActionableFormError | null>(null)
+  const clienteIdFilter = searchParams.get('clienteId')
   const [novoParceiro, setNovoParceiro] = useState<{
     nome: string
     cnpj: string
@@ -199,6 +239,35 @@ export default function MTRsPage() {
   const { data: parceirosGlobais = [] } = useQuery({
     queryKey: ['parceiros', 'todos'],
     queryFn: () => residuoService.listarParceiros(),
+  })
+
+  const { data: govDashboard } = useQuery({
+    queryKey: ['gov-dashboard', 24],
+    queryFn: () => integracaoGovernoService.getDashboard(24),
+  })
+
+  const { data: integracaoDetalhe, isLoading: isLoadingIntegracaoDetalhe } = useQuery({
+    queryKey: ['gov-mtr-detail', integracaoDetalheId],
+    queryFn: () => integracaoGovernoService.getMtrDetail(integracaoDetalheId!),
+    enabled: openIntegracaoDetalhe && !!integracaoDetalheId,
+  })
+
+  const reenviarIntegracaoMutation = useMutation({
+    mutationFn: (mtrId: string) => integracaoGovernoService.reenviarMtr(mtrId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mtrs'] })
+      queryClient.invalidateQueries({ queryKey: ['gov-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['gov-mtr-detail'] })
+    },
+  })
+
+  const reconciliarIntegracaoMutation = useMutation({
+    mutationFn: (mtrId: string) => integracaoGovernoService.reconciliarMtr(mtrId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mtrs'] })
+      queryClient.invalidateQueries({ queryKey: ['gov-dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['gov-mtr-detail'] })
+    },
   })
 
   const transportadoras = useMemo(
@@ -253,11 +322,16 @@ export default function MTRsPage() {
   })
 
   const clientMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.nome])), [clientes])
+  const clienteFiltroNome = clienteIdFilter ? clientMap.get(clienteIdFilter) || 'Cliente' : null
   const partnerMap = useMemo(() => {
     const map = new Map<string, string>()
     parceirosGlobais.forEach((p) => map.set(p.id, p.nome))
     return map
   }, [parceirosGlobais])
+  const mtrsFiltrados = useMemo(
+    () => (mtrs || []).filter((mtr) => !clienteIdFilter || mtr.clienteId === clienteIdFilter),
+    [clienteIdFilter, mtrs],
+  )
 
   const volumeNumber = Number(form.volume)
   const isFormReady =
@@ -279,11 +353,19 @@ export default function MTRsPage() {
     })
   }
 
-  function openCreate() {
+  function openCreate(initialClienteId?: string | null) {
     setEditing(null)
-    setForm(defaultForm)
+    setForm({
+      ...defaultForm,
+      clienteId: initialClienteId || '',
+    })
     setFormError(null)
     setOpen(true)
+  }
+
+  function openIntegracao(mtr: MTRResponseDTO) {
+    setIntegracaoDetalheId(mtr.id)
+    setOpenIntegracaoDetalhe(true)
   }
 
   function abrirDialogVinculo() {
@@ -298,11 +380,11 @@ export default function MTRsPage() {
     const quickAction = searchParams.get('quickAction')
     if (quickAction !== 'novo-mtr') return
 
-    openCreate()
+    openCreate(clienteIdFilter)
     const params = new URLSearchParams(searchParams)
     params.delete('quickAction')
     setSearchParams(params, { replace: true })
-  }, [searchParams, setSearchParams])
+  }, [clienteIdFilter, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!form.clienteId) return
@@ -323,8 +405,9 @@ export default function MTRsPage() {
     }
 
     openEdit(mtr)
-    navigate('/mtrs', { replace: true })
-  }, [mtrIdParam, isLoading, mtrs, navigate])
+    const query = searchParams.toString()
+    navigate(query ? `/mtrs?${query}` : '/mtrs', { replace: true })
+  }, [mtrIdParam, isLoading, mtrs, navigate, searchParams])
 
   function openEdit(mtr: MTRResponseDTO) {
     setEditing(mtr)
@@ -449,6 +532,24 @@ export default function MTRsPage() {
     }
   }
 
+  async function handleReenviarIntegracao(mtr: MTRResponseDTO) {
+    try {
+      await reenviarIntegracaoMutation.mutateAsync(mtr.id)
+      toast.success('Reenvio da integração enfileirado.')
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Não foi possível reenviar a integração.'))
+    }
+  }
+
+  async function handleReconciliarIntegracao(mtr: MTRResponseDTO) {
+    try {
+      await reconciliarIntegracaoMutation.mutateAsync(mtr.id)
+      toast.success('Reconciliação enfileirada com sucesso.')
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, 'Não foi possível reconciliar o MTR.'))
+    }
+  }
+
   async function handleCriarParceiro() {
     if (!novoParceiro.nome.trim()) {
       toast.error('Informe o nome do parceiro.')
@@ -483,6 +584,49 @@ export default function MTRsPage() {
   return (
     <AppLayout title="Manifestos de Transporte (MTR)">
       <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+          <div className="glass-card p-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
+              Fila Gov
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-foreground">
+              {govDashboard?.fila.waiting ?? 0}
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              {govDashboard?.fila.active ?? 0} ativos, {govDashboard?.fila.delayed ?? 0} delayed
+            </p>
+          </div>
+          <div className="glass-card p-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
+              Aguardando retorno
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-amber-100">
+              {govDashboard?.totais.aguardandoReconciliacao ?? 0}
+            </p>
+            <p className="text-xs text-muted-foreground/70">polling e webhooks pendentes</p>
+          </div>
+          <div className="glass-card p-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
+              Sincronizados
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-emerald-100">
+              {govDashboard?.totais.sincronizados ?? 0}
+            </p>
+            <p className="text-xs text-muted-foreground/70">últimas 24h de estado consolidado</p>
+          </div>
+          <div className="glass-card p-4">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground/70">
+              Falhas / DLQ
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-rose-100">
+              {(govDashboard?.totais.falhas ?? 0) + (govDashboard?.totais.dlq ?? 0)}
+            </p>
+            <p className="text-xs text-muted-foreground/70">
+              DLQ: {govDashboard?.totais.dlq ?? 0}
+            </p>
+          </div>
+        </div>
+
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <p className="text-sm text-muted-foreground/70">
             Acompanhamento em tempo real das movimentações.
@@ -500,22 +644,46 @@ export default function MTRsPage() {
               <Link2 className="h-4 w-4" />
               Vincular parceiro
             </Button>
-            <Button onClick={openCreate} className="gap-2 h-9 rounded-xl">
+            <Button onClick={() => openCreate(clienteIdFilter)} className="gap-2 h-9 rounded-xl">
               <Plus className="h-4 w-4" />
               Novo MTR
             </Button>
           </div>
         </div>
 
+        {clienteFiltroNome ? (
+          <div className="glass-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm text-muted-foreground/80">
+              Exibindo visão micro de <span className="text-foreground font-medium">{clienteFiltroNome}</span>.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const params = new URLSearchParams(searchParams)
+                params.delete('clienteId')
+                setSearchParams(params, { replace: true })
+              }}
+              className="rounded-xl"
+            >
+              Ver todos
+            </Button>
+          </div>
+        ) : null}
+
         {isLoading ? (
           <SkeletonMTR />
-        ) : !mtrs || mtrs.length === 0 ? (
+        ) : mtrsFiltrados.length === 0 ? (
           <EmptyState
             icon={Truck}
-            title="Nenhum MTR emitido"
-            description="Emita o primeiro manifesto para iniciar o controle."
+            title={clienteIdFilter ? 'Nenhum MTR para este cliente' : 'Nenhum MTR emitido'}
+            description={
+              clienteIdFilter
+                ? 'Este cliente ainda não possui manifestos emitidos.'
+                : 'Emita o primeiro manifesto para iniciar o controle.'
+            }
             actionLabel="Novo MTR"
-            onAction={openCreate}
+            onAction={() => openCreate(clienteIdFilter)}
           />
         ) : (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -542,13 +710,16 @@ export default function MTRsPage() {
                       <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
                         Destinador
                       </th>
+                      <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                        Integração
+                      </th>
                       <th className="px-4 py-3 text-right text-[10px] uppercase tracking-wider text-muted-foreground/60">
                         Ações
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {mtrs.map((mtr, i) => (
+                    {mtrsFiltrados.map((mtr, i) => (
                       <motion.tr
                         key={mtr.id}
                         initial={{ opacity: 0, y: 8 }}
@@ -575,7 +746,65 @@ export default function MTRsPage() {
                           {partnerMap.get(mtr.destinadorId) || mtr.destinadorId}
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex justify-end gap-1.5">
+                          {mtr.integracao ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="outline" className="border-white/10 text-[10px]">
+                                  {mtr.integracao.sistema}
+                                </Badge>
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] ${integrationBadgeClass(mtr.integracao.fase)}`}
+                                >
+                                  {formatIntegracaoFase(mtr.integracao.fase)}
+                                </Badge>
+                              </div>
+                              <p className="text-[11px] text-muted-foreground/70">
+                                {mtr.integracao.providerStatus || 'Aguardando primeiro retorno'}
+                              </p>
+                              {mtr.integracao.ultimoErro ? (
+                                <p className="text-[11px] text-rose-200">
+                                  {mtr.integracao.ultimoErro}
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/60">
+                              Sem integração registrada
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-1.5 flex-wrap">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => openIntegracao(mtr)}
+                              title="Detalhes da integração"
+                            >
+                              <Activity className="h-4 w-4" strokeWidth={1.5} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleReconciliarIntegracao(mtr)}
+                              disabled={reconciliarIntegracaoMutation.isPending}
+                              title="Reconciliar status"
+                            >
+                              <RefreshCcw className="h-4 w-4" strokeWidth={1.5} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => handleReenviarIntegracao(mtr)}
+                              disabled={reenviarIntegracaoMutation.isPending}
+                              title="Reenviar integração"
+                            >
+                              <Send className="h-4 w-4" strokeWidth={1.5} />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -604,6 +833,127 @@ export default function MTRsPage() {
           </motion.div>
         )}
       </div>
+
+      <Dialog
+        open={openIntegracaoDetalhe}
+        onOpenChange={(nextOpen) => {
+          setOpenIntegracaoDetalhe(nextOpen)
+          if (!nextOpen) setIntegracaoDetalheId(null)
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Detalhe da integração governamental</DialogTitle>
+            <DialogDescription>
+              Timeline técnica de envio, polling, webhook e retries do manifesto.
+            </DialogDescription>
+          </DialogHeader>
+
+          {isLoadingIntegracaoDetalhe ? (
+            <div className="space-y-3 py-4">
+              <div className="skeleton h-14 w-full" />
+              <div className="skeleton h-24 w-full" />
+              <div className="skeleton h-24 w-full" />
+            </div>
+          ) : !integracaoDetalhe ? (
+            <div className="rounded-xl border border-dashed border-white/10 px-4 py-6 text-sm text-muted-foreground/70">
+              Nenhum detalhe de integração disponível para este MTR.
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              <div className="glass-card p-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline">{integracaoDetalhe.resumo?.sistema ?? 'N/D'}</Badge>
+                  <Badge
+                    variant="outline"
+                    className={integrationBadgeClass(integracaoDetalhe.resumo?.fase ?? null)}
+                  >
+                    {formatIntegracaoFase(integracaoDetalhe.resumo?.fase ?? null)}
+                  </Badge>
+                </div>
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 text-xs text-muted-foreground/80">
+                  <div>
+                    <span className="text-muted-foreground/60">Provider status:</span>{' '}
+                    {integracaoDetalhe.resumo?.providerStatus ?? 'N/D'}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground/60">Protocolo:</span>{' '}
+                    {integracaoDetalhe.resumo?.protocolo ?? 'N/D'}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground/60">Tentativas:</span>{' '}
+                    {integracaoDetalhe.resumo?.tentativas ?? 0}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground/60">Número externo:</span>{' '}
+                    {integracaoDetalhe.resumo?.numeroExterno ?? 'N/D'}
+                  </div>
+                </div>
+                {integracaoDetalhe.resumo?.ultimoErro ? (
+                  <p className="mt-3 text-xs text-rose-200">
+                    Último erro: {integracaoDetalhe.resumo.ultimoErro}
+                  </p>
+                ) : null}
+              </div>
+
+              {integracaoDetalhe.documentosOrigem.length > 0 ? (
+                <div className="glass-card p-4">
+                  <p className="text-xs font-medium text-foreground">Documentos vinculados</p>
+                  <div className="mt-3 space-y-2">
+                    {integracaoDetalhe.documentosOrigem.map((documento) => (
+                      <div
+                        key={documento.id}
+                        className="rounded-lg border border-white/10 px-3 py-2 text-xs text-muted-foreground/80"
+                      >
+                        <div className="font-medium text-foreground">{documento.documentoNome}</div>
+                        <div>
+                          {documento.tipoDocumento} · {documento.origem}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                {integracaoDetalhe.eventos.map((evento) => (
+                  <div key={evento.id} className="glass-card p-4">
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline">{evento.operacao}</Badge>
+                        <Badge
+                          variant="outline"
+                          className={integrationBadgeClass(
+                            evento.etapa === 'FAILED' || evento.etapa === 'DLQ'
+                              ? 'FALHA'
+                              : evento.etapa === 'PROVIDER_ACK' || evento.etapa === 'RECONCILED'
+                                ? 'SINCRONIZADO'
+                                : 'PROCESSANDO',
+                          )}
+                        >
+                          {evento.etapa}
+                        </Badge>
+                      </div>
+                      <span className="text-[11px] text-muted-foreground/70">
+                        tentativa {evento.tentativa}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm text-foreground">{evento.mensagem}</p>
+                    {evento.providerStatus ? (
+                      <p className="mt-1 text-xs text-muted-foreground/70">
+                        Provider status: {evento.providerStatus}
+                      </p>
+                    ) : null}
+                    {evento.erro ? (
+                      <p className="mt-1 text-xs text-rose-200">{evento.erro}</p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={open}

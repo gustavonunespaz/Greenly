@@ -22,6 +22,8 @@ import { Search, Plus, Building2, Pencil, Trash2, Save, Loader2 } from 'lucide-r
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useClientes } from '@/features/clientes/hooks/useClientes'
+import { useClientePainel } from '@/features/clientes/hooks/useClientePainel'
+import { ClientePainel } from '@/features/clientes/components/ClientePainel'
 import {
   clienteService,
   type CnpjLookupResponseDTO,
@@ -29,7 +31,7 @@ import {
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { toast } from '@/components/ui/sonner'
 import type { ClienteResponseDTO } from '@greenly/shared'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getApiErrorMessage } from '@/lib/http-error'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FormErrorCallout } from '@/components/ui/form-error-callout'
@@ -210,6 +212,8 @@ function SkeletonList() {
 }
 
 export default function ClientesPage() {
+  const navigate = useNavigate()
+  const { id: clienteIdParam } = useParams<{ id: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user } = useAuth()
   const {
@@ -237,6 +241,8 @@ export default function ClientesPage() {
   const hasClientes = (clientes || []).length > 0
   const hasSearchApplied = !!search.trim()
   useTrackViewLoaded('clientes')
+  const clienteSelecionado = clientes?.find((cliente) => cliente.id === clienteIdParam) ?? null
+  const painelClienteQuery = useClientePainel(clienteIdParam)
 
   const setorFormOptions = useMemo(() => {
     if (!form.setor || setorLabelMap.has(form.setor)) return setorOptions
@@ -318,6 +324,14 @@ export default function ClientesPage() {
       isCancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    if (!clienteIdParam || isLoading) return
+    if (clienteSelecionado) return
+
+    toast.error('O cliente selecionado não está mais disponível.')
+    navigate('/clientes', { replace: true })
+  }, [clienteIdParam, clienteSelecionado, isLoading, navigate])
 
   useEffect(() => {
     if (!form.estado) {
@@ -564,6 +578,9 @@ export default function ClientesPage() {
 
     try {
       await removerCliente(cliente.id)
+      if (clienteIdParam === cliente.id) {
+        navigate('/clientes', { replace: true })
+      }
       toast.success('Cliente excluído com sucesso.')
     } catch (error: unknown) {
       const message = getApiErrorMessage(error, 'Não foi possível excluir o cliente.')
@@ -647,7 +664,9 @@ export default function ClientesPage() {
                       <motion.tr
                         key={cliente.id}
                         variants={item}
-                        className="border-t border-white/[0.06] hover:bg-white/[0.02]"
+                        className={`border-t border-white/[0.06] hover:bg-white/[0.02] ${
+                          clienteIdParam === cliente.id ? 'bg-primary/5' : ''
+                        }`}
                       >
                         <td className="px-4 py-3">
                           <p className="text-sm font-medium text-foreground">{cliente.nome}</p>
@@ -687,6 +706,15 @@ export default function ClientesPage() {
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-8 px-2 text-xs"
+                              onClick={() => navigate(`/clientes/${cliente.id}`)}
+                              title="Abrir visão do cliente"
+                            >
+                              Abrir
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               className="h-8 w-8 p-0"
                               onClick={() => openEdit(cliente)}
                               title="Editar cliente"
@@ -713,6 +741,56 @@ export default function ClientesPage() {
             </div>
           </motion.div>
         )}
+
+        {clienteIdParam ? (
+          painelClienteQuery.isLoading ? (
+            <div className="glass-card p-6">
+              <div className="space-y-3">
+                <div className="skeleton h-6 w-52" />
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="skeleton h-28 rounded-2xl" />
+                  ))}
+                </div>
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <div key={index} className="skeleton h-56 rounded-2xl" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : painelClienteQuery.data ? (
+            <ClientePainel
+              painel={painelClienteQuery.data}
+              onEditarCliente={() => {
+                if (clienteSelecionado) {
+                  openEdit(clienteSelecionado)
+                }
+              }}
+            />
+          ) : (
+            <EmptyState
+              icon={Building2}
+              title="Não foi possível carregar o contexto do cliente"
+              description="Tente novamente ou volte para a lista geral."
+              actionLabel="Voltar para clientes"
+              onAction={() => navigate('/clientes', { replace: true })}
+            />
+          )
+        ) : hasClientes ? (
+          <EmptyState
+            icon={Building2}
+            title="Selecione um cliente para ver a visão micro"
+            description="Abra um cliente para acompanhar licenças, condicionantes, MTRs, CDFs, documentos e atividade recente no mesmo lugar."
+            actionLabel="Abrir primeiro cliente"
+            onAction={() => {
+              const primeiroCliente = filtered[0] || clientes?.[0]
+              if (primeiroCliente) {
+                navigate(`/clientes/${primeiroCliente.id}`)
+              }
+            }}
+          />
+        ) : null}
       </div>
 
       <Dialog

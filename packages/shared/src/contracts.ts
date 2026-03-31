@@ -4,6 +4,7 @@ import {
   categoriaDocumentoAmbientalValues,
   origemProcessamentoDocumentoValues,
   perfilDocumentoClienteValues,
+  statusReprocessamentoDocumentoValues,
   statusRevisaoDocumentoValues,
   tipoDocumentoAmbientalValues,
 } from './types/documento.types'
@@ -197,6 +198,114 @@ export interface InstalacaoResponseDTO {
   ativa: boolean
 }
 
+export interface ClientePainelIndicadoresDTO {
+  totalLicencas: number
+  licencasAtivas: number
+  licencasVencidas: number
+  totalCondicionantes: number
+  condicionantesAtrasadas: number
+  condicionantesPendentes: number
+  mtrsAtivos: number
+  mtrsComDivergencia: number
+  cdfsEmitidos: number
+  documentosPendentesRevisao: number
+  documentosComFalha: number
+  pendenciasCriticas: number
+  nivelRisco: 'BAIXO' | 'MODERADO' | 'ALTO' | 'CRITICO'
+}
+
+export interface ClientePainelLicencaItemDTO {
+  id: string
+  tipo: string
+  status: string
+  numeroLicenca?: string | null
+  numeroProcesso?: string | null
+  dataValidade?: Date | null
+  diasAteVencimento: number | null
+  totalCondicionantes: number
+  condicionantesAtrasadas: number
+}
+
+export interface ClientePainelCondicionanteItemDTO {
+  id: string
+  licencaId: string
+  licencaTipo: string
+  licencaNumero?: string | null
+  codigo?: string | null
+  descricao: string
+  tipo: string
+  status: string
+  prazo?: Date | null
+  proximoPrazo?: Date | null
+  responsavelCliente?: string | null
+  diasRestantes: number | null
+}
+
+export interface ClientePainelMtrItemDTO {
+  id: string
+  numeroMTR?: string | null
+  status: string
+  tipoDestinacao: string
+  volume: number
+  unidadeMedida: string
+  dataEmissao: Date
+  transportadoraNome?: string | null
+  destinadorNome?: string | null
+}
+
+export interface ClientePainelCdfItemDTO {
+  id: string
+  numeroCdf: string
+  numeroCdfExterno?: string | null
+  status: string
+  sistema: string
+  dataEmissao: Date
+  destinadorNome?: string | null
+  totalMtrs: number
+}
+
+export interface ClientePainelDocumentoItemDTO {
+  processamentoDocumentoId: string
+  documentoNome: string
+  tipo: string
+  categoria: string
+  statusProcessamento: string
+  revisaoStatus: string
+  recebidoEm: Date
+  atualizadoEm: Date
+  licencaId?: string | null
+  licencaNumero?: string | null
+}
+
+export interface ClientePainelAtividadeItemDTO {
+  id: string
+  evento: string
+  entidade: string
+  entidadeId?: string | null
+  resumo: string
+  criadoEm: Date
+  licencaId?: string | null
+  condicionanteId?: string | null
+  mtrId?: string | null
+  cdfId?: string | null
+}
+
+export interface ClientePainelResponseDTO {
+  cliente: ClienteResponseDTO & {
+    nomeResponsavel?: string | null
+    emailResponsavel?: string | null
+    telefoneResponsavel?: string | null
+  }
+  instalacoes: InstalacaoResponseDTO[]
+  indicadores: ClientePainelIndicadoresDTO
+  licencas: ClientePainelLicencaItemDTO[]
+  condicionantes: ClientePainelCondicionanteItemDTO[]
+  mtrs: ClientePainelMtrItemDTO[]
+  cdfs: ClientePainelCdfItemDTO[]
+  documentos: ClientePainelDocumentoItemDTO[]
+  atividadeRecente: ClientePainelAtividadeItemDTO[]
+}
+
 // ─── Documentos ────────────────────────
 export const CategoriaDocumentoAmbientalSchema = z.enum(categoriaDocumentoAmbientalValues)
 export const TipoDocumentoAmbientalSchema = z.enum(tipoDocumentoAmbientalValues)
@@ -256,6 +365,50 @@ export const DocumentoQualidadeQuerySchema = z.object({
   periodoDias: z.coerce.number().int().min(1).max(365).default(30),
 })
 export type DocumentoQualidadeQueryDTO = z.infer<typeof DocumentoQualidadeQuerySchema>
+
+export const DocumentoTemplateRequisitosQuerySchema = z.object({
+  perfilCliente: PerfilDocumentoClienteSchema.default('GLOBAL'),
+})
+export type DocumentoTemplateRequisitosQueryDTO = z.infer<typeof DocumentoTemplateRequisitosQuerySchema>
+
+export const UpsertDocumentoTemplateRequisitoSchema = z.object({
+  perfilCliente: PerfilDocumentoClienteSchema.default('GLOBAL'),
+  tipoDocumento: TipoDocumentoAmbientalSchema,
+  categoriaDocumento: CategoriaDocumentoAmbientalSchema,
+  descricaoTemplate: z.string().trim().max(500).optional(),
+  camposObrigatorios: z.array(CampoDocumentoAmbientalSchema).min(1),
+  camposOpcionais: z.array(CampoDocumentoAmbientalSchema).default([]),
+})
+export type UpsertDocumentoTemplateRequisitoDTO = z.infer<
+  typeof UpsertDocumentoTemplateRequisitoSchema
+>
+
+export const DocumentoCondicionantesCandidatasQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(20).default(6),
+})
+export type DocumentoCondicionantesCandidatasQueryDTO = z.infer<
+  typeof DocumentoCondicionantesCandidatasQuerySchema
+>
+
+export const ReprocessarDocumentoSchema = z.object({
+  motivo: z.string().trim().min(5).max(500),
+})
+export type ReprocessarDocumentoDTO = z.infer<typeof ReprocessarDocumentoSchema>
+
+export const StatusReprocessamentoDocumentoSchema = z.enum(statusReprocessamentoDocumentoValues)
+
+export const DocumentoReprocessamentoMetricasQuerySchema = z.object({
+  periodoHoras: z.coerce.number().int().min(1).max(720).default(168),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+})
+export type DocumentoReprocessamentoMetricasQueryDTO = z.infer<
+  typeof DocumentoReprocessamentoMetricasQuerySchema
+>
+
+export const DocumentoPipelineAlertasQuerySchema = z.object({
+  periodoHoras: z.coerce.number().int().min(1).max(168).default(24),
+})
+export type DocumentoPipelineAlertasQueryDTO = z.infer<typeof DocumentoPipelineAlertasQuerySchema>
 
 // ─── Licença ────────────────────────────
 export const CriarLicencaSchema = z.object({
@@ -421,6 +574,7 @@ export interface MTRResponseDTO {
   cpfMotorista?: string | null
   observacoes?: string | null
   residuos?: MTRResiduoItemDTO[]
+  integracao?: GovResourceIntegrationSummaryDTO | null
 }
 
 export const AvancarStatusMTRSchema = z.object({
@@ -453,7 +607,103 @@ export interface CDFResponseDTO {
   dataEmissao: Date
   observacoes?: string | null
   mtrIds: string[]
+  integracao?: GovResourceIntegrationSummaryDTO | null
 }
+
+export interface GovResourceIntegrationSummaryDTO {
+  recursoTipo: 'MTR' | 'CDF'
+  recursoId: string
+  sistema: 'SINIR' | 'SIGOR'
+  fase:
+    | 'NAO_ENFILEIRADO'
+    | 'ENFILEIRADO'
+    | 'PROCESSANDO'
+    | 'AGUARDANDO_RECONCILIACAO'
+    | 'SINCRONIZADO'
+    | 'FALHA'
+    | 'DLQ'
+  operacaoAtual: 'EMITIR' | 'CONSULTAR_STATUS' | 'CANCELAR'
+  providerStatus?: string | null
+  protocolo?: string | null
+  numeroExterno?: string | null
+  idempotencyKey?: string | null
+  tentativas: number
+  ultimaTentativaEm?: Date | null
+  ultimoSucessoEm?: Date | null
+  ultimoErro?: string | null
+  aguardandoReconciliacao: boolean
+}
+
+export interface GovIntegrationEventDTO {
+  id: string
+  recursoTipo: 'MTR' | 'CDF'
+  recursoId: string
+  sistema: 'SINIR' | 'SIGOR'
+  operacao: 'EMITIR' | 'CONSULTAR_STATUS' | 'CANCELAR' | 'WEBHOOK'
+  etapa:
+    | 'ENQUEUED'
+    | 'PROCESSING'
+    | 'PROVIDER_ACK'
+    | 'RECONCILED'
+    | 'FAILED'
+    | 'DLQ'
+    | 'WEBHOOK_RECEIVED'
+    | 'DUPLICATE_IGNORED'
+  mensagem: string
+  tentativa: number
+  protocolo?: string | null
+  providerStatus?: string | null
+  requestMasked?: unknown
+  responseMasked?: unknown
+  erro?: string | null
+  criadoEm: Date
+}
+
+export interface GovDocumentoOrigemDTO {
+  id: string
+  documentoNome: string
+  tipoDocumento: string
+  origem: string
+  recebidoEm: Date
+}
+
+export interface GovIntegrationDetailDTO {
+  resumo: GovResourceIntegrationSummaryDTO | null
+  eventos: GovIntegrationEventDTO[]
+  documentosOrigem: GovDocumentoOrigemDTO[]
+}
+
+export interface GovIntegrationDashboardDTO {
+  periodoHoras: number
+  fila: {
+    waiting: number
+    active: number
+    delayed: number
+    failed: number
+    completed: number
+    dlq: number
+  }
+  totais: {
+    enfileirados: number
+    sincronizados: number
+    falhas: number
+    aguardandoReconciliacao: number
+    dlq: number
+  }
+  porSistema: Array<{
+    sistema: 'SINIR' | 'SIGOR'
+    total: number
+    sincronizados: number
+    falhas: number
+    aguardandoReconciliacao: number
+  }>
+  recentesComFalha: GovResourceIntegrationSummaryDTO[]
+}
+
+export const GovDashboardQuerySchema = z.object({
+  periodoHoras: z.coerce.number().int().min(1).max(168).default(24),
+})
+export type GovDashboardQueryDTO = z.infer<typeof GovDashboardQuerySchema>
 
 export const CriarFonteGeradoraSchema = z.object({
   clienteId: z.string().uuid(),

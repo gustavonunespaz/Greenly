@@ -343,6 +343,8 @@ Progresso Sprint 5 (execucao antecipada - 2026-03-29):
 - [x] gate tecnico da Sprint 5 publicado e validado (`pnpm gate:sprint5`).
 
 ### Sprint 6 (2026-06-08 a 2026-06-19) - Condicionantes sugeridas + robustez
+Status: CONCLUIDA TECNICAMENTE em 2026-03-29 (execucao antecipada)
+
 Objetivo:
 - extrair valor alem de campos basicos e estabilizar a operacao.
 
@@ -358,9 +360,27 @@ Gate de aceite:
 - erro operacional de fila < 2% na semana,
 - processo de reprocessamento com SLA definido e medido.
 
+Progresso Sprint 6 (execucao antecipada - 2026-03-29):
+- [x] sugestao automatica de condicionantes candidatas por documento concluido:
+  - `GET /api/documentos/:processamentoDocumentoId/condicionantes-candidatas?limit=5`.
+- [x] reprocessamento manual operacional para itens em `FALHA` com SLA configuravel:
+  - `POST /api/documentos/:processamentoDocumentoId/reprocessar`,
+  - `GET /api/documentos/reprocessamentos/metricas?periodoHoras=168`.
+- [x] alertas operacionais da fila documental com thresholds publicados:
+  - `GET /api/dashboard/documentos/pipeline/alertas?periodoHoras=24`,
+  - cron proativo `DocumentoPipelineAlertasCron` com notificacao in-app para equipes operacionais.
+- [x] matriz de templates/requisitos documentais por perfil com override por consultoria:
+  - `GET /api/documentos/templates-requisitos?perfilCliente=GERADOR_RESIDUO`,
+  - `PUT /api/documentos/templates-requisitos`.
+- [x] suite de regressao da Onda 2 publicada em runtime da API:
+  - smoke Sprint 6: `docker compose exec api node dist/scripts/smoke.sprint6.js`,
+  - smoke Onda 2 consolidado: `docker compose exec api node dist/scripts/smoke.wave2.js`.
+
 ## Onda 3 - Integracoes governamentais + confiabilidade
 
 ### Sprint 7 (2026-06-22 a 2026-07-03) - Adaptador SINIR
+Status: CONCLUIDA TECNICAMENTE em 2026-03-30 (execucao antecipada)
+
 Objetivo:
 - iniciar integracao externa com contrato tecnico estavel.
 
@@ -375,7 +395,16 @@ Gate de aceite:
 - envio homologado no ambiente de testes do provedor,
 - trilha de auditoria funcional ponta a ponta (evento -> payload -> retorno -> estado no Greenly).
 
+Progresso Sprint 7 (execucao antecipada - 2026-03-30):
+- [x] adapter `SINIR` HTTP isolado do dominio com mapeamento de payload.
+- [x] autenticacao com cache/renovacao de token.
+- [x] observacao de request/response com mascaramento de dados sensiveis.
+- [x] trilha auditavel por evento usando `logs_auditoria` sem alterar schema.
+- [x] mock provider homologavel para validacao local sem credenciais externas reais.
+
 ### Sprint 8 (2026-07-06 a 2026-07-17) - Adaptador SIGOR + retorno de status
+Status: CONCLUIDA TECNICAMENTE em 2026-03-30 (execucao antecipada)
+
 Objetivo:
 - fechar ciclo de envio e acompanhamento de status de manifesto.
 
@@ -390,7 +419,16 @@ Gate de aceite:
 - sincronizacao de status funcionando ponta a ponta,
 - reconciliacao diaria sem divergencias criticas.
 
+Progresso Sprint 8 (execucao antecipada - 2026-03-30):
+- [x] adapter `SIGOR` HTTP com envio de `MTR` e `CDF`.
+- [x] polling e webhook conectados para retorno de status.
+- [x] atualizacao automatica de `mtrs.status` e `cdfs.status` apos retorno do provedor.
+- [x] painel operacional publicado em `/api/integracoes/governo/dashboard`.
+- [x] tela `MTRs` atualizada com cards operacionais, coluna de integracao e dialogo de timeline.
+
 ### Sprint 9 (2026-07-20 a 2026-07-31) - Idempotencia, retries e resiliencia
+Status: CONCLUIDA TECNICAMENTE em 2026-03-30 (execucao antecipada)
+
 Objetivo:
 - tornar integracoes seguras para volume e falha de rede.
 
@@ -404,6 +442,14 @@ Entregas:
 Gate de aceite:
 - nenhuma duplicidade de envio em testes de carga,
 - recuperacao automatica em falhas transientes.
+
+Progresso Sprint 9 (execucao antecipada - 2026-03-30):
+- [x] idempotencia por chave derivada do payload canonico.
+- [x] retry exponencial no worker `greenly_gov_integracoes`.
+- [x] DLQ dedicada `greenly_gov_dlq`.
+- [x] reconciliacao automatica por cron.
+- [x] suporte a testes de caos via provedor mock para indisponibilidade e callback duplicado.
+- [x] smoke oficial da Onda 3 publicado (`dist/scripts/smoke.wave3.js` / `pnpm test:onda3:smoke:docker`).
 
 ## Onda 4 - Operacao de campo offline-first
 
@@ -539,12 +585,12 @@ Processo oficial entre sprints:
 | Vazamento de dados sensiveis multicliente | segregacao tenant, mascaramento em logs, trilha de auditoria e controles de acesso |
 
 ## Sprint atual em andamento
-Preparacao da Sprint 6 (2026-03-29) com foco em:
-1. Sugestoes de condicionantes candidatas a partir da extracao documental validada na Sprint 5.
-2. Reprocessamento manual assistido para itens em `FALHA` e definicao de SLA operacional.
-3. Alertas operacionais da fila documental com thresholds e notificacao proativa.
-4. Testes de regressao do pipeline para evitar perda de acuracia por tipo/perfil.
+Consolidacao pos-Sprint 6 (2026-03-29):
+1. Sprint 6 fechada tecnicamente com validacao operacional em Docker.
+2. Onda 2 consolidada com smoke regressivo ponta a ponta.
+3. Ambiente pronto para planejamento de Sprint 7 (adaptador SINIR) sem bloqueios pendentes da Onda 2.
 
 ## Backlog pos-plano de acao
 - Documento oficial para demandas adiadas: `docs/backlog_pos_plano_acao.md`.
 - Regra: toda demanda fora do escopo da sprint atual entra nesse backlog.
+- Registro adicional em 2026-03-30: bloco de integracoes externas gratuitas da area ambiental priorizado no backlog oficial (`POST-018` a `POST-025`).

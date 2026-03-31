@@ -10,8 +10,16 @@ Este diretório concentra documentos de produto, operação e histórico de spri
   - Manual operacional da estrategia documental sem custo (ingestao, retencao, expurgo e trilha de auditoria).
 - `sprint5_extracao_revisao_documental.md`
   - Fechamento tecnico da Sprint 5 (extracao de campos, revisao humana, qualidade e validacao operacional).
+- `sprint6_condicionantes_robustez_documental.md`
+  - Fechamento tecnico da Sprint 6 (condicionantes candidatas, reprocessamento com SLA, templates e alertas operacionais).
+- `onda2_consolidado_validacao.md`
+  - Consolidado tecnico da Onda 2 com evidencias de validacao das Sprints 4, 5 e 6.
+- `onda3_consolidado_validacao.md`
+  - Consolidado tecnico da Onda 3 com integracoes governamentais, retries, DLQ e smoke homologavel.
 - `backlog_pos_plano_acao.md`
   - Backlog de itens adiados para pós-plano.
+- `estrategia_repositorio_monorepo_modular.md`
+  - Diretriz arquitetural para manter monorepo modular agora e definir gatilhos objetivos para eventual multi-repo.
 - `compliance_sprint2_mtr_licenciamento.md`
   - Base regulatória e decisões técnicas de compliance.
 

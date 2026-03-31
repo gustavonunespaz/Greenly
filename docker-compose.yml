@@ -66,6 +66,8 @@ services:
       - SMTP_HOST=mailhog
       - SMTP_PORT=1025
       - EMAIL_FROM=nao-responda@greenly.test
+      - ENABLE_DOCUMENTO_WORKER=true
+      - DOCUMENTOS_WORKER_CONCURRENCY=2
     depends_on:
       postgres:
         condition: service_healthy

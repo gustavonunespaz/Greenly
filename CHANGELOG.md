@@ -2,6 +2,41 @@
 
 Todas as mudanças relevantes do Greenly serão registradas aqui.
 
+## [2026-03-30] - Onda 3 concluída tecnicamente (integrações governamentais + confiabilidade)
+
+### Integrações governamentais
+
+- Onda 3 implementada de ponta a ponta com adapters HTTP para `SINIR` e `SIGOR`.
+- Autenticação com cache/renovação de token para provedores governamentais.
+- Mapeamento de payload isolado do domínio e validado por testes.
+- Mock provider homologável publicado para validação local sem depender de credenciais externas reais.
+
+### Confiabilidade operacional
+
+- Worker dedicado `greenly_gov_integracoes` com retry exponencial.
+- DLQ `greenly_gov_dlq` adicionada para falhas definitivas.
+- Cron de reconciliação automática para itens aguardando retorno do provedor.
+- Webhook com deduplicação de callbacks e atualização automática de status local.
+- Estado/timeline de integração persistidos em `logs_auditoria` sem alterar schema de banco.
+
+### Resíduos e UX operacional
+
+- Emissão de `MTR` e `CDF` passa a agendar integração governamental automaticamente.
+- Tela `MTRs` ganhou:
+  - cards de operação da fila governamental,
+  - coluna de integração por manifesto,
+  - ações de reenviar/reconciliar,
+  - dialogo com timeline técnica e documentos de origem vinculados.
+
+### Validação
+
+- Novo smoke da Onda 3 publicado:
+  - `apps/api/src/scripts/smoke.wave3.ts`,
+  - `pnpm test:onda3:smoke:docker`.
+- Novos testes da integração governamental:
+  - `src/modules/integracao-governo/payload.contract.test.ts`,
+  - `src/modules/integracao-governo/adapters.http.test.ts`.
+
 ## [2026-03-28] - Consulta automática de CNPJ no cadastro de clientes
 
 ### API de consulta de CNPJ

@@ -261,3 +261,125 @@ export interface DocumentoQualidadeMetricsResponseDTO {
   tempoMedioRevisaoSegundos: number
   porTipo: DocumentoQualidadeTipoItemDTO[]
 }
+
+export interface DocumentoTemplateRequisitoItemDTO {
+  tipo: TipoDocumentoAmbiental
+  categoria: CategoriaDocumentoAmbiental
+  descricao: string
+  perfilCliente: PerfilDocumentoCliente
+  camposObrigatorios: CampoDocumentoAmbiental[]
+  camposOpcionais: CampoDocumentoAmbiental[]
+  origem: 'GLOBAL' | 'CONSULTORIA_OVERRIDE'
+  atualizadoEm: Date | null
+}
+
+export interface DocumentoTemplateRequisitosResponseDTO {
+  versao: string
+  perfilCliente: PerfilDocumentoCliente
+  itens: DocumentoTemplateRequisitoItemDTO[]
+}
+
+export interface DocumentoCondicionanteCandidataDTO {
+  id: string
+  descricao: string
+  tipo: 'PERIODICA' | 'PONTUAL'
+  periodicidade:
+    | 'SEMANAL'
+    | 'MENSAL'
+    | 'BIMESTRAL'
+    | 'TRIMESTRAL'
+    | 'SEMESTRAL'
+    | 'ANUAL'
+    | null
+  prazoSugerido: Date | null
+  confianca: number
+  prioridade: 'ALTA' | 'MEDIA' | 'BAIXA'
+  justificativas: string[]
+  historicoReferencia: {
+    condicionantesSemelhantes: number
+    taxaAprovacaoTipoPct: number
+  } | null
+}
+
+export interface DocumentoCondicionantesCandidatasResponseDTO {
+  processamentoDocumentoId: string
+  tipoDocumento: TipoDocumentoAmbiental
+  perfilCliente: PerfilDocumentoCliente
+  total: number
+  itens: DocumentoCondicionanteCandidataDTO[]
+}
+
+export const statusReprocessamentoDocumentoValues = [
+  'SOLICITADO',
+  'EM_PROCESSAMENTO',
+  'CONCLUIDO',
+  'FALHA',
+] as const
+
+export type StatusReprocessamentoDocumento = (typeof statusReprocessamentoDocumentoValues)[number]
+
+export interface ReprocessarDocumentoResponseDTO {
+  reprocessamentoId: string
+  processamentoDocumentoId: string
+  status: StatusReprocessamentoDocumento
+  solicitadoEm: Date
+  slaSegundos: number
+  fila: {
+    nome: string
+    jobId: string
+  } | null
+}
+
+export interface DocumentoReprocessamentoItemDTO {
+  reprocessamentoId: string
+  processamentoDocumentoId: string
+  status: StatusReprocessamentoDocumento
+  motivo: string | null
+  slaSegundos: number
+  solicitadoEm: Date
+  iniciadoEm: Date | null
+  concluidoEm: Date | null
+  duracaoSegundos: number | null
+  dentroSla: boolean | null
+  erro: string | null
+}
+
+export interface DocumentoReprocessamentoMetricasResponseDTO {
+  periodoHoras: number
+  slaPadraoSegundos: number
+  totalSolicitados: number
+  totalConcluidos: number
+  totalFalhas: number
+  pendentes: number
+  emAtraso: number
+  dentroSlaPct: number
+  tempoMedioConclusaoSegundos: number
+  itensRecentes: DocumentoReprocessamentoItemDTO[]
+}
+
+export interface DashboardDocumentoPipelineThresholdsDTO {
+  backlogMaximo: number
+  taxaErroMaximaPct: number
+  latenciaMediaMaximaSegundos: number
+}
+
+export interface DashboardDocumentoPipelineAlertaItemDTO {
+  indicador: 'BACKLOG' | 'TAXA_ERRO' | 'LATENCIA_MEDIA'
+  valorAtual: number
+  limite: number
+  status: 'OK' | 'ATENCAO' | 'CRITICO'
+  mensagem: string
+}
+
+export interface DashboardDocumentoPipelineAlertasResponseDTO {
+  periodoHoras: number
+  thresholds: DashboardDocumentoPipelineThresholdsDTO
+  resumo: {
+    backlog: number
+    taxaErroPeriodoPct: number
+    tempoMedioProcessamentoSegundos: number
+    falhasPeriodo: number
+    concluidosPeriodo: number
+  }
+  alertas: DashboardDocumentoPipelineAlertaItemDTO[]
+}

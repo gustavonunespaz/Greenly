@@ -85,7 +85,10 @@ export default function CondicionantesPage() {
   const [condicionanteDestacadaId, setCondicionanteDestacadaId] = useState<string | null>(null)
   const [novoForm, setNovoForm] = useState<NovoCondicionanteForm>(defaultNovoCondicionanteForm)
   const [formError, setFormError] = useState<ActionableFormError | null>(null)
+  const clienteIdFilter = searchParams.get('clienteId')
+  const licencaIdPrefill = searchParams.get('licencaId')
   const sorted = [...condicionantes]
+    .filter((c) => !clienteIdFilter || c.clienteId === clienteIdFilter)
     .filter((c) => filter === 'TODAS' || c.status === filter)
     .sort((a, b) => {
       const aDias = a.diasRestantes ?? Number.POSITIVE_INFINITY
@@ -95,17 +98,20 @@ export default function CondicionantesPage() {
 
   const filters = ['TODAS', 'A_CUMPRIR', 'EM_ANDAMENTO', 'ATRASADA', 'CUMPRIDA']
   const hasCondicionantes = condicionantes.length > 0
-  const hasFilterApplied = filter !== 'TODAS'
+  const hasFilterApplied = filter !== 'TODAS' || !!clienteIdFilter
   const isCreateFormReady = !!novoForm.licencaId && !!novoForm.descricao.trim()
   useTrackViewLoaded('condicionantes')
   const clienteMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.nome])), [clientes])
+  const clienteFiltroNome = clienteIdFilter ? clienteMap.get(clienteIdFilter) || 'Cliente' : null
   const licencasParaSelecao = useMemo(() => {
-    return [...licencas].sort((a, b) => {
+    return [...licencas]
+      .filter((licenca) => !clienteIdFilter || licenca.clienteId === clienteIdFilter)
+      .sort((a, b) => {
       const nomeA = (clienteMap.get(a.clienteId) || '').toLowerCase()
       const nomeB = (clienteMap.get(b.clienteId) || '').toLowerCase()
       return nomeA.localeCompare(nomeB)
     })
-  }, [licencas, clienteMap])
+  }, [licencas, clienteIdFilter, clienteMap])
 
   function applyTrackedFormError(nextError: ActionableFormError, source: 'validation' | 'api') {
     setFormError(nextError)
@@ -115,8 +121,11 @@ export default function CondicionantesPage() {
     })
   }
 
-  function openCreateDialog() {
-    setNovoForm(defaultNovoCondicionanteForm)
+  function openCreateDialog(initialLicencaId?: string | null) {
+    setNovoForm({
+      ...defaultNovoCondicionanteForm,
+      licencaId: initialLicencaId || '',
+    })
     setFormError(null)
     setOpenCreate(true)
   }
@@ -125,11 +134,11 @@ export default function CondicionantesPage() {
     const quickAction = searchParams.get('quickAction')
     if (quickAction !== 'nova-condicionante') return
 
-    openCreateDialog()
+    openCreateDialog(licencaIdPrefill)
     const params = new URLSearchParams(searchParams)
     params.delete('quickAction')
     setSearchParams(params, { replace: true })
-  }, [searchParams, setSearchParams])
+  }, [licencaIdPrefill, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!condicionanteIdParam || isLoading) return
@@ -152,8 +161,9 @@ export default function CondicionantesPage() {
       elemento?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }, 0)
 
-    navigate('/condicionantes', { replace: true })
-  }, [condicionanteIdParam, condicionantes, isLoading, navigate])
+    const query = searchParams.toString()
+    navigate(query ? `/condicionantes?${query}` : '/condicionantes', { replace: true })
+  }, [condicionanteIdParam, condicionantes, isLoading, navigate, searchParams])
 
   useEffect(() => {
     if (!condicionanteDestacadaId) return
@@ -258,11 +268,32 @@ export default function CondicionantesPage() {
             ))}
           </div>
 
-          <Button onClick={openCreateDialog} className="h-9 rounded-xl gap-1.5">
+          <Button onClick={() => openCreateDialog(licencaIdPrefill)} className="h-9 rounded-xl gap-1.5">
             <Plus className="h-3.5 w-3.5" />
             Nova Condicionante
           </Button>
         </div>
+
+        {clienteFiltroNome ? (
+          <div className="glass-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm text-muted-foreground/80">
+              Exibindo visão micro de <span className="text-foreground font-medium">{clienteFiltroNome}</span>.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const params = new URLSearchParams(searchParams)
+                params.delete('clienteId')
+                params.delete('licencaId')
+                setSearchParams(params, { replace: true })
+              }}
+              className="rounded-xl"
+            >
+              Ver todas
+            </Button>
+          </div>
+        ) : null}
 
         {isLoading ? (
           <div className="space-y-3">
@@ -291,7 +322,17 @@ export default function CondicionantesPage() {
             }
             actionLabel={hasCondicionantes && hasFilterApplied ? 'Ver todas' : 'Nova condicionante'}
             onAction={
-              hasCondicionantes && hasFilterApplied ? () => setFilter('TODAS') : openCreateDialog
+              hasCondicionantes && hasFilterApplied
+                ? () => {
+                    setFilter('TODAS')
+                    if (clienteIdFilter) {
+                      const params = new URLSearchParams(searchParams)
+                      params.delete('clienteId')
+                      params.delete('licencaId')
+                      setSearchParams(params, { replace: true })
+                    }
+                  }
+                : () => openCreateDialog(licencaIdPrefill)
             }
           />
         ) : (
