@@ -1,6 +1,9 @@
 node_modules/
 dist/
 build/
+.env
+.env.local
+*.local
 .DS_Store
 coverage/
 .turbo/
@@ -9,4 +12,3 @@ uploads/
 *:Zone.Identifier
 docs/
 Aludrol/
-scripts/
