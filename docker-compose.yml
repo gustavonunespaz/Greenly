@@ -89,6 +89,17 @@ services:
     networks:
       - greenly
 
+  site:
+    build:
+      context: .
+      dockerfile: site.Dockerfile
+    container_name: greenly_site
+    restart: unless-stopped
+    ports:
+      - '8081:80'
+    networks:
+      - greenly
+
 volumes:
   greenly_postgres_data:
   greenly_redis_data:

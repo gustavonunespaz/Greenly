@@ -30,6 +30,36 @@ Centralize a operação da consultoria. Monitore riscos legais e operacionais. R
 
 O **Greenly** é um monorepo com backend, frontend e contratos compartilhados para operar o dia a dia de consultorias ambientais e de seus clientes.
 
+---
+
+### 🚀 Quick Start (Subir com 1 Comando)
+
+A maneira mais rápida de rodar o ecossistema inteiro com zero dependências host (apenas Docker instalado) é:
+
+```bash
+# 1. Clone o repositório
+git clone <url-do-repo> Greenly
+cd Greenly
+
+# 2. Inicie a infraestrutura inteira
+docker compose up -d --build
+
+# 3. Apenas na primeira vez: prepare o banco de dados (roda direto no container da API)
+docker compose exec api pnpm db:push
+docker compose exec api pnpm db:seed
+docker compose exec api pnpm db:seed:master-user
+```
+
+**Seus ambientes estarão disponíveis instantaneamente:**
+- 🌍 **Landing Page:** [http://localhost:8081](http://localhost:8081)
+- 🏢 **Plataforma (App):** [http://localhost:8080](http://localhost:8080)
+- ⚙️ **API REST:** [http://localhost:3333/health](http://localhost:3333/health)
+- 📨 **MailHog:** [http://localhost:8025](http://localhost:8025)
+
+**Usuário Master padrão:** `admin@greenly.app` / `greenly123`
+
+---
+
 Hoje o produto cobre, de forma integrada:
 
 - gestão de clientes, instalações e visão micro por cliente;
@@ -172,6 +202,8 @@ greenly/
 │   │   │   ├── lib/
 │   │   │   └── pages/
 │   │   └── public/
+│   ├── site/              # Landing Page institucional
+│   │   └── src/
 │   └── web_backup/        # fora do workspace oficial
 ├── packages/
 │   └── shared/
@@ -184,6 +216,7 @@ greenly/
 
 - `apps/api`: API Express, jobs, filas, seeds e schema Drizzle.
 - `apps/web`: SPA React protegida por autenticação.
+- `apps/site`: Landing page institucional (Vite + React).
 - `packages/shared`: contratos, tipos e validadores compartilhados.
 
 `apps/web_backup` existe no repositório, mas está excluído do workspace em `pnpm-workspace.yaml`.
@@ -297,7 +330,8 @@ greenly/
 
 ### Portas padrão
 
-- `web`: `http://localhost:8080`
+- `site` (Landing Page): `http://localhost:8081`
+- `web` (Plataforma B2B): `http://localhost:8080`
 - `api`: `http://localhost:3333`
 - `postgres`: `localhost:5435`
 - `redis`: `localhost:6379`
@@ -355,11 +389,18 @@ Inicie frontend e backend:
 pnpm dev
 ```
 
-### Subir tudo em containers
+### Subir tudo em containers (Docker)
+
+Esta é a maneira mais simples de rodar todo o ecossistema (Landing Page, Plataforma, API e Backends). 
 
 ```bash
 docker compose up -d --build
 ```
+
+Após o container subir, abra no navegador:
+1. **Landing Page:** [http://localhost:8081](http://localhost:8081)
+2. **Plataforma Web:** [http://localhost:8080](http://localhost:8080)
+3. **API Healthcheck:** [http://localhost:3333/health](http://localhost:3333/health)
 
 ## Comandos úteis
 

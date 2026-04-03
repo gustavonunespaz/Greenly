@@ -10,5 +10,5 @@ coverage/
 *.tsbuildinfo
 uploads/
 *:Zone.Identifier
-docs/
+docs/*
 Aludrol/
