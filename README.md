@@ -41,14 +41,11 @@ A maneira mais rápida de rodar o ecossistema inteiro com zero dependências hos
 git clone <url-do-repo> Greenly
 cd Greenly
 
-# 2. Inicie a infraestrutura inteira
+# 2. Inicie a infraestrutura inteira (banco é preparado automaticamente)
 docker compose up -d --build
-
-# 3. Apenas na primeira vez: prepare o banco de dados (roda direto no container da API)
-docker compose exec api pnpm db:push
-docker compose exec api pnpm db:seed
-docker compose exec api pnpm db:seed:master-user
 ```
+
+> **Zero config:** O container da API executa automaticamente `db:push` (schema), `db:seed` (dados de referência) e `db:seed:master-user` (usuário admin) no boot. Não é necessário rodar nenhum comando manual no banco.
 
 **Seus ambientes estarão disponíveis instantaneamente:**
 - 🌍 **Landing Page:** [http://localhost:8081](http://localhost:8081)
@@ -202,9 +199,8 @@ greenly/
 │   │   │   ├── lib/
 │   │   │   └── pages/
 │   │   └── public/
-│   ├── site/              # Landing Page institucional
-│   │   └── src/
-│   └── web_backup/        # fora do workspace oficial
+│   └── site/              # Landing Page institucional
+│       └── src/
 ├── packages/
 │   └── shared/
 │       └── src/
@@ -218,8 +214,6 @@ greenly/
 - `apps/web`: SPA React protegida por autenticação.
 - `apps/site`: Landing page institucional (Vite + React).
 - `packages/shared`: contratos, tipos e validadores compartilhados.
-
-`apps/web_backup` existe no repositório, mas está excluído do workspace em `pnpm-workspace.yaml`.
 
 ### Módulos backend atuais
 

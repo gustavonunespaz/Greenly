@@ -30,13 +30,13 @@ export default function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-20 md:h-24 transition-all duration-300">
           {/* Logo */}
           <a href="#" className="flex items-center gap-3 group">
             <img 
               src="/logo-comp.png" 
               alt="Greenly — Gestão e Compliance Ambiental" 
-              className="h-10 w-auto transition-all duration-300 transform group-hover:scale-105" 
+              className="h-12 md:h-16 w-auto transition-all duration-300 transform group-hover:scale-105" 
             />
           </a>
 
@@ -78,7 +78,9 @@ export default function Navbar() {
 
           {/* Mobile hamburger */}
           <button
-            className="md:hidden p-2 text-gray-300 hover:text-white"
+            className={`md:hidden p-2 transition-colors ${
+              scrolled || mobileOpen ? 'text-gray-900' : 'text-gray-700'
+            }`}
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Menu"
           >

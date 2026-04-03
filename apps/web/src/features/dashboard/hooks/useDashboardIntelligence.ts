@@ -25,7 +25,7 @@ export interface DashboardKpiSection {
 
 export interface DashboardDeadlineItem {
   id: string
-  tipo: 'LICENCA' | 'CONDICIONANTE'
+  tipo: 'LICENCA' | 'CONDICIONANTE' | 'OBRIGACAO'
   titulo: string
   subtitulo: string
   dataLimite: Date | null
@@ -516,8 +516,8 @@ export function useDashboardIntelligence() {
 
     const complianceSection: DashboardKpiSection = {
       id: 'compliance',
-      title: 'Conformidade Legal e Licenças',
-      description: 'Segurança jurídica, prazos e exposição regulatória em um único bloco.',
+      title: 'Conformidade Legal e Obrigações',
+      description: 'Segurança jurídica, cumprimento de condicionantes e exposição regulatória IBAMA.',
       kpis: [
         {
           id: 'licencas-validas',
@@ -543,8 +543,8 @@ export function useDashboardIntelligence() {
         },
         {
           id: 'multas-historico',
-          label: 'Histórico de multas recebidas',
-          value: `${multasHistoricas} no semestre`,
+          label: 'Risco Financeiro (Multas Previstas)',
+          value: `R$ ${(multasHistoricas * 4500).toLocaleString('pt-BR')}`,
           helper: 'Estimativa baseada na severidade das não conformidades mensais monitoradas',
           status: multasHistoricas > 6 ? 'warning' : 'info',
         },
@@ -553,8 +553,8 @@ export function useDashboardIntelligence() {
 
     const wasteSection: DashboardKpiSection = {
       id: 'waste',
-      title: 'Gestão de Resíduos Sólidos',
-      description: 'Volume, desvio de aterro, custo operacional e risco de periculosidade.',
+      title: 'Economia Circular e Resíduos',
+      description: 'Volume gerado, métricas de desvio de aterro e custo de destinação.',
       kpis: [
         {
           id: 'volume-total',
@@ -590,8 +590,8 @@ export function useDashboardIntelligence() {
 
     const emissionsSection: DashboardKpiSection = {
       id: 'emissions',
-      title: 'Emissões e Recursos',
-      description: 'Intensidade de carbono e consumo racional de combustível, água e energia.',
+      title: 'Sustentabilidade e Recursos (ESG)',
+      description: 'Emissões evitadas/geradas e acompanhamento de recursos.',
       kpis: [
         {
           id: 'co2-intensidade',
@@ -695,7 +695,20 @@ export function useDashboardIntelligence() {
       },
     ]
 
+    const obrigacoesOficiais: DashboardDeadlineItem[] = [
+      { id: 'rapp', tipo: 'OBRIGACAO' as const, titulo: 'RAPP (IBAMA)', subtitulo: 'Relatório Anual', dataLimite: new Date(`${now.getFullYear()}-03-31`), diasRestantes: 0, urgencia: 'BAIXA', destino: '/agenda', status: 'PENDENTE' },
+      { id: 'inv', tipo: 'OBRIGACAO' as const, titulo: 'Inventário Nacional', subtitulo: 'SINIR/MMA', dataLimite: new Date(`${now.getFullYear()}-03-31`), diasRestantes: 0, urgencia: 'BAIXA', destino: '/agenda', status: 'PENDENTE' },
+      { id: 'tcfa1', tipo: 'OBRIGACAO' as const, titulo: 'TCFA - 1º Tri', subtitulo: 'Taxa Federal (IBAMA)', dataLimite: new Date(`${now.getFullYear()}-04-05`), diasRestantes: 0, urgencia: 'BAIXA', destino: '/agenda', status: 'PENDENTE' },
+    ].map(ob => {
+      const dias = daysUntil(ob.dataLimite, now)
+      let urgencia: DashboardDeadlineItem['urgencia'] = 'BAIXA'
+      if (dias <= 15) urgencia = 'ALTA'
+      else if (dias <= 45) urgencia = 'MEDIA'
+      return { ...ob, diasRestantes: dias, urgencia, status: dias < 0 ? 'ATRASADA' : 'PENDENTE' }
+    }).filter(ob => ob.diasRestantes > -30 && ob.diasRestantes < 90)
+
     const deadlines: DashboardDeadlineItem[] = [
+      ...obrigacoesOficiais,
       ...licencas
         .map((licenca) => {
           const date = parseDate(licenca.dataValidade)

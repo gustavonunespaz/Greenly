@@ -28,9 +28,11 @@ import {
   Pencil,
   Trash2,
   Save,
+  ClipboardList,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLicencas } from "@/features/licencas/hooks/useLicencas";
+import { useCondicionantes } from "@/features/licencas/hooks/useCondicionantes";
 import { useClientes } from "@/features/clientes/hooks/useClientes";
 import { toast } from "@/components/ui/sonner";
 import type { LicencaResponseDTO } from "@greenly/shared";
@@ -45,6 +47,12 @@ import {
 } from "@/lib/form-actionable-error";
 import { useTrackViewLoaded } from "@/hooks/use-track-view-loaded";
 import { trackFirstValidAction, trackFlowCompleted, trackFormError } from "@/lib/telemetry";
+import { useClienteContexto } from "@/features/clientes/components/ClienteContextProvider";
+import { FormWizard, type WizardStep } from "@/components/ui/form-wizard";
+import { ViewToggle, useViewMode } from "@/components/ui/view-toggle";
+import { ChevronRight } from "lucide-react";
+import { formatEnum } from "@/lib/utils";
+
 
 const item = {
   hidden: { opacity: 0, y: 8 },
@@ -78,6 +86,10 @@ const tipoOptions = [
   "LA",
   "LAS",
   "LAU",
+  "RLO",
+  "RLI",
+  "RLP",
+  "DLAE",
   "DISPENSA",
   "AUTORIZACAO",
   "OUTRO",
@@ -94,6 +106,7 @@ type FormState = {
   atividadeLicenciada: string;
   dataEmissao: string;
   dataValidade: string;
+  municipioEmissor: string;
   observacoes: string;
 };
 
@@ -108,6 +121,7 @@ const defaultForm: FormState = {
   atividadeLicenciada: "",
   dataEmissao: "",
   dataValidade: "",
+  municipioEmissor: "",
   observacoes: "",
 };
 
@@ -154,6 +168,15 @@ export default function LicencasPage() {
     isRemovendo,
   } = useLicencas();
   const { clientes = [] } = useClientes();
+  const { condicionantes } = useCondicionantes();
+
+  const licencaCondicionantesMap = useMemo(() => {
+    const map = new Map<string, number>();
+    (condicionantes || []).forEach(c => {
+      map.set(c.licencaId, (map.get(c.licencaId) || 0) + 1);
+    });
+    return map;
+  }, [condicionantes]);
 
   const [filter, setFilter] = useState<string>("TODAS");
   const [search, setSearch] = useState("");
@@ -161,12 +184,20 @@ export default function LicencasPage() {
   const [editing, setEditing] = useState<LicencaResponseDTO | null>(null);
   const [form, setForm] = useState<FormState>(defaultForm);
   const [formError, setFormError] = useState<ActionableFormError | null>(null);
-  const clienteIdFilter = searchParams.get("clienteId");
+  
+  const { clienteId: globalClienteId, clienteNome: globalClienteNome } = useClienteContexto();
+  const rawClienteIdFilter = searchParams.get("clienteId");
+  
+  // Use global client context if active, otherwise fallback to URL parameter 
+  const clienteIdFilter = globalClienteId || rawClienteIdFilter;
+
+  // View mode
+  const [viewMode] = useViewMode("licencas", "cards");
 
   const clientMap = useMemo(() => {
     return new Map(clientes.map((c) => [c.id, c.nome]));
   }, [clientes]);
-  const clienteFiltroNome = clienteIdFilter ? clientMap.get(clienteIdFilter) || "Cliente" : null;
+  const clienteFiltroNome = globalClienteId ? globalClienteNome : (clienteIdFilter ? clientMap.get(clienteIdFilter) || "Cliente" : null);
 
   const filtered = useMemo(() => {
     return (licencas || []).filter((l) => {
@@ -250,6 +281,7 @@ export default function LicencasPage() {
       atividadeLicenciada: "",
       dataEmissao: "",
       dataValidade: toDateInput(lic.dataValidade),
+      municipioEmissor: lic.municipioEmissor || "",
       observacoes: "",
     });
     setFormError(null);
@@ -284,6 +316,18 @@ export default function LicencasPage() {
         return;
       }
 
+      // L1-FE: Validate municipioEmissor for municipal agencies
+      if (!editing) {
+        const selectedOrgao = orgaosAmbientais?.find(o => o.id === form.orgaoAmbientalId);
+        if (selectedOrgao?.esfera === 'MUNICIPAL' && !form.municipioEmissor?.trim()) {
+          applyTrackedFormError(
+            buildValidationFormError("Para órgãos municipais, informe o município emissor."),
+            "validation",
+          );
+          return;
+        }
+      }
+
       if (editing) {
         await atualizarLicenca({
           id: editing.id,
@@ -297,6 +341,7 @@ export default function LicencasPage() {
             atividadeLicenciada: form.atividadeLicenciada || undefined,
             dataEmissao: form.dataEmissao ? new Date(`${form.dataEmissao}T12:00:00`) : undefined,
             dataValidade: form.dataValidade ? new Date(`${form.dataValidade}T12:00:00`) : undefined,
+            municipioEmissor: form.municipioEmissor || undefined,
             observacoes: form.observacoes || undefined,
           },
         });
@@ -317,6 +362,7 @@ export default function LicencasPage() {
           atividadeLicenciada: form.atividadeLicenciada || undefined,
           dataEmissao: form.dataEmissao ? new Date(`${form.dataEmissao}T12:00:00`) : undefined,
           dataValidade: form.dataValidade ? new Date(`${form.dataValidade}T12:00:00`) : undefined,
+          municipioEmissor: form.municipioEmissor || undefined,
           observacoes: form.observacoes || undefined,
         });
         toast.success("Licença criada com sucesso.");
@@ -355,6 +401,8 @@ export default function LicencasPage() {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
+            <ViewToggle storageKey="licencas" defaultMode="cards" />
+            <div className="h-4 w-px bg-white/[0.08] mx-1" />
             <Filter className="h-3.5 w-3.5 text-muted-foreground/40 mr-1" strokeWidth={1.5} />
             {filters.map((f) => (
               <button
@@ -434,6 +482,125 @@ export default function LicencasPage() {
                 : () => openCreate(clienteIdFilter)
             }
           />
+        ) : viewMode === 'cards' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {filtered.map((lic, i) => {
+              const perc = lic.diasAteVencimento !== null && lic.diasAteVencimento !== undefined && lic.diasAteVencimento > 0
+                ? Math.min(100, Math.max(0, (1 - (lic.diasAteVencimento / 1825)) * 100))
+                : 100;
+                
+              const alertColor = (lic.diasAteVencimento ?? 999) < 0 || lic.status === 'VENCIDA'
+                ? 'bg-destructive'
+                : (lic.diasAteVencimento ?? 999) <= 120
+                ? 'bg-warning'
+                : 'bg-primary';
+
+              return (
+                <motion.div
+                  key={lic.id}
+                  variants={item}
+                  initial="hidden"
+                  animate="show"
+                  transition={{ delay: i * 0.03 }}
+                  className="glass-card hover:bg-white/[0.03] transition-colors p-5 flex flex-col relative overflow-hidden group"
+                >
+                  <div className={`absolute top-0 left-0 w-1 h-full ${alertColor}`} />
+                  
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-mono font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                          {lic.tipo}
+                        </span>
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {lic.numeroLicenca ?? "S/N"}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-semibold text-foreground line-clamp-1" title={clientMap.get(lic.clienteId)}>
+                        {clientMap.get(lic.clienteId) || "Cliente desconhecido"}
+                      </h3>
+                      {lic.nomeEmpreendimento && (
+                        <p className="text-[11px] text-muted-foreground/70 mt-0.5 line-clamp-1">
+                          {lic.nomeEmpreendimento}
+                        </p>
+                      )}
+                      {lic.orgaoSigla && (
+                        <p className="text-[10px] text-muted-foreground/50 mt-1 flex items-center gap-1">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/40" />
+                          {lic.orgaoSigla}
+                          {lic.orgaoEsfera && <span className="opacity-60">({lic.orgaoEsfera})</span>}
+                          {lic.municipioEmissor && <span className="opacity-60">• {lic.municipioEmissor}</span>}
+                        </p>
+                      )}
+                    </div>
+                    <StatusBadge status={lic.status} />
+                  </div>
+
+                  {lic.dataValidade && (
+                    <div className="mb-5 bg-white/[0.02] border border-white/[0.05] rounded-lg p-2.5">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
+                          Vencimento
+                        </span>
+                        <span className={`text-[11px] font-semibold ${
+                          (lic.diasAteVencimento ?? 999) < 0
+                            ? "text-destructive"
+                            : (lic.diasAteVencimento ?? 999) <= 120
+                            ? "text-warning"
+                            : "text-foreground"
+                        }`}>
+                          {lic.diasAteVencimento === null || lic.diasAteVencimento === undefined
+                            ? "—"
+                            : lic.diasAteVencimento < 0
+                            ? `${Math.abs(lic.diasAteVencimento)}d atrás`
+                            : `${lic.diasAteVencimento}d restantes`}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${alertColor}`} 
+                          style={{ width: `${perc}%` }} 
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground/60 text-right mt-1">
+                        {new Date(lic.dataValidade).toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="mt-auto flex items-center justify-between pt-3 border-t border-white/[0.06]">
+                    <Button 
+                      variant="ghost" 
+                      className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1.5 hover:bg-white/[0.08]"
+                      onClick={() => navigate(`/condicionantes?licencaId=${lic.id}`)}
+                    >
+                      <ClipboardList className="h-3 w-3" />
+                      Condicionantes: {licencaCondicionantesMap.get(lic.id) || 0}
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-white/[0.08]" onClick={() => openEdit(lic)} title="Editar licença">
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(lic)}
+                        disabled={isRemovendo}
+                        title="Remover"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1 hover:bg-white/[0.08]" onClick={() => navigate(`/licencas/${lic.id}`)}>
+                        Detalhes <ChevronRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
         ) : (
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto max-w-full">
@@ -445,6 +612,7 @@ export default function LicencasPage() {
                     <th className="text-left text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-5 py-3">Nº Licença</th>
                     <th className="text-left text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-5 py-3">Validade</th>
                     <th className="text-left text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-5 py-3">Prazo</th>
+                    <th className="text-left text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-5 py-3">Condicionantes</th>
                     <th className="text-left text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-5 py-3">Status</th>
                     <th className="text-right text-[10px] text-muted-foreground/60 font-medium uppercase tracking-wider px-5 py-3">Ações</th>
                   </tr>
@@ -492,6 +660,17 @@ export default function LicencasPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="h-7 px-2 text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1.5"
+                          onClick={() => navigate(`/condicionantes?licencaId=${lic.id}`)}
+                        >
+                          <ClipboardList className="h-3.5 w-3.5" />
+                          {licencaCondicionantesMap.get(lic.id) || 0}
+                        </Button>
+                      </td>
+                      <td className="px-5 py-3.5">
                         <StatusBadge status={lic.status} />
                       </td>
                       <td className="px-5 py-3.5">
@@ -507,6 +686,9 @@ export default function LicencasPage() {
                             disabled={isRemovendo}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => navigate(`/licencas/${lic.id}`)}>
+                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                           </Button>
                         </div>
                       </td>
@@ -528,7 +710,7 @@ export default function LicencasPage() {
           }
         }}
       >
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar Licença" : "Nova Licença"}</DialogTitle>
             <DialogDescription>
@@ -549,120 +731,157 @@ export default function LicencasPage() {
               setFormError(null);
             }}
           />
-          <p className="text-[11px] text-muted-foreground/70">
-            Campos marcados com * são obrigatórios para salvar.
-          </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2 max-h-[70vh] overflow-y-auto overflow-x-hidden pr-1">
-            <div className="space-y-2">
-              <Label>Cliente *</Label>
-              <Select value={form.clienteId} onValueChange={(v) => setForm((s) => ({ ...s, clienteId: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <FormWizard
+            isSubmitting={isSaving}
+            onCancel={() => setOpen(false)}
+            onComplete={handleSave}
+            steps={[
+              {
+                id: "step1",
+                label: "Identificação",
+                isValid: !!form.clienteId && !!form.orgaoAmbientalId,
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Cliente *</Label>
+                      <Select value={form.clienteId} onValueChange={(v) => setForm((s) => ({ ...s, clienteId: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clientes.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-            <div className="space-y-2">
-              <Label>{editing ? "Órgão Ambiental" : "Órgão Ambiental *"}</Label>
-              <Select value={form.orgaoAmbientalId} onValueChange={(v) => setForm((s) => ({ ...s, orgaoAmbientalId: v }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o órgão" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(orgaosAmbientais || []).map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.sigla} - {o.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    <div className="space-y-2">
+                      <Label>{editing ? "Órgão Ambiental" : "Órgão Ambiental *"}</Label>
+                      <Select value={form.orgaoAmbientalId} onValueChange={(v) => setForm((s) => ({ ...s, orgaoAmbientalId: v }))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o órgão" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(orgaosAmbientais || []).map((o) => (
+                            <SelectItem key={o.id} value={o.id}>
+                              {o.sigla} - {o.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-            <div className="space-y-2">
-              <Label>Tipo *</Label>
-              <Select value={form.tipo} onValueChange={(v) => setForm((s) => ({ ...s, tipo: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {tipoOptions.map((tipo) => (
-                    <SelectItem key={tipo} value={tipo}>
-                      {tipo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    {(orgaosAmbientais?.find(o => o.id === form.orgaoAmbientalId)?.esfera === 'MUNICIPAL' || 
+                      orgaosAmbientais?.find(o => o.id === form.orgaoAmbientalId)?.sigla === 'SMMA') && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2">
+                        <Label>Qual Município? *</Label>
+                        <Input 
+                          placeholder="Ex: Curitiba - PR" 
+                          value={form.municipioEmissor} 
+                          onChange={(e) => setForm(s => ({ ...s, municipioEmissor: e.target.value }))} 
+                        />
+                      </motion.div>
+                    )}
+                  </div>
+                )
+              },
+              {
+                id: "step2",
+                label: "Licença",
+                isValid: !!form.tipo,
+                content: (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Tipo *</Label>
+                      <Select value={form.tipo} onValueChange={(v) => setForm((s) => ({ ...s, tipo: v }))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tipoOptions.map((tipo) => (
+                            <SelectItem key={tipo} value={tipo}>
+                              {formatEnum(tipo)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    <div className="space-y-2">
+                      <Label>Status</Label>
+                      <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusOptions.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {formatEnum(status)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-            <div className="space-y-2">
-              <Label>Número da Licença</Label>
-              <Input value={form.numeroLicenca} onChange={(e) => setForm((s) => ({ ...s, numeroLicenca: e.target.value }))} />
-            </div>
+                    <div className="space-y-2">
+                      <Label>Número da Licença</Label>
+                      <Input value={form.numeroLicenca} onChange={(e) => setForm((s) => ({ ...s, numeroLicenca: e.target.value }))} />
+                    </div>
 
-            <div className="space-y-2">
-              <Label>Número do Processo</Label>
-              <Input value={form.numeroProcesso} onChange={(e) => setForm((s) => ({ ...s, numeroProcesso: e.target.value }))} />
-            </div>
+                    <div className="space-y-2">
+                      <Label>Número do Processo</Label>
+                      <Input value={form.numeroProcesso} onChange={(e) => setForm((s) => ({ ...s, numeroProcesso: e.target.value }))} />
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: "step3",
+                label: "Prazos",
+                content: (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Data de Emissão</Label>
+                      <Input type="date" value={form.dataEmissao} onChange={(e) => setForm((s) => ({ ...s, dataEmissao: e.target.value }))} />
+                    </div>
 
-            <div className="space-y-2">
-              <Label>Data de Emissão</Label>
-              <Input type="date" value={form.dataEmissao} onChange={(e) => setForm((s) => ({ ...s, dataEmissao: e.target.value }))} />
-            </div>
+                    <div className="space-y-2">
+                      <Label>Data de Validade</Label>
+                      <Input type="date" value={form.dataValidade} onChange={(e) => setForm((s) => ({ ...s, dataValidade: e.target.value }))} />
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: "step4",
+                label: "Detalhes",
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Empreendimento</Label>
+                        <Input value={form.nomeEmpreendimento} onChange={(e) => setForm((s) => ({ ...s, nomeEmpreendimento: e.target.value }))} />
+                      </div>
 
-            <div className="space-y-2">
-              <Label>Data de Validade</Label>
-              <Input type="date" value={form.dataValidade} onChange={(e) => setForm((s) => ({ ...s, dataValidade: e.target.value }))} />
-            </div>
+                      <div className="space-y-2">
+                        <Label>Atividade Licenciada</Label>
+                        <Input value={form.atividadeLicenciada} onChange={(e) => setForm((s) => ({ ...s, atividadeLicenciada: e.target.value }))} />
+                      </div>
+                    </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Empreendimento</Label>
-              <Input value={form.nomeEmpreendimento} onChange={(e) => setForm((s) => ({ ...s, nomeEmpreendimento: e.target.value }))} />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label>Atividade Licenciada</Label>
-              <Input value={form.atividadeLicenciada} onChange={(e) => setForm((s) => ({ ...s, atividadeLicenciada: e.target.value }))} />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label>Observações</Label>
-              <Textarea value={form.observacoes} onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))} />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving || !isFormReady} className="gap-2">
-              <Save className="h-4 w-4" />
-              {isSaving ? "Salvando..." : "Salvar"}
-            </Button>
-          </DialogFooter>
+                    <div className="space-y-2">
+                      <Label>Observações</Label>
+                      <Textarea value={form.observacoes} onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))} className="min-h-[100px]" />
+                    </div>
+                  </div>
+                )
+              }
+            ]}
+          />
         </DialogContent>
       </Dialog>
     </AppLayout>

@@ -9,6 +9,7 @@ import {
   Bell,
   LogOut,
   ChevronRight,
+  CalendarDays,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -26,14 +27,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { motion } from "framer-motion";
+import { ClienteContextSelector } from "@/features/clientes/components/ClienteContextSelector";
 
 const mainNav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Documentos", url: "/documentos", icon: FileSearch },
+  { title: "Clientes", url: "/clientes", icon: Building2 },
+  { title: "Agenda", url: "/agenda", icon: CalendarDays },
   { title: "Licenças", url: "/licencas", icon: FileCheck },
   { title: "Condicionantes", url: "/condicionantes", icon: ClipboardList },
-  { title: "MTRs", url: "/mtrs", icon: Truck },
-  { title: "Clientes", url: "/clientes", icon: Building2 },
+  { title: "Resíduos", url: "/mtrs", icon: Truck },
+  { title: "Documentos", url: "/documentos", icon: FileSearch },
 ];
 
 const systemNav = [
@@ -76,6 +79,11 @@ export function AppSidebar() {
             />
           </div>
         )}
+      </div>
+
+      {/* Client Context Selector */}
+      <div className="border-b border-white/[0.06] py-3">
+        <ClienteContextSelector collapsed={collapsed} />
       </div>
 
       <SidebarContent className="px-2 pt-4">

@@ -42,6 +42,7 @@ import {
 } from '@/lib/form-actionable-error'
 import { useTrackViewLoaded } from '@/hooks/use-track-view-loaded'
 import { trackFirstValidAction, trackFlowCompleted, trackFormError } from '@/lib/telemetry'
+import { FormWizard, type WizardStep } from '@/components/ui/form-wizard'
 import {
   CidadeOption,
   EstadoOption,
@@ -823,249 +824,271 @@ export default function ClientesPage() {
               setFormError(null)
             }}
           />
-          <p className="text-[11px] text-muted-foreground/70">
-            Campos marcados com * são obrigatórios para salvar.
-          </p>
+          
+          <FormWizard
+            isSubmitting={isSaving}
+            onCancel={() => setOpen(false)}
+            onComplete={handleSave}
+            steps={[
+              {
+                id: 'step1',
+                label: 'Identificação',
+                isValid: !!form.nome.trim() && digitsOnly(form.cnpj).length === 14 && !!form.tipoCadastro,
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>CNPJ *</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={form.cnpj}
+                          onChange={(e) =>
+                            setForm((s) => ({ ...s, cnpj: formatCnpjInput(e.target.value) }))
+                          }
+                          placeholder="00.000.000/0000-00"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="shrink-0 gap-2"
+                          onClick={() => void handleBuscarCnpj()}
+                          disabled={isBuscandoCnpj}
+                        >
+                          {isBuscandoCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                          Buscar CNPJ
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/70">
+                        Consulta automática para preencher razão social, contato, CNAE e endereço.
+                      </p>
+                    </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2 max-h-[70vh] overflow-y-auto overflow-x-hidden pr-1">
-            <div className="space-y-2 md:col-span-2">
-              <Label>Nome *</Label>
-              <Input
-                value={form.nome}
-                onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
-                placeholder="Razão social / nome do cliente"
-              />
-            </div>
+                    <div className="space-y-2">
+                      <Label>Nome *</Label>
+                      <Input
+                        value={form.nome}
+                        onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
+                        placeholder="Razão social / nome do cliente"
+                      />
+                    </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>CNPJ *</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={form.cnpj}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, cnpj: formatCnpjInput(e.target.value) }))
-                  }
-                  placeholder="00.000.000/0000-00"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="shrink-0 gap-2"
-                  onClick={() => void handleBuscarCnpj()}
-                  disabled={isBuscandoCnpj}
-                >
-                  {isBuscandoCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Buscar CNPJ
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground/70">
-                Consulta automática para preencher razão social, contato, CNAE e endereço.
-              </p>
-            </div>
+                    <div className="space-y-2">
+                      <Label>Tipo de cadastro *</Label>
+                      <Select
+                        value={form.tipoCadastro}
+                        onValueChange={(value: ClienteFormState['tipoCadastro']) =>
+                          setForm((s) => ({ ...s, tipoCadastro: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o tipo do cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tipoCadastroOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step2',
+                label: 'Contato & Atuação',
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>E-mail</Label>
+                        <Input
+                          value={form.email}
+                          onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                          placeholder="contato@empresa.com"
+                        />
+                      </div>
 
-            <div className="space-y-2">
-              <Label>Tipo de cadastro *</Label>
-              <Select
-                value={form.tipoCadastro}
-                onValueChange={(value: ClienteFormState['tipoCadastro']) =>
-                  setForm((s) => ({ ...s, tipoCadastro: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo do cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {tipoCadastroOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                      <div className="space-y-2">
+                        <Label>Telefone</Label>
+                        <Input
+                          value={form.telefone}
+                          onChange={(e) => setForm((s) => ({ ...s, telefone: e.target.value }))}
+                          placeholder="(00) 00000-0000"
+                        />
+                      </div>
 
-            <div className="space-y-2">
-              <Label>Setor</Label>
-              <Select
-                value={form.setor || undefined}
-                onValueChange={(value) => setForm((s) => ({ ...s, setor: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o setor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {setorFormOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                      <div className="space-y-2">
+                        <Label>Setor</Label>
+                        <Select
+                          value={form.setor || undefined}
+                          onValueChange={(value) => setForm((s) => ({ ...s, setor: value }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o setor" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {setorFormOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-            <div className="space-y-2">
-              <Label>E-mail</Label>
-              <Input
-                value={form.email}
-                onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-                placeholder="contato@empresa.com"
-              />
-            </div>
+                      <div className="space-y-2">
+                        <Label>CNAE</Label>
+                        <Input
+                          value={form.cnae}
+                          onChange={(e) => setForm((s) => ({ ...s, cnae: e.target.value }))}
+                          placeholder="0000-0/00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step3',
+                label: 'Endereço',
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>CEP</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={form.cep}
+                            onChange={(e) => setForm((s) => ({ ...s, cep: formatCepInput(e.target.value) }))}
+                            placeholder="00000-000"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="shrink-0 gap-2"
+                            onClick={() => void handleBuscarCep()}
+                            disabled={isBuscandoCep}
+                          >
+                            {isBuscandoCep ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            Buscar
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
 
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input
-                value={form.telefone}
-                onChange={(e) => setForm((s) => ({ ...s, telefone: e.target.value }))}
-                placeholder="(00) 00000-0000"
-              />
-            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Estado (UF)</Label>
+                        <Select
+                          value={form.estado || undefined}
+                          onValueChange={(value) =>
+                            setForm((s) => ({ ...s, estado: value, cidade: '' }))
+                          }
+                          disabled={isLoadingEstados}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={isLoadingEstados ? 'Carregando...' : 'Selecione o estado'} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {estadoFormOptions.map((estado) => (
+                              <SelectItem key={`${estado.id}-${estado.sigla}`} value={estado.sigla}>
+                                {estado.sigla} - {estado.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-            <div className="space-y-2">
-              <Label>CNAE</Label>
-              <Input
-                value={form.cnae}
-                onChange={(e) => setForm((s) => ({ ...s, cnae: e.target.value }))}
-                placeholder="0000-0/00"
-              />
-            </div>
+                      <div className="space-y-2">
+                        <Label>Cidade</Label>
+                        <Select
+                          value={form.cidade || undefined}
+                          onValueChange={(value) => setForm((s) => ({ ...s, cidade: value }))}
+                          disabled={!form.estado || isLoadingCidades}
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                !form.estado
+                                  ? 'Selecione o estado primeiro'
+                                  : isLoadingCidades
+                                    ? 'Carregando...'
+                                    : 'Selecione a cidade'
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {cidadeFormOptions.map((cidade) => (
+                              <SelectItem key={`${cidade.id}-${cidade.nome}`} value={cidade.nome}>
+                                {cidade.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-            <div className="space-y-2">
-              <Label>CEP</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  value={form.cep}
-                  onChange={(e) => setForm((s) => ({ ...s, cep: formatCepInput(e.target.value) }))}
-                  placeholder="00000-000"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="shrink-0 gap-2"
-                  onClick={() => void handleBuscarCep()}
-                  disabled={isBuscandoCep}
-                >
-                  {isBuscandoCep ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Buscar
-                </Button>
-              </div>
-            </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Logradouro</Label>
+                        <Input
+                          value={form.logradouro}
+                          onChange={(e) => setForm((s) => ({ ...s, logradouro: e.target.value }))}
+                          placeholder="Rua, avenida..."
+                        />
+                      </div>
 
-            <div className="space-y-2">
-              <Label>Estado (UF)</Label>
-              <Select
-                value={form.estado || undefined}
-                onValueChange={(value) =>
-                  setForm((s) => ({
-                    ...s,
-                    estado: value,
-                    cidade: '',
-                  }))
-                }
-                disabled={isLoadingEstados}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={isLoadingEstados ? 'Carregando estados...' : 'Selecione o estado'}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {estadoFormOptions.map((estado) => (
-                    <SelectItem key={`${estado.id}-${estado.sigla}`} value={estado.sigla}>
-                      {estado.sigla} - {estado.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                      <div className="space-y-2">
+                        <Label>Número</Label>
+                        <Input
+                          value={form.numero}
+                          onChange={(e) => setForm((s) => ({ ...s, numero: e.target.value }))}
+                          placeholder="123"
+                        />
+                      </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Cidade</Label>
-              <Select
-                value={form.cidade || undefined}
-                onValueChange={(value) => setForm((s) => ({ ...s, cidade: value }))}
-                disabled={!form.estado || isLoadingCidades}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      !form.estado
-                        ? 'Selecione o estado primeiro'
-                        : isLoadingCidades
-                          ? 'Carregando cidades...'
-                          : 'Selecione a cidade'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {cidadeFormOptions.map((cidade) => (
-                    <SelectItem key={`${cidade.id}-${cidade.nome}`} value={cidade.nome}>
-                      {cidade.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                      <div className="space-y-2">
+                        <Label>Bairro</Label>
+                        <Input
+                          value={form.bairro}
+                          onChange={(e) => setForm((s) => ({ ...s, bairro: e.target.value }))}
+                          placeholder="Bairro"
+                        />
+                      </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Logradouro</Label>
-              <Input
-                value={form.logradouro}
-                onChange={(e) => setForm((s) => ({ ...s, logradouro: e.target.value }))}
-                placeholder="Rua, avenida..."
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Número</Label>
-              <Input
-                value={form.numero}
-                onChange={(e) => setForm((s) => ({ ...s, numero: e.target.value }))}
-                placeholder="123"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Bairro</Label>
-              <Input
-                value={form.bairro}
-                onChange={(e) => setForm((s) => ({ ...s, bairro: e.target.value }))}
-                placeholder="Bairro"
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label>Complemento</Label>
-              <Input
-                value={form.complemento}
-                onChange={(e) => setForm((s) => ({ ...s, complemento: e.target.value }))}
-                placeholder="Sala, bloco, referência..."
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2 md:col-span-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">Cliente ativo</p>
-                <p className="text-xs text-muted-foreground">
-                  Use inativo para ocultar sem perder histórico.
-                </p>
-              </div>
-              <Switch
-                checked={form.ativo}
-                onCheckedChange={(checked) => setForm((s) => ({ ...s, ativo: checked }))}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving || !isFormReady} className="gap-2">
-              <Save className="h-4 w-4" />
-              {isSaving ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </DialogFooter>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Complemento</Label>
+                        <Input
+                          value={form.complemento}
+                          onChange={(e) => setForm((s) => ({ ...s, complemento: e.target.value }))}
+                          placeholder="Sala, bloco, referência..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step4',
+                label: 'Configurações',
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="flex items-center justify-between rounded-lg border border-border px-3 py-4 bg-white/[0.02]">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Cliente ativo</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Use inativo para ocultar o cliente sem perder o histórico.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={form.ativo}
+                        onCheckedChange={(checked) => setForm((s) => ({ ...s, ativo: checked }))}
+                      />
+                    </div>
+                  </div>
+                )
+              }
+            ]}
+          />
         </DialogContent>
       </Dialog>
     </AppLayout>

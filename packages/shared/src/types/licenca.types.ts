@@ -1,4 +1,4 @@
-export type TipoLicenca = 'LP' | 'LI' | 'LO' | 'LO_CORRETIVA' | 'LA' | 'LAS' | 'LAU' | 'DISPENSA' | 'AUTORIZACAO' | 'OUTRO'
+export type TipoLicenca = 'LP' | 'LI' | 'LO' | 'LO_CORRETIVA' | 'LA' | 'LAS' | 'LAU' | 'RLO' | 'RLI' | 'RLP' | 'DLAE' | 'DISPENSA' | 'AUTORIZACAO' | 'OUTRO'
 export type StatusLicenca = 'ATIVA' | 'VENCIDA' | 'EM_RENOVACAO' | 'SUSPENSA' | 'CASSADA' | 'AGUARDANDO_EMISSAO' | 'DISPENSADA' | 'ARQUIVADA'
 
 export interface LicencaDTO {
@@ -12,8 +12,8 @@ export interface LicencaDTO {
   nomeEmpreendimento?: string | null
   atividadeLicenciada?: string | null
   dataEmissao?: string | Date | null
-  dataValidade?: string | Date | null
   dataLimiteRenovacao?: string | Date | null
+  municipioEmissor?: string | null
   documentoUrl?: string | null
   cliente?: {
     nome: string
@@ -33,5 +33,6 @@ export interface CreateLicencaDTO {
   dataEmissao?: string
   dataValidade?: string
   dataLimiteRenovacao?: string
+  municipioEmissor?: string
   observacoes?: string
 }

@@ -41,6 +41,12 @@ import {
 } from '@/lib/form-actionable-error'
 import { useTrackViewLoaded } from '@/hooks/use-track-view-loaded'
 import { trackFirstValidAction, trackFlowCompleted, trackFormError } from '@/lib/telemetry'
+import { useClienteContexto } from '@/features/clientes/components/ClienteContextProvider'
+import { FormWizard, type WizardStep } from '@/components/ui/form-wizard'
+import { ViewToggle, useViewMode } from '@/components/ui/view-toggle'
+import { ChevronRight } from 'lucide-react'
+import { formatEnum } from '@/lib/utils'
+
 
 const statusOptions = [
   'EMITIDO',
@@ -190,7 +196,13 @@ export default function MTRsPage() {
   const [editing, setEditing] = useState<MTRResponseDTO | null>(null)
   const [form, setForm] = useState<FormState>(defaultForm)
   const [formError, setFormError] = useState<ActionableFormError | null>(null)
-  const clienteIdFilter = searchParams.get('clienteId')
+  
+  const { clienteId: globalClienteId, clienteNome: globalClienteNome } = useClienteContexto()
+  const rawClienteIdFilter = searchParams.get('clienteId')
+  const clienteIdFilter = globalClienteId || rawClienteIdFilter
+
+  const [viewMode] = useViewMode('mtrs', 'cards')
+
   const [novoParceiro, setNovoParceiro] = useState<{
     nome: string
     cnpj: string
@@ -321,8 +333,10 @@ export default function MTRsPage() {
     },
   })
 
+  useTrackViewLoaded('mtrs')
+
   const clientMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.nome])), [clientes])
-  const clienteFiltroNome = clienteIdFilter ? clientMap.get(clienteIdFilter) || 'Cliente' : null
+  const clienteFiltroNome = globalClienteId ? globalClienteNome : (clienteIdFilter ? clientMap.get(clienteIdFilter) || 'Cliente' : null)
   const partnerMap = useMemo(() => {
     const map = new Map<string, string>()
     parceirosGlobais.forEach((p) => map.set(p.id, p.nome))
@@ -343,7 +357,6 @@ export default function MTRsPage() {
     volumeNumber > 0
   const isSaving = isEmitindo || isAtualizando || isAvancandoStatus
   const isLoadingParceirosCliente = isLoadingTransportadoras || isLoadingDestinadores
-  useTrackViewLoaded('mtrs')
 
   function applyTrackedFormError(nextError: ActionableFormError, source: 'validation' | 'api') {
     setFormError(nextError)
@@ -628,9 +641,13 @@ export default function MTRsPage() {
         </div>
 
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <p className="text-sm text-muted-foreground/70">
-            Acompanhamento em tempo real das movimentações.
-          </p>
+          <div className="flex items-center gap-2">
+            <ViewToggle storageKey="mtrs" defaultMode="cards" />
+            <div className="hidden md:block h-4 w-px bg-white/[0.08]" />
+            <p className="hidden md:block text-sm text-muted-foreground/70 ml-1">
+              Acompanhamento em tempo real das movimentações.
+            </p>
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
@@ -685,21 +702,127 @@ export default function MTRsPage() {
             actionLabel="Novo MTR"
             onAction={() => openCreate(clienteIdFilter)}
           />
+        ) : viewMode === 'cards' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {mtrsFiltrados.map((mtr, i) => {
+              const hasAlert = 
+                mtr.status === 'CANCELADO' || 
+                mtr.status === 'COM_DIVERGENCIA' || 
+                mtr.integracao?.fase === 'FALHA' || 
+                mtr.integracao?.fase === 'DLQ'
+                
+              const alertColor = hasAlert ? 'bg-destructive' : 'bg-primary'
+              
+              return (
+                <motion.div
+                  key={mtr.id}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.03, duration: 0.2 }}
+                  className="glass-card hover:bg-white/[0.03] transition-colors p-5 flex flex-col relative overflow-hidden group"
+                >
+                  <div className={`absolute top-0 left-0 w-1 h-full ${alertColor}`} />
+                  
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] font-mono font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                          {mtr.numeroMTR || `MTR-${mtr.id.substring(0, 8)}`}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-semibold text-foreground line-clamp-1" title={clientMap.get(mtr.clienteId)}>
+                        {clientMap.get(mtr.clienteId) || "Cliente desconhecido"}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                        Carga: {mtr.volume} {mtr.unidadeMedida}
+                      </p>
+                    </div>
+                    <StatusBadge status={mtr.status} />
+                  </div>
+
+                  <div className="mb-5 space-y-2">
+                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-2.5 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground uppercase tracking-wider font-medium">T:</span>
+                        <span className="text-foreground truncate pl-2 max-w-[200px]" title={partnerMap.get(mtr.transportadoraId)}>
+                          {partnerMap.get(mtr.transportadoraId) || mtr.transportadoraId}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-muted-foreground uppercase tracking-wider font-medium">D:</span>
+                        <span className="text-foreground truncate pl-2 max-w-[200px]" title={partnerMap.get(mtr.destinadorId)}>
+                          {partnerMap.get(mtr.destinadorId) || mtr.destinadorId}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg p-2.5">
+                      {mtr.integracao ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
+                              Integração {mtr.integracao.sistema}
+                            </span>
+                            <Badge variant="outline" className={`h-5 text-[9px] px-1.5 border-0 ${integrationBadgeClass(mtr.integracao.fase)}`}>
+                              {formatIntegracaoFase(mtr.integracao.fase)}
+                            </Badge>
+                          </div>
+                          {mtr.integracao.ultimoErro ? (
+                            <p className="text-[10px] text-rose-300 leading-tight line-clamp-2">
+                              Er: {mtr.integracao.ultimoErro}
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-muted-foreground/60 leading-tight">
+                              St: {mtr.integracao.providerStatus || 'Aguardando'}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground/50 py-1">Sem integração registrada</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-end gap-1.5 pt-3 border-t border-white/[0.06]">
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openIntegracao(mtr)} title="Detalhes da integração">
+                      <Activity className="h-3 w-3" strokeWidth={1.5} />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleReconciliarIntegracao(mtr)} disabled={reconciliarIntegracaoMutation.isPending} title="Reconciliar status">
+                      <RefreshCcw className="h-3 w-3" strokeWidth={1.5} />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(mtr)}>
+                      <Pencil className="h-3 w-3" strokeWidth={1.5} />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDelete(mtr)} disabled={isRemovendo}>
+                      <Trash2 className="h-3 w-3" strokeWidth={1.5} />
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1 hover:bg-white/[0.08]" onClick={() => navigate(`/mtrs/${mtr.id}`)}>
+                      Ver MTR <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
         ) : (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="glass-card overflow-hidden">
-              <div className="overflow-x-auto max-w-full">
-                <table className="w-full min-w-[980px]">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card overflow-hidden"
+          >
+            <div className="overflow-x-auto max-w-full">
+              <div className="inline-block min-w-full align-middle">
+                <table className="w-full min-w-[1100px]">
                   <thead>
                     <tr className="border-b border-white/[0.08]">
                       <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
-                        MTR
+                        Info
                       </th>
                       <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
                         Status
                       </th>
                       <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
-                        Cliente
+                        Gerador
                       </th>
                       <th className="px-4 py-3 text-left text-[10px] uppercase tracking-wider text-muted-foreground/60">
                         Carga
@@ -821,6 +944,9 @@ export default function MTRsPage() {
                               disabled={isRemovendo}
                             >
                               <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => navigate(`/mtrs/${mtr.id}`)}>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             </Button>
                           </div>
                         </td>
@@ -985,257 +1111,305 @@ export default function MTRsPage() {
               setFormError(null)
             }}
           />
-          <p className="text-[11px] text-muted-foreground/70">
-            Campos marcados com * são obrigatórios para salvar.
-          </p>
+          <FormWizard
+            isSubmitting={isSaving}
+            onCancel={() => setOpen(false)}
+            onComplete={handleSave}
+            steps={[
+              {
+                id: 'step1',
+                label: 'Origem',
+                isValid: !!form.clienteId && !!form.fonteGeradoraId,
+                content: (
+                  <div className="space-y-4 py-4">
+                    <p className="text-sm text-muted-foreground/80 mb-2">
+                       Defina quem esta gerando o resíduo e onde ele está sendo gerado.
+                    </p>
+                    <div className="space-y-2">
+                      <Label>Gerador (Cliente) *</Label>
+                      <Select
+                        value={form.clienteId}
+                        disabled={!!globalClienteId}
+                        onValueChange={(v) =>
+                          setForm((s) => ({
+                            ...s,
+                            clienteId: v,
+                            fonteGeradoraId: '',
+                            transportadoraId: '',
+                            destinadorId: '',
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clientes.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2 max-h-[70vh] overflow-y-auto overflow-x-hidden pr-1">
-            <div className="space-y-2">
-              <Label>Cliente *</Label>
-              <Select
-                value={form.clienteId}
-                onValueChange={(v) =>
-                  setForm((s) => ({
-                    ...s,
-                    clienteId: v,
-                    fonteGeradoraId: '',
-                    transportadoraId: '',
-                    destinadorId: '',
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientes.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    <div className="space-y-2">
+                      <Label>Ponto de Geração (Origem) *</Label>
+                      <Select
+                        value={form.fonteGeradoraId}
+                        onValueChange={(v) => setForm((s) => ({ ...s, fonteGeradoraId: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={isLoadingFontes ? 'Carregando fontes...' : 'Selecione a fonte'}
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {fontesGeradoras.map((f) => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {f.descricao || `Fonte ${f.id.substring(0, 6)}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step2',
+                label: 'Cadeia de Destinação',
+                isValid: !!form.transportadoraId && !!form.destinadorId && !!form.tipoDestinacao,
+                content: (
+                  <div className="space-y-4 py-4">
+                    <p className="text-sm text-muted-foreground/80 mb-2">
+                       Especifique como o resíduo será transportado e qual será seu destino final.
+                    </p>
+                    {form.clienteId && (!transportadoras.length || !destinadores.length) ? (
+                      <div className="rounded-lg border border-dashed border-primary/35 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                        Este cliente não possui parceiros suficientes cadastrados.
+                        <button
+                          type="button"
+                          onClick={() => { setOpen(false); abrirDialogVinculo(); }}
+                          className="ml-1 text-primary hover:underline"
+                        >
+                          Vincular agora
+                        </button>
+                      </div>
+                    ) : null}
 
-            <div className="space-y-2">
-              <Label>Fonte Geradora *</Label>
-              <Select
-                value={form.fonteGeradoraId}
-                onValueChange={(v) => setForm((s) => ({ ...s, fonteGeradoraId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={isLoadingFontes ? 'Carregando fontes...' : 'Selecione a fonte'}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {fontesGeradoras.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.descricao || `Fonte ${f.id.substring(0, 6)}`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Transportadora *</Label>
+                        <Select
+                          value={form.transportadoraId}
+                          onValueChange={(v) => setForm((s) => ({ ...s, transportadoraId: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                !form.clienteId
+                                  ? 'Selecione um cliente primeiro'
+                                  : isLoadingParceirosCliente
+                                    ? 'Carregando...'
+                                    : 'Selecionar'
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {form.transportadoraId &&
+                            !transportadoras.some((parceiro) => parceiro.id === form.transportadoraId) ? (
+                              <SelectItem value={form.transportadoraId}>
+                                {partnerMap.get(form.transportadoraId) || 'Logística Legado'}
+                              </SelectItem>
+                            ) : null}
+                            {transportadoras.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-            <div className="space-y-2">
-              <Label>Transportadora *</Label>
-              <Select
-                value={form.transportadoraId}
-                onValueChange={(v) => setForm((s) => ({ ...s, transportadoraId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      !form.clienteId
-                        ? 'Selecione um cliente primeiro'
-                        : isLoadingParceirosCliente
-                          ? 'Carregando vínculos...'
-                          : 'Selecione a transportadora'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {form.transportadoraId &&
-                  !transportadoras.some((parceiro) => parceiro.id === form.transportadoraId) ? (
-                    <SelectItem value={form.transportadoraId}>
-                      {partnerMap.get(form.transportadoraId) || 'Transportadora legado'}
-                    </SelectItem>
-                  ) : null}
-                  {transportadoras.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                      <div className="space-y-2">
+                        <Label>Destinador *</Label>
+                        <Select
+                          value={form.destinadorId}
+                          onValueChange={(v) => setForm((s) => ({ ...s, destinadorId: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue
+                              placeholder={
+                                !form.clienteId
+                                  ? 'Selecione um cliente primeiro'
+                                  : isLoadingParceirosCliente
+                                    ? 'Carregando...'
+                                    : 'Selecionar'
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {form.destinadorId &&
+                            !destinadores.some((parceiro) => parceiro.id === form.destinadorId) ? (
+                              <SelectItem value={form.destinadorId}>
+                                {partnerMap.get(form.destinadorId) || 'Destinador Legado'}
+                              </SelectItem>
+                            ) : null}
+                            {destinadores.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
 
-            <div className="space-y-2">
-              <Label>Destinador *</Label>
-              <Select
-                value={form.destinadorId}
-                onValueChange={(v) => setForm((s) => ({ ...s, destinadorId: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      !form.clienteId
-                        ? 'Selecione um cliente primeiro'
-                        : isLoadingParceirosCliente
-                          ? 'Carregando vínculos...'
-                          : 'Selecione o destinador'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {form.destinadorId &&
-                  !destinadores.some((parceiro) => parceiro.id === form.destinadorId) ? (
-                    <SelectItem value={form.destinadorId}>
-                      {partnerMap.get(form.destinadorId) || 'Destinador legado'}
-                    </SelectItem>
-                  ) : null}
-                  {destinadores.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    <div className="space-y-2">
+                      <Label>Método de Destinação *</Label>
+                      <Select
+                        value={form.tipoDestinacao}
+                        onValueChange={(v) => setForm((s) => ({ ...s, tipoDestinacao: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {tipoDestinacaoOptions.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {formatEnum(item)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step3',
+                label: 'Carga & MTR',
+                isValid: !!form.volume && !!form.unidadeMedida,
+                content: (
+                  <div className="space-y-4 py-4">
+                    <p className="text-sm text-muted-foreground/80 mb-2">
+                       Forneça os dados sobre a carga e, caso já possua, o número do documento gerado no sistema ambiental.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Volume *</Label>
+                        <Input
+                          type="number"
+                          value={form.volume}
+                          onChange={(e) => setForm((s) => ({ ...s, volume: e.target.value }))}
+                          placeholder="0.000"
+                        />
+                      </div>
 
-            {form.clienteId && (!transportadoras.length || !destinadores.length) ? (
-              <div className="md:col-span-2 rounded-lg border border-dashed border-primary/35 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-                Este cliente ainda não possui vínculos completos de parceiro para MTR.
-                <button
-                  type="button"
-                  onClick={abrirDialogVinculo}
-                  className="ml-1 text-primary hover:underline"
-                >
-                  Vincular agora
-                </button>
-                .
-              </div>
-            ) : null}
+                      <div className="space-y-2">
+                        <Label>Unidade *</Label>
+                        <Select
+                          value={form.unidadeMedida}
+                          onValueChange={(v) => setForm((s) => ({ ...s, unidadeMedida: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {unidadeOptions.map((item) => (
+                              <SelectItem key={item} value={item}>
+                                {item}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
 
-            <div className="space-y-2">
-              <Label>Tipo de Destinação</Label>
-              <Select
-                value={form.tipoDestinacao}
-                onValueChange={(v) => setForm((s) => ({ ...s, tipoDestinacao: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {tipoDestinacaoOptions.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item.replaceAll('_', ' ')}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Número do MTR</Label>
+                        <Input
+                          value={form.numeroMTR}
+                          onChange={(e) => setForm((s) => ({ ...s, numeroMTR: e.target.value }))}
+                          placeholder="MTR gerado"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select
+                          value={form.status}
+                          onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusOptions.map((item) => (
+                              <SelectItem key={item} value={item}>
+                                {formatEnum(item)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step4',
+                label: 'Motorista & Veículo',
+                content: (
+                  <div className="space-y-4 py-4">
+                    <p className="text-sm text-muted-foreground/80 mb-2">
+                       (Opcional) Informe os dados da pessoa e do veículo que farão o trajeto da origem até o destino final.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Nome do Motorista</Label>
+                        <Input
+                          value={form.nomeMotorista}
+                          onChange={(e) => setForm((s) => ({ ...s, nomeMotorista: e.target.value }))}
+                        />
+                      </div>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={form.status}
-                onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                      <div className="space-y-2">
+                        <Label>CPF do Motorista</Label>
+                        <Input
+                          value={form.cpfMotorista}
+                          onChange={(e) => setForm((s) => ({ ...s, cpfMotorista: e.target.value }))}
+                          placeholder="000.000.000-00"
+                        />
+                      </div>
 
-            <div className="space-y-2">
-              <Label>Volume *</Label>
-              <Input
-                value={form.volume}
-                onChange={(e) => setForm((s) => ({ ...s, volume: e.target.value }))}
-                placeholder="0.000"
-              />
-            </div>
+                      <div className="space-y-2">
+                        <Label>Placa do Veículo</Label>
+                        <Input
+                          value={form.placaVeiculo}
+                          onChange={(e) =>
+                            setForm((s) => ({ ...s, placaVeiculo: e.target.value.toUpperCase() }))
+                          }
+                          placeholder="ABC-1234"
+                        />
+                      </div>
+                    </div>
 
-            <div className="space-y-2">
-              <Label>Unidade</Label>
-              <Select
-                value={form.unidadeMedida}
-                onValueChange={(v) => setForm((s) => ({ ...s, unidadeMedida: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {unidadeOptions.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Número do MTR</Label>
-              <Input
-                value={form.numeroMTR}
-                onChange={(e) => setForm((s) => ({ ...s, numeroMTR: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Placa do Veículo</Label>
-              <Input
-                value={form.placaVeiculo}
-                onChange={(e) =>
-                  setForm((s) => ({ ...s, placaVeiculo: e.target.value.toUpperCase() }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Motorista</Label>
-              <Input
-                value={form.nomeMotorista}
-                onChange={(e) => setForm((s) => ({ ...s, nomeMotorista: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>CPF do Motorista</Label>
-              <Input
-                value={form.cpfMotorista}
-                onChange={(e) => setForm((s) => ({ ...s, cpfMotorista: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label>Observações</Label>
-              <Textarea
-                value={form.observacoes}
-                onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving || !isFormReady} className="gap-2">
-              <Save className="h-4 w-4" />
-              {isSaving ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </DialogFooter>
+                    <div className="space-y-2">
+                      <Label>Observações adicionais</Label>
+                      <Textarea
+                        value={form.observacoes}
+                        onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))}
+                        className="min-h-[100px]"
+                      />
+                    </div>
+                  </div>
+                )
+              }
+            ]}
+          />
         </DialogContent>
       </Dialog>
 
@@ -1301,8 +1475,8 @@ export default function MTRsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="TRANSPORTADORA">Transportadora</SelectItem>
-                  <SelectItem value="DESTINADOR_FINAL">Destinador Final</SelectItem>
+                  <SelectItem value="TRANSPORTADORA">{formatEnum('TRANSPORTADORA')}</SelectItem>
+                  <SelectItem value="DESTINADOR_FINAL">{formatEnum('DESTINADOR_FINAL')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1382,10 +1556,10 @@ export default function MTRsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="TRANSPORTADORA">Transportadora</SelectItem>
-                  <SelectItem value="DESTINADOR_FINAL">Destinador final</SelectItem>
+                  <SelectItem value="TRANSPORTADORA">{formatEnum('TRANSPORTADORA')}</SelectItem>
+                  <SelectItem value="DESTINADOR_FINAL">{formatEnum('DESTINADOR_FINAL')}</SelectItem>
                   <SelectItem value="TRANSPORTADORA_E_DESTINADOR">
-                    Transportadora e destinador
+                    {formatEnum('TRANSPORTADORA_E_DESTINADOR')}
                   </SelectItem>
                 </SelectContent>
               </Select>

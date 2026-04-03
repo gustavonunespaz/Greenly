@@ -7,6 +7,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from '@/features/auth/components/AuthProvider'
 import { ProtectedRoute } from '@/features/auth/components/ProtectedRoute'
+import { ClienteContextProvider } from '@/features/clientes/components/ClienteContextProvider'
 
 const Index = lazy(() => import('./pages/Index'))
 const DocumentosPage = lazy(() => import('./pages/DocumentosPage'))
@@ -17,6 +18,7 @@ const ClientesPage = lazy(() => import('./pages/ClientesPage'))
 const NotificacoesPage = lazy(() => import('./pages/NotificacoesPage'))
 const ConfiguracoesPage = lazy(() => import('./pages/ConfiguracoesPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
+const AgendaPage = lazy(() => import('./pages/AgendaPage'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 const queryClient = new QueryClient({
@@ -43,6 +45,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <ClienteContextProvider>
             <Suspense fallback={<PageLoadingFallback />}>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
@@ -142,9 +145,18 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/agenda"
+                  element={
+                    <ProtectedRoute>
+                      <AgendaPage />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
+            </ClienteContextProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

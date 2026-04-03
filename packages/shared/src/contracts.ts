@@ -422,6 +422,7 @@ export const CriarLicencaSchema = z.object({
   atividadeLicenciada: z.string().optional(),
   dataEmissao: z.coerce.date().optional(),
   dataValidade: z.coerce.date().optional(),
+  municipioEmissor: z.string().optional(),
   observacoes: z.string().optional(),
   criadoPorId: z.string().uuid().optional(),
 })
@@ -439,6 +440,7 @@ export const AtualizarLicencaSchema = z.object({
   atividadeLicenciada: z.string().optional().nullable(),
   dataEmissao: z.coerce.date().optional().nullable(),
   dataValidade: z.coerce.date().optional().nullable(),
+  municipioEmissor: z.string().optional().nullable(),
   observacoes: z.string().optional().nullable(),
 })
 export type AtualizarLicencaDTO = z.infer<typeof AtualizarLicencaSchema>
@@ -449,8 +451,17 @@ export interface LicencaResponseDTO {
   tipo: string
   status: string
   numeroLicenca?: string | null
+  numeroProcesso?: string | null
+  nomeEmpreendimento?: string | null
+  atividadeLicenciada?: string | null
+  dataEmissao?: Date | null
   dataValidade?: Date | null
   diasAteVencimento?: number | null
+  municipioEmissor?: string | null
+  orgaoAmbientalId?: string | null
+  orgaoSigla?: string | null
+  orgaoNome?: string | null
+  orgaoEsfera?: string | null
 }
 
 export interface OrgaoAmbientalResponseDTO {
@@ -569,6 +580,8 @@ export interface MTRResponseDTO {
   dataEmissao: Date
   dataColeta?: Date | null
   dataRecebimento?: Date | null
+  dataPrazoCdf?: Date | null
+  cdfAtrasado?: boolean
   placaVeiculo?: string | null
   nomeMotorista?: string | null
   cpfMotorista?: string | null
@@ -785,6 +798,57 @@ export interface ClienteParceiroVinculoResponseDTO {
   observacoes?: string | null
   ativo: boolean
   parceiro: ParceiroResponseDTO
+}
+
+// ─── SINIR Consulta ────────────────────
+export interface SinirConsultaParceiroResponseDTO {
+  cnpj: string
+  razaoSocial: string
+  nomeFantasia?: string | null
+  habilitado: boolean
+  situacao: string
+  tiposHabilitacao: string[]
+  licencas: Array<{
+    numero: string
+    validade?: string | null
+    orgaoEmissor?: string | null
+  }>
+  endereco?: {
+    logradouro?: string
+    cidade?: string
+    estado?: string
+    cep?: string
+  } | null
+}
+
+// ─── Painel Multi-Papel ────────────────
+export interface PainelTransportadoraItemDTO {
+  mtrId: string
+  numeroMTR?: string | null
+  status: string
+  clienteNome: string
+  destinadorNome?: string | null
+  volume: number
+  unidadeMedida: string
+  dataEmissao: Date
+  dataRecebimento?: Date | null
+  dataPrazoCdf?: Date | null
+  cdfEmitido: boolean
+  cdfAtrasado: boolean
+}
+
+export interface PainelDestinadorItemDTO {
+  mtrId: string
+  numeroMTR?: string | null
+  status: string
+  clienteNome: string
+  transportadoraNome?: string | null
+  volume: number
+  unidadeMedida: string
+  dataRecebimento?: Date | null
+  dataPrazoCdf?: Date | null
+  cdfEmitido: boolean
+  cdfAtrasado: boolean
 }
 
 export interface TipoResiduoOptionDTO {

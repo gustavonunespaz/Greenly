@@ -40,10 +40,25 @@ COPY --from=builder /app/packages/shared/node_modules ./packages/shared/node_mod
 COPY --from=builder /app/apps/api/package.json ./apps/api/
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/apps/tsconfig.base.json ./apps/
+
+# ── Arquivos necessários para db:push e db:seed no boot ──
+# drizzle-kit precisa dos .ts de schema + drizzle.config.ts
+# tsx precisa dos seeds em src/db/
+COPY --from=builder /app/apps/api/drizzle.config.ts ./apps/api/
+COPY --from=builder /app/apps/api/src/db ./apps/api/src/db
+COPY --from=builder /app/apps/api/tsconfig.json ./apps/api/
+COPY --from=builder /app/packages/shared/src ./packages/shared/src
+COPY --from=builder /app/packages/shared/tsconfig.json ./packages/shared/
+
+# Copiar entrypoint
+COPY scripts/docker-entrypoint-api.sh /app/docker-entrypoint-api.sh
+RUN dos2unix /app/docker-entrypoint-api.sh && chmod +x /app/docker-entrypoint-api.sh
 
 WORKDIR /app/apps/api
 
 # A porta padrão
 EXPOSE 3333
 
-CMD ["pnpm", "run", "start"]
+# Entrypoint: roda db:push + seed antes de iniciar a API
+ENTRYPOINT ["/app/docker-entrypoint-api.sh"]

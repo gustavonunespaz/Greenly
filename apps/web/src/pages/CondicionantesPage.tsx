@@ -37,6 +37,10 @@ import {
 } from '@/lib/form-actionable-error'
 import { useTrackViewLoaded } from '@/hooks/use-track-view-loaded'
 import { trackFirstValidAction, trackFlowCompleted, trackFormError } from '@/lib/telemetry'
+import { useClienteContexto } from '@/features/clientes/components/ClienteContextProvider'
+import { FormWizard, type WizardStep } from '@/components/ui/form-wizard'
+import { ViewToggle, useViewMode } from '@/components/ui/view-toggle'
+import { ChevronRight } from 'lucide-react'
 
 const filterLabels: Record<string, string> = {
   TODAS: 'Todas',
@@ -85,8 +89,15 @@ export default function CondicionantesPage() {
   const [condicionanteDestacadaId, setCondicionanteDestacadaId] = useState<string | null>(null)
   const [novoForm, setNovoForm] = useState<NovoCondicionanteForm>(defaultNovoCondicionanteForm)
   const [formError, setFormError] = useState<ActionableFormError | null>(null)
-  const clienteIdFilter = searchParams.get('clienteId')
+  
+  const { clienteId: globalClienteId, clienteNome: globalClienteNome } = useClienteContexto()
+  const rawClienteIdFilter = searchParams.get('clienteId')
+  const clienteIdFilter = globalClienteId || rawClienteIdFilter
   const licencaIdPrefill = searchParams.get('licencaId')
+
+  // View mode
+  const [viewMode] = useViewMode('condicionantes', 'cards')
+
   const sorted = [...condicionantes]
     .filter((c) => !clienteIdFilter || c.clienteId === clienteIdFilter)
     .filter((c) => filter === 'TODAS' || c.status === filter)
@@ -102,7 +113,7 @@ export default function CondicionantesPage() {
   const isCreateFormReady = !!novoForm.licencaId && !!novoForm.descricao.trim()
   useTrackViewLoaded('condicionantes')
   const clienteMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.nome])), [clientes])
-  const clienteFiltroNome = clienteIdFilter ? clienteMap.get(clienteIdFilter) || 'Cliente' : null
+  const clienteFiltroNome = globalClienteId ? globalClienteNome : (clienteIdFilter ? clienteMap.get(clienteIdFilter) || 'Cliente' : null)
   const licencasParaSelecao = useMemo(() => {
     return [...licencas]
       .filter((licenca) => !clienteIdFilter || licenca.clienteId === clienteIdFilter)
@@ -242,11 +253,12 @@ export default function CondicionantesPage() {
   }
 
   return (
-    <AppLayout title="Condicionantes">
+    <AppLayout title="Condicionantes Ambientais">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-5">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
+            <ViewToggle storageKey="condicionantes" defaultMode="cards" />
+            <div className="h-4 w-px bg-white/[0.08] mx-1" />
             <Filter className="h-3.5 w-3.5 text-muted-foreground/40 mr-1" strokeWidth={1.5} />
             {filters.map((f) => (
               <button
@@ -335,6 +347,130 @@ export default function CondicionantesPage() {
                 : () => openCreateDialog(licencaIdPrefill)
             }
           />
+        ) : viewMode === 'cards' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {sorted.map((c, i) => {
+              const isContinuo = !c.prazo;
+              const perc = isContinuo ? 100 : c.diasRestantes !== null && c.diasRestantes !== undefined && c.diasRestantes > 0
+                ? Math.min(100, Math.max(0, (1 - (c.diasRestantes / 180)) * 100))
+                : 100
+
+              const alertColor = isContinuo
+                ? 'bg-blue-500/50'
+                : (c.diasRestantes ?? 999999) < 0 || c.status === 'ATRASADA'
+                ? 'bg-destructive'
+                : (c.diasRestantes ?? 999999) <= 30
+                ? 'bg-warning'
+                : 'bg-primary'
+
+              return (
+                <motion.div
+                  key={c.id}
+                  id={`condicionante-${c.id}`}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.03, duration: 0.2 }}
+                  className={`glass-card hover:bg-white/[0.03] transition-colors p-5 flex flex-col relative overflow-hidden group ${
+                    condicionanteDestacadaId === c.id ? 'ring-1 ring-primary/40 bg-primary/5' : ''
+                  }`}
+                >
+                  <div className={`absolute top-0 left-0 w-1 h-full ${alertColor}`} />
+                  
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="text-[10px] uppercase font-mono font-medium text-muted-foreground/70 bg-white/[0.06] px-1.5 py-0.5 rounded">
+                          {c.codigo || `ID-${c.id.substring(0, 8)}`}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                          {c.tipo === 'PERIODICA' ? 'Periódica' : 'Pontual'}
+                        </span>
+                      </div>
+                      <h3 className="text-sm font-semibold text-foreground line-clamp-2" title={c.descricao}>
+                        {c.descricao}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground/70 mt-1 line-clamp-1 flex items-center gap-1.5">
+                        <span className="h-4 w-4 rounded-full bg-white/[0.08] flex items-center justify-center shrink-0">
+                          {c.clienteNome?.charAt(0) || '-'}
+                        </span>
+                        {c.clienteNome}
+                      </p>
+                    </div>
+                    <StatusBadge status={c.status} />
+                  </div>
+
+                  <div className="mb-5 bg-white/[0.02] border border-white/[0.05] rounded-lg p-2.5">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">
+                        Prazo
+                      </span>
+                      <span className={`text-[11px] font-semibold ${
+                        isContinuo ? 'text-blue-400' :
+                        (c.diasRestantes ?? 999999) < 0
+                          ? 'text-destructive'
+                          : (c.diasRestantes ?? 999999) <= 30
+                          ? 'text-warning'
+                          : 'text-foreground'
+                      }`}>
+                        {isContinuo
+                          ? 'Contínuo'
+                          : c.diasRestantes === null || c.diasRestantes === undefined
+                          ? '—'
+                          : c.diasRestantes < 0
+                          ? `${Math.abs(c.diasRestantes)}d atrasado`
+                          : `${c.diasRestantes}d restantes`}
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full ${alertColor}`} 
+                        style={{ width: `${perc}%` }} 
+                      />
+                    </div>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-[10px] text-muted-foreground/60">
+                        {isContinuo ? 'Sem expiração' : c.prazo ? new Date(c.prazo).toLocaleDateString('pt-BR') : 'Não definido'}
+                      </p>
+                      {c.responsavelCliente && (
+                        <p className="text-[9px] uppercase tracking-wider text-muted-foreground/50 font-medium">
+                          R: {c.responsavelCliente.split(' ')[0]}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-auto flex items-center justify-end gap-1.5 pt-3 border-t border-white/[0.06]">
+                    {c.status === 'A_CUMPRIR' ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAtualizarStatus(c.id, 'EM_ANDAMENTO')}
+                        disabled={isAtualizandoStatus && condicionanteAtualizandoId === c.id}
+                        className="h-7 text-[11px] px-2.5 rounded-lg"
+                      >
+                        <PlayCircle className="h-3 w-3 mr-1" />
+                        Iniciar
+                      </Button>
+                    ) : null}
+                    {c.status !== 'CUMPRIDA' && c.status !== 'DISPENSADA' ? (
+                      <Button
+                        size="sm"
+                        onClick={() => handleAtualizarStatus(c.id, 'CUMPRIDA')}
+                        disabled={isAtualizandoStatus && condicionanteAtualizandoId === c.id}
+                        className="h-7 text-[11px] px-2.5 rounded-lg"
+                      >
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Cumprir
+                      </Button>
+                    ) : null}
+                    <Button variant="ghost" size="sm" className="h-7 px-2 text-[11px] gap-1 hover:bg-white/[0.08]" onClick={() => navigate(`/condicionantes/${c.id}`)}>
+                      Detalhes <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
         ) : (
           <div className="glass-card overflow-hidden">
             <div className="overflow-x-auto max-w-full">
@@ -388,19 +524,23 @@ export default function CondicionantesPage() {
                       </td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">{c.clienteNome}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {c.prazo ? new Date(c.prazo).toLocaleDateString('pt-BR') : 'Não definido'}
+                        {!c.prazo ? 'Contínuo' : new Date(c.prazo).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="px-4 py-3">
                         <span
                           className={`text-xs font-semibold ${
-                            (c.diasRestantes ?? 999999) < 0
+                            !c.prazo 
+                              ? 'text-blue-400' 
+                              : (c.diasRestantes ?? 999999) < 0
                               ? 'text-destructive'
                               : (c.diasRestantes ?? 999999) <= 30
                                 ? 'text-warning'
                                 : 'text-primary'
                           }`}
                         >
-                          {c.diasRestantes === null || c.diasRestantes === undefined
+                          {!c.prazo
+                            ? '∞'
+                            : c.diasRestantes === null || c.diasRestantes === undefined
                             ? '—'
                             : `${c.diasRestantes}d`}
                         </span>
@@ -472,94 +612,118 @@ export default function CondicionantesPage() {
               setFormError(null)
             }}
           />
-          <p className="text-[11px] text-muted-foreground/70">
-            Campos marcados com * são obrigatórios para salvar.
-          </p>
+          <FormWizard
+            isSubmitting={isCriando}
+            onCancel={() => setOpenCreate(false)}
+            onComplete={handleCriarCondicionante}
+            steps={[
+              {
+                id: 'step1',
+                label: 'Origem',
+                isValid: !!novoForm.licencaId,
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Licença vinculada *</Label>
+                      <Select
+                        value={novoForm.licencaId}
+                        onValueChange={(value) => setNovoForm((s) => ({ ...s, licencaId: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma licença" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {licencasParaSelecao.map((licenca) => (
+                            <SelectItem key={licenca.id} value={licenca.id}>
+                              {clienteMap.get(licenca.clienteId) || 'Cliente'} -{' '}
+                              {licenca.numeroLicenca || licenca.tipo}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground/60 mt-1">
+                        Se a licença não estiver na lista, é preciso cadastrá-la primeiro em "Licenças".
+                      </p>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step2',
+                label: 'Descrição',
+                isValid: !!novoForm.descricao.trim(),
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Tipo</Label>
+                        <Select
+                          value={novoForm.tipo}
+                          onValueChange={(value: 'PONTUAL' | 'PERIODICA') =>
+                            setNovoForm((s) => ({ ...s, tipo: value }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PONTUAL">Pontual</SelectItem>
+                            <SelectItem value="PERIODICA">Periódica</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2 max-h-[70vh] overflow-y-auto overflow-x-hidden pr-1">
-            <div className="space-y-2 md:col-span-2">
-              <Label>Licença vinculada *</Label>
-              <Select
-                value={novoForm.licencaId}
-                onValueChange={(value) => setNovoForm((s) => ({ ...s, licencaId: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma licença" />
-                </SelectTrigger>
-                <SelectContent>
-                  {licencasParaSelecao.map((licenca) => (
-                    <SelectItem key={licenca.id} value={licenca.id}>
-                      {clienteMap.get(licenca.clienteId) || 'Cliente'} -{' '}
-                      {licenca.numeroLicenca || licenca.tipo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+                      <div className="space-y-2">
+                        <Label>Código</Label>
+                        <Input
+                          value={novoForm.codigo}
+                          onChange={(e) => setNovoForm((s) => ({ ...s, codigo: e.target.value }))}
+                          placeholder="Ex: COND-01"
+                        />
+                      </div>
+                    </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Descrição *</Label>
-              <Input
-                value={novoForm.descricao}
-                onChange={(e) => setNovoForm((s) => ({ ...s, descricao: e.target.value }))}
-                placeholder="Descreva o requisito da condicionante"
-              />
-            </div>
+                    <div className="space-y-2">
+                      <Label>Descrição da Exigência *</Label>
+                      <Input
+                        value={novoForm.descricao}
+                        onChange={(e) => setNovoForm((s) => ({ ...s, descricao: e.target.value }))}
+                        placeholder="Descreva o requisito da condicionante"
+                      />
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step3',
+                label: 'Prazo & Responsável',
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Prazo de atendimento</Label>
+                        <Input
+                          type="date"
+                          value={novoForm.prazo}
+                          onChange={(e) => setNovoForm((s) => ({ ...s, prazo: e.target.value }))}
+                        />
+                        <p className="text-[11px] text-muted-foreground/70">Deixe em branco para <strong className="font-medium text-foreground">Monitoramento Contínuo</strong>.</p>
+                      </div>
 
-            <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Select
-                value={novoForm.tipo}
-                onValueChange={(value: 'PONTUAL' | 'PERIODICA') =>
-                  setNovoForm((s) => ({ ...s, tipo: value }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PONTUAL">Pontual</SelectItem>
-                  <SelectItem value="PERIODICA">Periódica</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Código</Label>
-              <Input
-                value={novoForm.codigo}
-                onChange={(e) => setNovoForm((s) => ({ ...s, codigo: e.target.value }))}
-                placeholder="Ex: COND-01"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Prazo</Label>
-              <Input
-                type="date"
-                value={novoForm.prazo}
-                onChange={(e) => setNovoForm((s) => ({ ...s, prazo: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Responsável (cliente)</Label>
-              <Input
-                value={novoForm.responsavelCliente}
-                onChange={(e) => setNovoForm((s) => ({ ...s, responsavelCliente: e.target.value }))}
-                placeholder="Nome do responsável"
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenCreate(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCriarCondicionante} disabled={isCriando || !isCreateFormReady}>
-              {isCriando ? 'Salvando...' : 'Salvar condicionante'}
-            </Button>
-          </DialogFooter>
+                      <div className="space-y-2">
+                        <Label>Responsável (cliente)</Label>
+                        <Input
+                          value={novoForm.responsavelCliente}
+                          onChange={(e) => setNovoForm((s) => ({ ...s, responsavelCliente: e.target.value }))}
+                          placeholder="Nome do responsável (opcional)"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+            ]}
+          />
         </DialogContent>
       </Dialog>
     </AppLayout>

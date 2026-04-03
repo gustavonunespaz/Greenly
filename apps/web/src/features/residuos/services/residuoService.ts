@@ -9,7 +9,10 @@ import {
   CriarFonteGeradoraDTO,
   AtualizarMTRDTO,
   FonteGeradoraOptionDTO,
+  PainelTransportadoraItemDTO,
+  PainelDestinadorItemDTO,
   ParceiroResponseDTO,
+  SinirConsultaParceiroResponseDTO,
   VincularParceiroClienteDTO,
 } from '@greenly/shared'
 
@@ -104,4 +107,26 @@ export const residuoService = {
     )
     return data
   },
+
+  async painelTransportadora(clienteId: string): Promise<PainelTransportadoraItemDTO[]> {
+    const { data } = await api.get<PainelTransportadoraItemDTO[]>(
+      `/residuos/clientes/${clienteId}/painel-transportadora`,
+    )
+    return data
+  },
+
+  async painelDestinador(clienteId: string): Promise<PainelDestinadorItemDTO[]> {
+    const { data } = await api.get<PainelDestinadorItemDTO[]>(
+      `/residuos/clientes/${clienteId}/painel-destinador`,
+    )
+    return data
+  },
+
+  async consultarSinirParceiro(cnpj: string): Promise<SinirConsultaParceiroResponseDTO> {
+    const { data } = await api.get<SinirConsultaParceiroResponseDTO>(
+      `/residuos/sinir/consulta/${cnpj}`,
+    )
+    return data
+  },
 }
+
