@@ -68,13 +68,15 @@ Hoje o produto cobre, de forma integrada:
 
 ## Status atual do produto
 
-Referência atual: **2026-03-30**
+Referência atual: **2026-04-04**
 
-- **Onda 1** concluída tecnicamente: core, dashboard, notificações acionáveis e telemetria base.
-- **Onda 2** concluída tecnicamente: pipeline documental, revisão humana, templates por perfil, reprocessamento e alertas operacionais.
-- **Onda 3** concluída tecnicamente: integrações governamentais, retries, DLQ, reconciliação, mock provider e painel operacional.
-- **Visão micro por cliente** já implementada: `/clientes/:id` concentra licenças, condicionantes, MTRs, CDFs, documentos, instalações, atividade recente e indicadores.
-- **Consulta de CNPJ** validada com autopreenchimento de cadastro via endpoint interno.
+- **Base de Conformidade**: concluída. Inclui licenciamento completo (RLO, RLI, RLP, DLAE) com monitoramento de condicionantes.
+- **Rastreabilidade de Resíduos**: concluída. Emissão de MTR e CDF em conformidade com **SINIR v1.10**, suportando múltiplos itens e resíduos perigosos.
+- **Gestão de Anuências**: módulo de **Saneamento** integrado para controle de anuências municipais/estaduais.
+- **Conformidade Federal**: módulo **IBAMA** integrado para gestão de CTFs e TCFAs.
+- **Ecossistema de Dados**: ~4k órgãos ambientais e ~2.5k tipos de resíduos (NBR 10.004) integrados via seeding automático.
+- **Visão micro por cliente**: cockpit concentrando licenças, condicionantes, MTRs, CDFs, anuências e indicadores.
+- **Consulta de CNPJ**: autopreenchimento de cadastro validado via endpoint interno.
 
 Documentos de referência do estado atual:
 
@@ -99,16 +101,23 @@ Documentos de referência do estado atual:
 
 ### Licenciamento e condicionantes
 
-- CRUD de clientes e licenças;
-- condicionantes pontuais e periódicas;
+- CRUD de clientes e licenças (suporta RLO, RLI, RLP, DLAE, Dispensas);
+- seleção de órgãos ambientais federais, estaduais e municipais (base de ~4k órgãos);
+- condicionantes pontuais e periódicas com sugestão automática via documentos;
 - cálculo de renovação com antecedência padrão de 120 dias;
 - alertas e atualização automática de status por prazo.
 
 ### Resíduos e rastreabilidade
 
 - gestão de fontes geradoras, parceiros, MTRs e CDFs;
-- acompanhamento de status operacional;
+- emissão de MTR em conformidade com **SINIR v1.10** (wizard de 6 passos);
+- suporte a múltiplos itens por MTR, dados de periculosidade e tipos de armazenamento;
 - integração com `SINIR` e `SIGOR` com envio, reconciliação e timeline técnica.
+
+### Anuências e Taxas Federais
+
+- **Saneamento**: acompanhamento de anuências de lançamento e uso de água;
+- **IBAMA**: gestão de Certificado de Regularidade (CTF) e controle de taxas (TCFA) com projeção de custos.
 
 ### Documentos
 
@@ -219,6 +228,8 @@ greenly/
 - `consultoria`
 - `licenca`
 - `residuo`
+- `ibama`
+- `saneamento`
 - `dashboard`
 - `documento`
 - `integracao-governo`
@@ -298,13 +309,15 @@ greenly/
 ### Integrações governamentais
 
 - `GET /api/integracoes/governo/dashboard`
-- `GET /api/integracoes/governo/mtrs/:id`
-- `POST /api/integracoes/governo/mtrs/:id/enviar`
-- `POST /api/integracoes/governo/mtrs/:id/reconciliar`
-- `GET /api/integracoes/governo/cdfs/:id`
+- `POST /api/integracoes/governo/mtrs/:id/enviar` (suporta v1.10)
 - `POST /api/integracoes/governo/cdfs/:id/enviar`
-- `POST /api/integracoes/governo/cdfs/:id/reconciliar`
-- `POST /api/integracoes/governo/webhooks/:system`
+
+### IBAMA e Saneamento
+
+- `GET /api/ibama/ctfs`: listagem de certificados
+- `POST /api/ibama/tcfas/gerar-projecao`: cálculo estimado de taxas
+- `POST /api/saneamento`: criação de anuência
+- `GET /api/saneamento/cliente/:id`: anuências por cliente
 
 ### Mock provider homologável
 
@@ -370,8 +383,7 @@ Prepare a base:
 
 ```bash
 pnpm --filter @greenly/api db:push
-pnpm --filter @greenly/api db:seed
-pnpm user:seed-master
+pnpm --filter @greenly/api db:seed # Órgãos ambientais, Resíduos e Master User
 ```
 
 Inicie frontend e backend:

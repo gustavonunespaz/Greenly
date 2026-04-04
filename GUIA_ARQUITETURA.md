@@ -29,6 +29,8 @@ apps/api/src/
 │   ├── notificacao/
 │   ├── auditoria/
 │   ├── residuo/
+│   ├── ibama/
+│   ├── saneamento/
 │   └── integracao-governo/
 └── shared/
     ├── container.ts
@@ -70,7 +72,7 @@ Pontos chave:
 - Banco primário: PostgreSQL.
 - Fila/cache: Redis.
 - Documentos e anexos: storage local configurável por ambiente.
-- Integrações governamentais: módulo dedicado (`integracao-governo`) preparado para evolução.
+- Integrações governamentais: módulo dedicado (`integracao-governo`) compatível com SINIR v1.10 (MTR e CDF).
 
 ## Execução local (resumo)
 
@@ -80,7 +82,7 @@ cp apps/api/.env.example apps/api/.env
 echo "VITE_API_URL=http://localhost:3333/api" > apps/web/.env
 docker compose up -d postgres redis mailhog
 pnpm --filter @greenly/api db:push
-pnpm --filter @greenly/api db:seed
+pnpm --filter @greenly/api db:seed # Inclui órgãos ambientais e tipos de resíduos (NBR 10.004)
 pnpm dev
 ```
 
