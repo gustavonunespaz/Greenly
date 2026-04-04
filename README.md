@@ -80,9 +80,6 @@ Documentos de referência do estado atual:
 
 - `docs/README.md`
 - `docs/plano_acao_benchmarking_ambisis.md`
-- `docs/onda2_consolidado_validacao.md`
-- `docs/onda3_consolidado_validacao.md`
-- `docs/backlog_pos_plano_acao.md`
 
 ## O que existe hoje
 
@@ -446,26 +443,8 @@ Hoje a validação do projeto está concentrada em:
 ### Smokes disponíveis
 
 ```bash
-pnpm test:sprint1:smoke
-pnpm test:sprint2:smoke
-pnpm test:cdf:smoke
-pnpm test:sprint3:smoke
-pnpm test:sprint4:smoke
-pnpm test:sprint5:smoke
-pnpm test:sprint6:smoke
-pnpm test:sprint6:smoke:docker
 pnpm test:onda2:smoke:docker
 pnpm test:onda3:smoke:docker
-```
-
-### Gates e scripts de apoio
-
-```bash
-pnpm gate:sprint3
-pnpm gate:pre-sprint4
-pnpm gate:sprint5
-pnpm gate:sprint6
-pnpm gate:onda2
 ```
 
 Observação:
@@ -536,9 +515,6 @@ Entrada rápida:
 
 - `docs/README.md`: índice da documentação viva
 - `docs/plano_acao_benchmarking_ambisis.md`: plano mestre por ondas e sprints
-- `docs/onda2_consolidado_validacao.md`: fechamento técnico da Onda 2
-- `docs/onda3_consolidado_validacao.md`: fechamento técnico da Onda 3
-- `docs/backlog_pos_plano_acao.md`: backlog oficial pós-plano
 
 ## Roadmap resumido
 

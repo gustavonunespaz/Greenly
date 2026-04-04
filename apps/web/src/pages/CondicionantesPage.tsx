@@ -3,23 +3,9 @@ import { StatusBadge } from '@/components/ui/status-badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+
 import { motion } from 'framer-motion'
-import { CheckCircle2, ClipboardList, Filter, PlayCircle, Plus } from 'lucide-react'
+import { CheckCircle2, ClipboardList, Filter, PlayCircle } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useCondicionantes } from '@/features/licencas/hooks/useCondicionantes'
 import { useLicencas } from '@/features/licencas/hooks/useLicencas'
@@ -29,16 +15,9 @@ import type { StatusCondicionante } from '@greenly/shared'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { EmptyState } from '@/components/ui/empty-state'
 import { getApiErrorMessage } from '@/lib/http-error'
-import { FormErrorCallout } from '@/components/ui/form-error-callout'
-import {
-  ActionableFormError,
-  buildActionableFormError,
-  buildValidationFormError,
-} from '@/lib/form-actionable-error'
-import { useTrackViewLoaded } from '@/hooks/use-track-view-loaded'
-import { trackFirstValidAction, trackFlowCompleted, trackFormError } from '@/lib/telemetry'
+import { trackFirstValidAction, trackFlowCompleted } from '@/lib/telemetry'
 import { useClienteContexto } from '@/features/clientes/components/ClienteContextProvider'
-import { FormWizard, type WizardStep } from '@/components/ui/form-wizard'
+import { useTrackViewLoaded } from '@/hooks/use-track-view-loaded'
 import { ViewToggle, useViewMode } from '@/components/ui/view-toggle'
 import { ChevronRight } from 'lucide-react'
 
@@ -50,23 +29,7 @@ const filterLabels: Record<string, string> = {
   CUMPRIDA: 'Cumpridas',
 }
 
-type NovoCondicionanteForm = {
-  licencaId: string
-  descricao: string
-  tipo: 'PONTUAL' | 'PERIODICA'
-  codigo: string
-  prazo: string
-  responsavelCliente: string
-}
 
-const defaultNovoCondicionanteForm: NovoCondicionanteForm = {
-  licencaId: '',
-  descricao: '',
-  tipo: 'PONTUAL',
-  codigo: '',
-  prazo: '',
-  responsavelCliente: '',
-}
 
 export default function CondicionantesPage() {
   const navigate = useNavigate()
@@ -85,10 +48,7 @@ export default function CondicionantesPage() {
   const { licencas = [] } = useLicencas()
   const { clientes = [] } = useClientes()
   const [filter, setFilter] = useState('TODAS')
-  const [openCreate, setOpenCreate] = useState(false)
   const [condicionanteDestacadaId, setCondicionanteDestacadaId] = useState<string | null>(null)
-  const [novoForm, setNovoForm] = useState<NovoCondicionanteForm>(defaultNovoCondicionanteForm)
-  const [formError, setFormError] = useState<ActionableFormError | null>(null)
   
   const { clienteId: globalClienteId, clienteNome: globalClienteNome } = useClienteContexto()
   const rawClienteIdFilter = searchParams.get('clienteId')
@@ -110,46 +70,9 @@ export default function CondicionantesPage() {
   const filters = ['TODAS', 'A_CUMPRIR', 'EM_ANDAMENTO', 'ATRASADA', 'CUMPRIDA']
   const hasCondicionantes = condicionantes.length > 0
   const hasFilterApplied = filter !== 'TODAS' || !!clienteIdFilter
-  const isCreateFormReady = !!novoForm.licencaId && !!novoForm.descricao.trim()
   useTrackViewLoaded('condicionantes')
   const clienteMap = useMemo(() => new Map(clientes.map((c) => [c.id, c.nome])), [clientes])
   const clienteFiltroNome = globalClienteId ? globalClienteNome : (clienteIdFilter ? clienteMap.get(clienteIdFilter) || 'Cliente' : null)
-  const licencasParaSelecao = useMemo(() => {
-    return [...licencas]
-      .filter((licenca) => !clienteIdFilter || licenca.clienteId === clienteIdFilter)
-      .sort((a, b) => {
-      const nomeA = (clienteMap.get(a.clienteId) || '').toLowerCase()
-      const nomeB = (clienteMap.get(b.clienteId) || '').toLowerCase()
-      return nomeA.localeCompare(nomeB)
-    })
-  }, [licencas, clienteIdFilter, clienteMap])
-
-  function applyTrackedFormError(nextError: ActionableFormError, source: 'validation' | 'api') {
-    setFormError(nextError)
-    trackFormError('condicionantes', 'condicionante_form', nextError, {
-      source,
-      tipo: novoForm.tipo,
-    })
-  }
-
-  function openCreateDialog(initialLicencaId?: string | null) {
-    setNovoForm({
-      ...defaultNovoCondicionanteForm,
-      licencaId: initialLicencaId || '',
-    })
-    setFormError(null)
-    setOpenCreate(true)
-  }
-
-  useEffect(() => {
-    const quickAction = searchParams.get('quickAction')
-    if (quickAction !== 'nova-condicionante') return
-
-    openCreateDialog(licencaIdPrefill)
-    const params = new URLSearchParams(searchParams)
-    params.delete('quickAction')
-    setSearchParams(params, { replace: true })
-  }, [licencaIdPrefill, searchParams, setSearchParams])
 
   useEffect(() => {
     if (!condicionanteIdParam || isLoading) return
@@ -186,51 +109,7 @@ export default function CondicionantesPage() {
     return () => window.clearTimeout(timer)
   }, [condicionanteDestacadaId])
 
-  async function handleCriarCondicionante() {
-    try {
-      setFormError(null)
-      if (!novoForm.licencaId) {
-        applyTrackedFormError(
-          buildValidationFormError('Selecione uma licença para vincular a condicionante.'),
-          'validation',
-        )
-        return
-      }
 
-      if (!novoForm.descricao.trim()) {
-        applyTrackedFormError(
-          buildValidationFormError('Descreva a condicionante antes de salvar.'),
-          'validation',
-        )
-        return
-      }
-
-      await criarCondicionante({
-        licencaId: novoForm.licencaId,
-        dto: {
-          licencaId: novoForm.licencaId,
-          descricao: novoForm.descricao.trim(),
-          tipo: novoForm.tipo,
-          codigo: novoForm.codigo || undefined,
-          prazo: novoForm.prazo ? new Date(`${novoForm.prazo}T12:00:00`) : undefined,
-          responsavelCliente: novoForm.responsavelCliente || undefined,
-        },
-      })
-
-      toast.success('Condicionante cadastrada com sucesso.')
-      trackFirstValidAction('condicionantes', 'criar_condicionante')
-      trackFlowCompleted('condicionantes', 'condicionante_criada', {
-        tipo: novoForm.tipo,
-      })
-      setFormError(null)
-      setOpenCreate(false)
-    } catch (error: unknown) {
-      applyTrackedFormError(
-        buildActionableFormError(error, 'Não foi possível cadastrar a condicionante.'),
-        'api',
-      )
-    }
-  }
 
   async function handleAtualizarStatus(id: string, status: StatusCondicionante) {
     try {
@@ -279,11 +158,6 @@ export default function CondicionantesPage() {
               </button>
             ))}
           </div>
-
-          <Button onClick={() => openCreateDialog(licencaIdPrefill)} className="h-9 rounded-xl gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            Nova Condicionante
-          </Button>
         </div>
 
         {clienteFiltroNome ? (
@@ -330,9 +204,9 @@ export default function CondicionantesPage() {
             description={
               hasCondicionantes && hasFilterApplied
                 ? "Volte para 'Todas' para revisar o backlog completo."
-                : 'Cadastre a primeira condicionante para iniciar o acompanhamento.'
+                : 'Não há condicionantes cadastradas no momento.'
             }
-            actionLabel={hasCondicionantes && hasFilterApplied ? 'Ver todas' : 'Nova condicionante'}
+            actionLabel={hasCondicionantes && hasFilterApplied ? 'Ver todas' : undefined}
             onAction={
               hasCondicionantes && hasFilterApplied
                 ? () => {
@@ -344,7 +218,7 @@ export default function CondicionantesPage() {
                       setSearchParams(params, { replace: true })
                     }
                   }
-                : () => openCreateDialog(licencaIdPrefill)
+                : undefined
             }
           />
         ) : viewMode === 'cards' ? (
@@ -584,148 +458,6 @@ export default function CondicionantesPage() {
         )}
       </motion.div>
 
-      <Dialog
-        open={openCreate}
-        onOpenChange={(nextOpen) => {
-          setOpenCreate(nextOpen)
-          if (!nextOpen) {
-            setFormError(null)
-          }
-        }}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Nova Condicionante</DialogTitle>
-            <DialogDescription>
-              Cadastre uma condicionante e direcione a responsabilidade para execução imediata.
-            </DialogDescription>
-          </DialogHeader>
-
-          <FormErrorCallout
-            error={formError}
-            onAction={() => {
-              if (!formError) return
-              if (formError.actionKind === 'retry') {
-                void handleCriarCondicionante()
-                return
-              }
-              setFormError(null)
-            }}
-          />
-          <FormWizard
-            isSubmitting={isCriando}
-            onCancel={() => setOpenCreate(false)}
-            onComplete={handleCriarCondicionante}
-            steps={[
-              {
-                id: 'step1',
-                label: 'Origem',
-                isValid: !!novoForm.licencaId,
-                content: (
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Licença vinculada *</Label>
-                      <Select
-                        value={novoForm.licencaId}
-                        onValueChange={(value) => setNovoForm((s) => ({ ...s, licencaId: value }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione uma licença" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {licencasParaSelecao.map((licenca) => (
-                            <SelectItem key={licenca.id} value={licenca.id}>
-                              {clienteMap.get(licenca.clienteId) || 'Cliente'} -{' '}
-                              {licenca.numeroLicenca || licenca.tipo}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[11px] text-muted-foreground/60 mt-1">
-                        Se a licença não estiver na lista, é preciso cadastrá-la primeiro em "Licenças".
-                      </p>
-                    </div>
-                  </div>
-                )
-              },
-              {
-                id: 'step2',
-                label: 'Descrição',
-                isValid: !!novoForm.descricao.trim(),
-                content: (
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Tipo</Label>
-                        <Select
-                          value={novoForm.tipo}
-                          onValueChange={(value: 'PONTUAL' | 'PERIODICA') =>
-                            setNovoForm((s) => ({ ...s, tipo: value }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PONTUAL">Pontual</SelectItem>
-                            <SelectItem value="PERIODICA">Periódica</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Código</Label>
-                        <Input
-                          value={novoForm.codigo}
-                          onChange={(e) => setNovoForm((s) => ({ ...s, codigo: e.target.value }))}
-                          placeholder="Ex: COND-01"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Descrição da Exigência *</Label>
-                      <Input
-                        value={novoForm.descricao}
-                        onChange={(e) => setNovoForm((s) => ({ ...s, descricao: e.target.value }))}
-                        placeholder="Descreva o requisito da condicionante"
-                      />
-                    </div>
-                  </div>
-                )
-              },
-              {
-                id: 'step3',
-                label: 'Prazo & Responsável',
-                content: (
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Prazo de atendimento</Label>
-                        <Input
-                          type="date"
-                          value={novoForm.prazo}
-                          onChange={(e) => setNovoForm((s) => ({ ...s, prazo: e.target.value }))}
-                        />
-                        <p className="text-[11px] text-muted-foreground/70">Deixe em branco para <strong className="font-medium text-foreground">Monitoramento Contínuo</strong>.</p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Responsável (cliente)</Label>
-                        <Input
-                          value={novoForm.responsavelCliente}
-                          onChange={(e) => setNovoForm((s) => ({ ...s, responsavelCliente: e.target.value }))}
-                          placeholder="Nome do responsável (opcional)"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )
-              }
-            ]}
-          />
-        </DialogContent>
-      </Dialog>
     </AppLayout>
   )
 }

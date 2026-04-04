@@ -251,21 +251,21 @@ export default function AgendaPage() {
               font-size: 0.85rem;
               text-transform: uppercase;
               letter-spacing: 0.05em;
-              border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+              border-bottom: 1px solid hsl(var(--border));
             }
             .rbc-month-view, .rbc-time-view, .rbc-agenda-view {
-              border: 1px solid rgba(255, 255, 255, 0.08);
+              border: 1px solid hsl(var(--border));
               border-radius: 0.5rem;
-              background: rgba(0, 0, 0, 0.2);
+              background: hsl(var(--background) / 0.5);
             }
             .rbc-month-row, .rbc-day-bg + .rbc-day-bg, .rbc-header + .rbc-header {
-              border-color: rgba(255, 255, 255, 0.05);
+              border-color: hsl(var(--border));
             }
             .rbc-off-range-bg {
-              background: rgba(255, 255, 255, 0.02);
+              background: hsl(var(--muted) / 0.5);
             }
             .rbc-today {
-              background: rgba(var(--primary), 0.05);
+              background: hsl(var(--primary) / 0.05);
             }
             .rbc-event, .rbc-day-slot .rbc-background-event {
               background-color: transparent !important;
@@ -276,17 +276,17 @@ export default function AgendaPage() {
             }
             .rbc-btn-group button {
               color: hsl(var(--foreground));
-              border-color: rgba(255, 255, 255, 0.1) !important;
-              background-color: rgba(255, 255, 255, 0.03);
+              border-color: hsl(var(--border)) !important;
+              background-color: transparent;
               transition: all 0.2s;
             }
             .rbc-btn-group button:hover {
-              background-color: rgba(255, 255, 255, 0.08);
+              background-color: hsl(var(--accent) / 0.5);
             }
             .rbc-btn-group button.rbc-active {
-              background-color: hsl(var(--primary)/0.2);
+              background-color: hsl(var(--primary) / 0.1);
               color: hsl(var(--primary));
-              border-color: hsl(var(--primary)/0.3) !important;
+              border-color: hsl(var(--primary) / 0.3) !important;
               box-shadow: none !important;
             }
             .rbc-toolbar-label {

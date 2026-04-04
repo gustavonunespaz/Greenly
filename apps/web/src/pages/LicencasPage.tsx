@@ -95,6 +95,13 @@ const tipoOptions = [
   "OUTRO",
 ];
 
+type NovoCondicionanteLicenca = {
+  descricao: string;
+  tipo: 'PONTUAL' | 'PERIODICA';
+  codigo: string;
+  prazo: string;
+};
+
 type FormState = {
   clienteId: string;
   orgaoAmbientalId: string;
@@ -108,6 +115,7 @@ type FormState = {
   dataValidade: string;
   municipioEmissor: string;
   observacoes: string;
+  condicionantes: NovoCondicionanteLicenca[];
 };
 
 const defaultForm: FormState = {
@@ -123,6 +131,7 @@ const defaultForm: FormState = {
   dataValidade: "",
   municipioEmissor: "",
   observacoes: "",
+  condicionantes: [],
 };
 
 function toDateInput(value?: string | Date | null) {
@@ -168,7 +177,7 @@ export default function LicencasPage() {
     isRemovendo,
   } = useLicencas();
   const { clientes = [] } = useClientes();
-  const { condicionantes } = useCondicionantes();
+  const { condicionantes, criarCondicionante } = useCondicionantes();
 
   const licencaCondicionantesMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -271,6 +280,7 @@ export default function LicencasPage() {
   function openEdit(lic: LicencaResponseDTO) {
     setEditing(lic);
     setForm({
+      condicionantes: [],
       clienteId: lic.clienteId,
       orgaoAmbientalId: "",
       tipo: lic.tipo,
@@ -328,6 +338,8 @@ export default function LicencasPage() {
         }
       }
 
+      let licencaIdSalva = editing?.id;
+
       if (editing) {
         await atualizarLicenca({
           id: editing.id,
@@ -352,7 +364,7 @@ export default function LicencasPage() {
           status: form.status,
         });
       } else {
-        await criarLicenca({
+        const criada = await criarLicenca({
           clienteId: form.clienteId,
           orgaoAmbientalId: form.orgaoAmbientalId,
           tipo: form.tipo,
@@ -365,12 +377,33 @@ export default function LicencasPage() {
           municipioEmissor: form.municipioEmissor || undefined,
           observacoes: form.observacoes || undefined,
         });
+        licencaIdSalva = criada.id;
         toast.success("Licença criada com sucesso.");
         trackFirstValidAction("licencas", "criar_licenca");
         trackFlowCompleted("licencas", "licenca_criada", {
           tipo: form.tipo,
           status: form.status,
         });
+      }
+
+      if (licencaIdSalva && form.condicionantes.length > 0) {
+        await Promise.all(
+          form.condicionantes
+            .filter((c) => c.descricao.trim())
+            .map((c) =>
+              criarCondicionante({
+                licencaId: licencaIdSalva as string,
+                dto: {
+                  licencaId: licencaIdSalva as string,
+                  descricao: c.descricao.trim(),
+                  tipo: c.tipo,
+                  codigo: c.codigo || undefined,
+                  prazo: c.prazo ? new Date(`${c.prazo}T12:00:00`) : undefined,
+                },
+              })
+            )
+        );
+        toast.success(`${form.condicionantes.filter(c => c.descricao.trim()).length} condicionante(s) anexada(s) à licença.`);
       }
 
       setFormError(null);
@@ -858,6 +891,129 @@ export default function LicencasPage() {
               },
               {
                 id: "step4",
+                label: "Condicionantes",
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="flex justify-between items-center bg-white/[0.02] p-4 rounded-xl border border-white/[0.06]">
+                      <div>
+                        <Label>Condicionantes Anexas (Opcional)</Label>
+                        <p className="text-xs text-muted-foreground mt-1">Registre as regras intrínsecas a esta licença. Elas gerarão prazos na agenda.</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="rounded-xl px-3 h-8 shadow-none"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            condicionantes: [
+                              ...prev.condicionantes,
+                              { descricao: "", tipo: "PONTUAL", codigo: "", prazo: "" },
+                            ],
+                          }))
+                        }
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1" />
+                        Adicionar Regra
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3 mt-4">
+                      {form.condicionantes.length === 0 && (
+                        <div className="text-center py-8 glass-card border-dashed">
+                          <p className="text-sm text-muted-foreground/70">Nenhuma condicionante adicionada neste momento.</p>
+                        </div>
+                      )}
+
+                      {form.condicionantes.map((cond, idx) => (
+                        <div key={idx} className="bg-white/[0.02] border border-white/[0.06] p-4 rounded-xl space-y-3 relative overflow-hidden group">
+                           <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-2 right-2 h-7 w-7 text-destructive/70 hover:bg-destructive/10 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() =>
+                              setForm((prev) => {
+                                const arr = [...prev.condicionantes];
+                                arr.splice(idx, 1);
+                                return { ...prev, condicionantes: arr };
+                              })
+                            }
+                           >
+                            <Trash2 className="w-3.5 h-3.5" />
+                           </Button>
+
+                          <div className="flex flex-col md:flex-row gap-3">
+                             <div className="w-full md:w-1/3 space-y-1">
+                               <Label className="text-[10px] uppercase text-muted-foreground/70">Código (Opcional)</Label>
+                               <Input
+                                  placeholder="Ex: C-01"
+                                  className="h-8 text-sm"
+                                  value={cond.codigo}
+                                  onChange={(e) => setForm((p) => {
+                                    const arr = [...p.condicionantes];
+                                    arr[idx].codigo = e.target.value;
+                                    return { ...p, condicionantes: arr };
+                                  })}
+                               />
+                             </div>
+                             <div className="w-full md:w-1/3 space-y-1">
+                                <Label className="text-[10px] uppercase text-muted-foreground/70">Tipo</Label>
+                                <Select
+                                  value={cond.tipo}
+                                  onValueChange={(val: 'PONTUAL' | 'PERIODICA') => setForm((p) => {
+                                    const arr = [...p.condicionantes];
+                                    arr[idx].tipo = val;
+                                    return { ...p, condicionantes: arr };
+                                  })}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="PONTUAL">Pontual</SelectItem>
+                                    <SelectItem value="PERIODICA">Periódica</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                             </div>
+                             <div className="w-full md:w-1/3 space-y-1">
+                               <Label className="text-[10px] uppercase text-muted-foreground/70 flex justify-between">
+                                 Prazo <span className="lowercase font-normal">vazio = contínuo</span>
+                               </Label>
+                               <Input
+                                  type="date"
+                                  className="h-8 text-sm"
+                                  value={cond.prazo}
+                                  onChange={(e) => setForm((p) => {
+                                    const arr = [...p.condicionantes];
+                                    arr[idx].prazo = e.target.value;
+                                    return { ...p, condicionantes: arr };
+                                  })}
+                               />
+                             </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-muted-foreground/70">Descrição *</Label>
+                            <Textarea
+                              placeholder="Descrição da regra ou exigência estabelecida pelo órgão"
+                              className="min-h-[60px] text-sm resize-none"
+                              value={cond.descricao}
+                              onChange={(e) => setForm((p) => {
+                                const arr = [...p.condicionantes];
+                                arr[idx].descricao = e.target.value;
+                                return { ...p, condicionantes: arr };
+                              })}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: "step5",
                 label: "Detalhes",
                 content: (
                   <div className="space-y-4 py-4">

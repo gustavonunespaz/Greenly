@@ -13,6 +13,7 @@ import {
   PainelDestinadorItemDTO,
   ParceiroResponseDTO,
   SinirConsultaParceiroResponseDTO,
+  TipoResiduoOptionDTO,
   VincularParceiroClienteDTO,
 } from '@greenly/shared'
 
@@ -126,6 +127,11 @@ export const residuoService = {
     const { data } = await api.get<SinirConsultaParceiroResponseDTO>(
       `/residuos/sinir/consulta/${cnpj}`,
     )
+    return data
+  },
+
+  async listarTiposResiduo(): Promise<TipoResiduoOptionDTO[]> {
+    const { data } = await api.get<TipoResiduoOptionDTO[]>('/residuos/tipos-residuo')
     return data
   },
 }

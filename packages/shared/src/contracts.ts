@@ -527,7 +527,33 @@ export const MTRResiduoItemSchema = z.object({
   codigoIbama: z.string().optional(),
   descricao: z.string().min(1),
   quantidade: z.number().positive(),
-  unidadeMedida: z.string().min(1),
+  unidadeMedida: z.enum(['KG', 'TON', 'LITRO', 'M3', 'UNIDADE']),
+  densidade: z.number().positive().optional(),
+  estadoFisico: z.enum(['SOLIDO', 'LIQUIDO', 'SEMI_SOLIDO', 'GASOSO', 'PASTOSO']).optional(),
+  classe: z.enum(['CLASSE_I_PERIGOSO', 'CLASSE_II_A_NAO_INERTE', 'CLASSE_II_B_INERTE']).optional(),
+  acondicionamento: z.enum(['TAMBOR', 'BIG_BAG', 'CACAMBA', 'CONTAINER', 'GRANEL', 'BOMBONA', 'FARDO', 'SACO', 'CAIXA', 'OUTRO']).optional(),
+  tecnologiaTratamento: z.enum([
+    'ATERRO_SANITARIO',
+    'ATERRO_INDUSTRIAL',
+    'INCINERACAO',
+    'COPROCESSAMENTO',
+    'RECICLAGEM',
+    'COMPOSTAGEM',
+    'TRATAMENTO_BIOLOGICO',
+    'TRATAMENTO_QUIMICO',
+    'TRATAMENTO_FISICO',
+    'REUTILIZACAO',
+    'LOGISTICA_REVERSA',
+    'OUTRO'
+  ]).optional(),
+  // Campos obrigatórios para Classe I (perigoso)
+  numeroOnu: z.string().optional(),
+  classeRisco: z.string().optional(),
+  nomeEmbarque: z.string().optional(),
+  grupoEmbalagem: z.enum(['I', 'II', 'III']).optional(),
+  // Gestão interna
+  codigoInterno: z.string().optional(),
+  descricaoInterna: z.string().optional(),
 })
 export type MTRResiduoItemDTO = z.infer<typeof MTRResiduoItemSchema>
 
@@ -536,15 +562,31 @@ export const EmitirMTRSchema = z.object({
   fonteGeradoraId: z.string().uuid(),
   transportadoraId: z.string().uuid(),
   destinadorId: z.string().uuid(),
-  tipoDestinacao: z.string(),
+  tipoDestinacao: z.enum([
+    'ATERRO_SANITARIO',
+    'ATERRO_INDUSTRIAL',
+    'INCINERACAO',
+    'COPROCESSAMENTO',
+    'RECICLAGEM',
+    'COMPOSTAGEM',
+    'TRATAMENTO_BIOLOGICO',
+    'TRATAMENTO_QUIMICO',
+    'TRATAMENTO_FISICO',
+    'REUTILIZACAO',
+    'LOGISTICA_REVERSA',
+    'OUTRO'
+  ]),
   volume: z.number().positive().optional(),
-  unidadeMedida: z.string().optional(),
+  unidadeMedida: z.enum(['KG', 'TON', 'LITRO', 'M3', 'UNIDADE']).optional(),
   numeroMTR: z.string().optional(),
   placaVeiculo: z.string().optional(),
   nomeMotorista: z.string().optional(),
   cpfMotorista: CpfSchema.optional(),
   observacoes: z.string().optional(),
   residuos: z.array(MTRResiduoItemSchema).min(1).optional(),
+  usaArmazenamentoTemporario: z.boolean().optional(),
+  armazenadorTemporarioId: z.string().uuid().optional(),
+  dataTransporte: z.coerce.date().optional(),
   criadoPorId: z.string().uuid().optional(),
 })
 export type EmitirMTRDTO = z.infer<typeof EmitirMTRSchema>
@@ -554,9 +596,22 @@ export const AtualizarMTRSchema = z.object({
   fonteGeradoraId: z.string().uuid().optional(),
   transportadoraId: z.string().uuid().optional(),
   destinadorId: z.string().uuid().optional(),
-  tipoDestinacao: z.string().optional(),
+  tipoDestinacao: z.enum([
+    'ATERRO_SANITARIO',
+    'ATERRO_INDUSTRIAL',
+    'INCINERACAO',
+    'COPROCESSAMENTO',
+    'RECICLAGEM',
+    'COMPOSTAGEM',
+    'TRATAMENTO_BIOLOGICO',
+    'TRATAMENTO_QUIMICO',
+    'TRATAMENTO_FISICO',
+    'REUTILIZACAO',
+    'LOGISTICA_REVERSA',
+    'OUTRO'
+  ]).optional(),
   volume: z.number().positive().optional(),
-  unidadeMedida: z.string().optional(),
+  unidadeMedida: z.enum(['KG', 'TON', 'LITRO', 'M3', 'UNIDADE']).optional(),
   numeroMTR: z.string().optional().nullable(),
   placaVeiculo: z.string().optional().nullable(),
   nomeMotorista: z.string().optional().nullable(),
@@ -577,9 +632,12 @@ export interface MTRResponseDTO {
   tipoDestinacao: string
   volume: number
   unidadeMedida: string
+  usaArmazenamentoTemporario?: boolean
+  armazenadorTemporarioId?: string | null
   dataEmissao: Date
   dataColeta?: Date | null
   dataRecebimento?: Date | null
+  dataTransporte?: Date | null
   dataPrazoCdf?: Date | null
   cdfAtrasado?: boolean
   placaVeiculo?: string | null

@@ -21,15 +21,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { motion } from 'framer-motion'
-import { Truck, Plus, Pencil, Trash2, Save, Link2, Activity, RefreshCcw, Send } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Truck, Plus, Pencil, Trash2, Save, Link2, Activity, RefreshCcw, Send, Package, AlertTriangle, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useResiduos } from '@/features/residuos/hooks/useResiduos'
 import { residuoService } from '@/features/residuos/services/residuoService'
 import { integracaoGovernoService } from '@/features/residuos/services/integracaoGovernoService'
 import { useClientes } from '@/features/clientes/hooks/useClientes'
 import { toast } from '@/components/ui/sonner'
-import type { CriarParceiroDTO, GovResourceIntegrationSummaryDTO, MTRResponseDTO } from '@greenly/shared'
+import type { CriarParceiroDTO, GovResourceIntegrationSummaryDTO, MTRResponseDTO, MTRResiduoItemDTO, TipoResiduoOptionDTO } from '@greenly/shared'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { getApiErrorMessage } from '@/lib/http-error'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -71,6 +71,63 @@ const tipoDestinacaoOptions = [
   'LOGISTICA_REVERSA',
   'OUTRO',
 ]
+const estadoFisicoOptions = ['SOLIDO', 'LIQUIDO', 'SEMI_SOLIDO', 'GASOSO', 'PASTOSO']
+const classeOptions = ['CLASSE_I_PERIGOSO', 'CLASSE_II_A_NAO_INERTE', 'CLASSE_II_B_INERTE']
+const acondicionamentoOptions = ['TAMBOR', 'BIG_BAG', 'CACAMBA', 'CONTAINER', 'GRANEL', 'BOMBONA', 'FARDO', 'SACO', 'CAIXA', 'OUTRO']
+const grupoEmbalagemOptions = ['I', 'II', 'III']
+
+const formatClasseResiduo = (c: string) => {
+  switch (c) {
+    case 'CLASSE_I_PERIGOSO': return 'Classe I – Perigoso'
+    case 'CLASSE_II_A_NAO_INERTE': return 'Classe II-A – Não Inerte'
+    case 'CLASSE_II_B_INERTE': return 'Classe II-B – Inerte'
+    default: return formatEnum(c)
+  }
+}
+
+const isLicencaExpirada = (p: any) => {
+  if (!p.licencaAtiva) return true
+  if (!p.licencaValidade) return false
+  return new Date(p.licencaValidade) < new Date()
+}
+
+type ResiduoFormItem = {
+  tipoResiduoId: string
+  codigoIbama: string
+  descricao: string
+  quantidade: string
+  unidadeMedida: string
+  densidade: string
+  estadoFisico: string
+  classe: string
+  acondicionamento: string
+  tecnologiaTratamento: string
+  numeroOnu: string
+  classeRisco: string
+  nomeEmbarque: string
+  grupoEmbalagem: string
+  codigoInterno: string
+  descricaoInterna: string
+}
+
+const defaultResiduoItem: ResiduoFormItem = {
+  tipoResiduoId: '',
+  codigoIbama: '',
+  descricao: '',
+  quantidade: '',
+  unidadeMedida: 'KG',
+  densidade: '',
+  estadoFisico: '',
+  classe: '',
+  acondicionamento: '',
+  tecnologiaTratamento: '',
+  numeroOnu: '',
+  classeRisco: '',
+  nomeEmbarque: '',
+  grupoEmbalagem: '',
+  codigoInterno: '',
+  descricaoInterna: '',
+}
 
 type FormState = {
   clienteId: string
@@ -86,6 +143,10 @@ type FormState = {
   cpfMotorista: string
   observacoes: string
   status: string
+  usaArmazenamentoTemporario: boolean
+  armazenadorTemporarioId: string
+  dataTransporte: string
+  residuos: ResiduoFormItem[]
 }
 
 const defaultForm: FormState = {
@@ -102,6 +163,10 @@ const defaultForm: FormState = {
   cpfMotorista: '',
   observacoes: '',
   status: 'EMITIDO',
+  usaArmazenamentoTemporario: false,
+  armazenadorTemporarioId: '',
+  dataTransporte: '',
+  residuos: [],
 }
 
 function SkeletonMTR() {
@@ -253,6 +318,25 @@ export default function MTRsPage() {
     queryFn: () => residuoService.listarParceiros(),
   })
 
+  const { data: tiposResiduo = [] } = useQuery({
+    queryKey: ['tipos-residuo'],
+    queryFn: () => residuoService.listarTiposResiduo(),
+  })
+
+  const [openResiduoForm, setOpenResiduoForm] = useState(false)
+  const [editingResiduoIdx, setEditingResiduoIdx] = useState<number | null>(null)
+  const [residuoForm, setResiduoForm] = useState<ResiduoFormItem>(defaultResiduoItem)
+  const [residuoSearch, setResiduoSearch] = useState('')
+
+  const filteredTiposResiduo = useMemo(() => {
+    if (!residuoSearch.trim()) return tiposResiduo.slice(0, 20)
+    const q = residuoSearch.toLowerCase()
+    return tiposResiduo.filter(t =>
+      t.descricao.toLowerCase().includes(q) ||
+      (t.codigoIbama && t.codigoIbama.toLowerCase().includes(q))
+    ).slice(0, 20)
+  }, [tiposResiduo, residuoSearch])
+
   const { data: govDashboard } = useQuery({
     queryKey: ['gov-dashboard', 24],
     queryFn: () => integracaoGovernoService.getDashboard(24),
@@ -347,14 +431,12 @@ export default function MTRsPage() {
     [clienteIdFilter, mtrs],
   )
 
-  const volumeNumber = Number(form.volume)
   const isFormReady =
     !!form.clienteId &&
     !!form.fonteGeradoraId &&
     !!form.transportadoraId &&
     !!form.destinadorId &&
-    Number.isFinite(volumeNumber) &&
-    volumeNumber > 0
+    form.residuos.length > 0
   const isSaving = isEmitindo || isAtualizando || isAvancandoStatus
   const isLoadingParceirosCliente = isLoadingTransportadoras || isLoadingDestinadores
 
@@ -424,6 +506,24 @@ export default function MTRsPage() {
 
   function openEdit(mtr: MTRResponseDTO) {
     setEditing(mtr)
+    const residuosForm: ResiduoFormItem[] = (mtr.residuos || []).map(r => ({
+      tipoResiduoId: r.tipoResiduoId || '',
+      codigoIbama: r.codigoIbama || '',
+      descricao: r.descricao || '',
+      quantidade: String(r.quantidade),
+      unidadeMedida: r.unidadeMedida || 'KG',
+      densidade: r.densidade ? String(r.densidade) : '',
+      estadoFisico: r.estadoFisico || '',
+      classe: r.classe || '',
+      acondicionamento: r.acondicionamento || '',
+      tecnologiaTratamento: r.tecnologiaTratamento || '',
+      numeroOnu: r.numeroOnu || '',
+      classeRisco: r.classeRisco || '',
+      nomeEmbarque: r.nomeEmbarque || '',
+      grupoEmbalagem: r.grupoEmbalagem || '',
+      codigoInterno: r.codigoInterno || '',
+      descricaoInterna: r.descricaoInterna || '',
+    }))
     setForm({
       clienteId: mtr.clienteId,
       fonteGeradoraId: mtr.fonteGeradoraId,
@@ -438,9 +538,34 @@ export default function MTRsPage() {
       cpfMotorista: mtr.cpfMotorista || '',
       observacoes: mtr.observacoes || '',
       status: mtr.status,
+      usaArmazenamentoTemporario: mtr.usaArmazenamentoTemporario ?? false,
+      armazenadorTemporarioId: mtr.armazenadorTemporarioId || '',
+      dataTransporte: mtr.dataTransporte ? new Date(mtr.dataTransporte).toISOString().split('T')[0] : '',
+      residuos: residuosForm,
     })
     setFormError(null)
     setOpen(true)
+  }
+
+  function buildResiduoDTOs(): MTRResiduoItemDTO[] {
+    return form.residuos.map(r => ({
+      tipoResiduoId: r.tipoResiduoId || undefined,
+      codigoIbama: r.codigoIbama || undefined,
+      descricao: r.descricao,
+      quantidade: Number(r.quantidade),
+      unidadeMedida: r.unidadeMedida,
+      densidade: r.densidade ? Number(r.densidade) : undefined,
+      estadoFisico: (r.estadoFisico || undefined) as MTRResiduoItemDTO['estadoFisico'],
+      classe: (r.classe || undefined) as MTRResiduoItemDTO['classe'],
+      acondicionamento: (r.acondicionamento || undefined) as MTRResiduoItemDTO['acondicionamento'],
+      tecnologiaTratamento: r.tecnologiaTratamento || undefined,
+      numeroOnu: r.numeroOnu || undefined,
+      classeRisco: r.classeRisco || undefined,
+      nomeEmbarque: r.nomeEmbarque || undefined,
+      grupoEmbalagem: (r.grupoEmbalagem || undefined) as MTRResiduoItemDTO['grupoEmbalagem'],
+      codigoInterno: r.codigoInterno || undefined,
+      descricaoInterna: r.descricaoInterna || undefined,
+    }))
   }
 
   async function handleSave() {
@@ -461,14 +586,15 @@ export default function MTRsPage() {
         return
       }
 
-      const volume = Number(form.volume)
-      if (!Number.isFinite(volume) || volume <= 0) {
+      if (form.residuos.length === 0) {
         applyTrackedFormError(
-          buildValidationFormError('Informe um volume válido maior que zero.'),
+          buildValidationFormError('Adicione ao menos um resíduo ao manifesto.'),
           'validation',
         )
         return
       }
+
+      const residuos = buildResiduoDTOs()
 
       if (editing) {
         await atualizarMTR({
@@ -479,13 +605,12 @@ export default function MTRsPage() {
             transportadoraId: form.transportadoraId,
             destinadorId: form.destinadorId,
             tipoDestinacao: form.tipoDestinacao,
-            volume,
-            unidadeMedida: form.unidadeMedida,
             numeroMTR: form.numeroMTR || undefined,
             placaVeiculo: form.placaVeiculo || undefined,
             nomeMotorista: form.nomeMotorista || undefined,
             cpfMotorista: form.cpfMotorista || undefined,
             observacoes: form.observacoes || undefined,
+            residuos,
           },
         })
 
@@ -506,13 +631,15 @@ export default function MTRsPage() {
           transportadoraId: form.transportadoraId,
           destinadorId: form.destinadorId,
           tipoDestinacao: form.tipoDestinacao,
-          volume,
-          unidadeMedida: form.unidadeMedida,
           numeroMTR: form.numeroMTR || undefined,
           placaVeiculo: form.placaVeiculo || undefined,
           nomeMotorista: form.nomeMotorista || undefined,
           cpfMotorista: form.cpfMotorista || undefined,
           observacoes: form.observacoes || undefined,
+          residuos,
+          usaArmazenamentoTemporario: form.usaArmazenamentoTemporario || undefined,
+          armazenadorTemporarioId: form.armazenadorTemporarioId || undefined,
+          dataTransporte: form.dataTransporte ? new Date(form.dataTransporte) : undefined,
         })
         toast.success('MTR emitido com sucesso.')
         trackFirstValidAction('mtrs', 'emitir_mtr')
@@ -1115,15 +1242,153 @@ export default function MTRsPage() {
             isSubmitting={isSaving}
             onCancel={() => setOpen(false)}
             onComplete={handleSave}
+            submitLabel="Emitir MTR"
             steps={[
               {
-                id: 'step1',
-                label: 'Origem',
+                id: 'step-at',
+                label: 'AT',
+                isValid: true,
+                content: (
+                  <div className="space-y-4 py-4">
+                    <p className="text-sm text-muted-foreground/80 mb-2">
+                      Conforme SINIR, informe se este manifesto utilizará Armazenamento Temporário. Se sim, apenas 1 resíduo será permitido por MTR.
+                    </p>
+                    <div className="glass-card p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          id="usaAT"
+                          checked={form.usaArmazenamentoTemporario}
+                          onChange={(e) => {
+                            const usa = e.target.checked
+                            setForm(s => ({
+                              ...s,
+                              usaArmazenamentoTemporario: usa,
+                              armazenadorTemporarioId: usa ? s.armazenadorTemporarioId : '',
+                              residuos: usa && s.residuos.length > 1 ? [s.residuos[0]] : s.residuos,
+                            }))
+                          }}
+                          className="h-4 w-4 rounded border-white/20 bg-white/5 accent-primary"
+                        />
+                        <Label htmlFor="usaAT" className="cursor-pointer">
+                          Este MTR utiliza Armazenamento Temporário (AT)
+                        </Label>
+                      </div>
+                      {form.usaArmazenamentoTemporario && (
+                        <div className="space-y-2 pl-7">
+                          <Label>Armazenador Temporário (parceiro)</Label>
+                          <Select
+                            value={form.armazenadorTemporarioId}
+                            onValueChange={(v) => setForm(s => ({ ...s, armazenadorTemporarioId: v }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o armazenador temporário" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {parceirosGlobais.map(p => (
+                                <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-[11px] text-amber-300/80 flex items-center gap-1.5">
+                            <AlertTriangle className="h-3 w-3" />
+                            Com AT, apenas 1 resíduo é permitido por manifesto.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step-residuos',
+                label: 'Resíduos',
+                isValid: form.residuos.length > 0,
+                content: (
+                  <div className="space-y-4 py-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground/80">
+                        Adicione os resíduos que compõem este manifesto. Limite SINIR: 45 toneladas por MTR.
+                      </p>
+                      <Button
+                        size="sm"
+                        className="gap-1.5 h-8 rounded-xl"
+                        onClick={() => {
+                          setEditingResiduoIdx(null)
+                          setResiduoForm(defaultResiduoItem)
+                          setResiduoSearch('')
+                          setOpenResiduoForm(true)
+                        }}
+                        disabled={form.usaArmazenamentoTemporario && form.residuos.length >= 1}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Adicionar
+                      </Button>
+                    </div>
+
+                    {form.residuos.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center">
+                        <Package className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
+                        <p className="text-sm text-muted-foreground/60">Nenhum resíduo adicionado.</p>
+                        <p className="text-xs text-muted-foreground/40 mt-1">Clique em "Adicionar" para incluir resíduos ao manifesto.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                        {form.residuos.map((r, idx) => (
+                          <div key={idx} className="glass-card p-3 flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                {r.codigoIbama && (
+                                  <span className="text-[10px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                    {r.codigoIbama}
+                                  </span>
+                                )}
+                                {r.classe && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${r.classe === 'CLASSE_I_PERIGOSO' ? 'bg-rose-500/15 text-rose-200' : 'bg-white/[0.06] text-muted-foreground'}`}>
+                                    {formatClasseResiduo(r.classe)}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-foreground font-medium truncate">{r.descricao || 'Sem descrição'}</p>
+                              <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                                {r.quantidade} {r.unidadeMedida}
+                                {r.estadoFisico && ` · ${formatEnum(r.estadoFisico)}`}
+                                {r.acondicionamento && ` · ${formatEnum(r.acondicionamento)}`}
+                              </p>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
+                                setEditingResiduoIdx(idx)
+                                setResiduoForm(r)
+                                setResiduoSearch(r.descricao)
+                                setOpenResiduoForm(true)
+                              }}>
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => {
+                                setForm(s => ({ ...s, residuos: s.residuos.filter((_, i) => i !== idx) }))
+                              }}>
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="text-[11px] text-muted-foreground/50 text-right pt-1">
+                          Total: {form.residuos.reduce((acc, r) => acc + Number(r.quantidade || 0), 0).toFixed(3)} {form.residuos[0]?.unidadeMedida || 'KG'}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              },
+              {
+                id: 'step-gerador',
+                label: 'Gerador',
                 isValid: !!form.clienteId && !!form.fonteGeradoraId,
                 content: (
                   <div className="space-y-4 py-4">
                     <p className="text-sm text-muted-foreground/80 mb-2">
-                       Defina quem esta gerando o resíduo e onde ele está sendo gerado.
+                       Defina quem está gerando o resíduo e onde ele está sendo gerado.
                     </p>
                     <div className="space-y-2">
                       <Label>Gerador (Cliente) *</Label>
@@ -1177,9 +1442,15 @@ export default function MTRsPage() {
                 )
               },
               {
-                id: 'step2',
-                label: 'Cadeia de Destinação',
-                isValid: !!form.transportadoraId && !!form.destinadorId && !!form.tipoDestinacao,
+                id: 'step-cadeia',
+                label: 'Destinação',
+                isValid: (() => {
+                  const t = transportadoras.find(p => p.id === form.transportadoraId)
+                  const d = destinadores.find(p => p.id === form.destinadorId)
+                  const tValida = t ? !isLicencaExpirada(t) : true
+                  const dValida = d ? !isLicencaExpirada(d) : true
+                  return !!form.transportadoraId && !!form.destinadorId && !!form.tipoDestinacao && tValida && dValida
+                })(),
                 content: (
                   <div className="space-y-4 py-4">
                     <p className="text-sm text-muted-foreground/80 mb-2">
@@ -1223,11 +1494,19 @@ export default function MTRsPage() {
                                 {partnerMap.get(form.transportadoraId) || 'Logística Legado'}
                               </SelectItem>
                             ) : null}
-                            {transportadoras.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.nome}
-                              </SelectItem>
-                            ))}
+                            {transportadoras.map((p) => {
+                              const expirada = isLicencaExpirada(p)
+                              return (
+                                <SelectItem key={p.id} value={p.id} className={expirada ? 'opacity-70' : ''}>
+                                  <div className="flex items-center justify-between w-full gap-2">
+                                    <span>{p.name || p.nome}</span>
+                                    {expirada && (
+                                      <Badge variant="destructive" className="h-4 px-1 text-[9px] uppercase">Vencida</Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              )
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1256,11 +1535,19 @@ export default function MTRsPage() {
                                 {partnerMap.get(form.destinadorId) || 'Destinador Legado'}
                               </SelectItem>
                             ) : null}
-                            {destinadores.map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.nome}
-                              </SelectItem>
-                            ))}
+                            {destinadores.map((p) => {
+                              const expirada = isLicencaExpirada(p)
+                              return (
+                                <SelectItem key={p.id} value={p.id} className={expirada ? 'opacity-70' : ''}>
+                                  <div className="flex items-center justify-between w-full gap-2">
+                                    <span>{p.name || p.nome}</span>
+                                    {expirada && (
+                                      <Badge variant="destructive" className="h-4 px-1 text-[9px] uppercase">Vencida</Badge>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              )
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1288,84 +1575,12 @@ export default function MTRsPage() {
                 )
               },
               {
-                id: 'step3',
-                label: 'Carga & MTR',
-                isValid: !!form.volume && !!form.unidadeMedida,
+                id: 'step-motorista',
+                label: 'Transporte',
                 content: (
                   <div className="space-y-4 py-4">
                     <p className="text-sm text-muted-foreground/80 mb-2">
-                       Forneça os dados sobre a carga e, caso já possua, o número do documento gerado no sistema ambiental.
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Volume *</Label>
-                        <Input
-                          type="number"
-                          value={form.volume}
-                          onChange={(e) => setForm((s) => ({ ...s, volume: e.target.value }))}
-                          placeholder="0.000"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Unidade *</Label>
-                        <Select
-                          value={form.unidadeMedida}
-                          onValueChange={(v) => setForm((s) => ({ ...s, unidadeMedida: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {unidadeOptions.map((item) => (
-                              <SelectItem key={item} value={item}>
-                                {item}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Número do MTR</Label>
-                        <Input
-                          value={form.numeroMTR}
-                          onChange={(e) => setForm((s) => ({ ...s, numeroMTR: e.target.value }))}
-                          placeholder="MTR gerado"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Status</Label>
-                        <Select
-                          value={form.status}
-                          onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.map((item) => (
-                              <SelectItem key={item} value={item}>
-                                {formatEnum(item)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
-                )
-              },
-              {
-                id: 'step4',
-                label: 'Motorista & Veículo',
-                content: (
-                  <div className="space-y-4 py-4">
-                    <p className="text-sm text-muted-foreground/80 mb-2">
-                       (Opcional) Informe os dados da pessoa e do veículo que farão o trajeto da origem até o destino final.
+                       (Opcional) Informe os dados do motorista, veículo e data prevista para o transporte.
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -1395,6 +1610,55 @@ export default function MTRsPage() {
                           placeholder="ABC-1234"
                         />
                       </div>
+
+                      <div className="space-y-2">
+                        <Label>Data do Transporte</Label>
+                        <Input
+                          type="date"
+                          value={form.dataTransporte}
+                          onChange={(e) => setForm((s) => ({ ...s, dataTransporte: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: 'step-final',
+                label: 'Envio',
+                content: (
+                  <div className="space-y-4 py-4">
+                    <p className="text-sm text-muted-foreground/80 mb-2">
+                       Observações finais e dados do documento gerado no sistema ambiental.
+                    </p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Número do MTR</Label>
+                        <Input
+                          value={form.numeroMTR}
+                          onChange={(e) => setForm((s) => ({ ...s, numeroMTR: e.target.value }))}
+                          placeholder="Auto-gerado pelo SINIR"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select
+                          value={form.status}
+                          onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusOptions.map((item) => (
+                              <SelectItem key={item} value={item}>
+                                {formatEnum(item)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
                     <div className="space-y-2">
@@ -1410,6 +1674,283 @@ export default function MTRsPage() {
               }
             ]}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openResiduoForm} onOpenChange={setOpenResiduoForm}>
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingResiduoIdx !== null ? 'Editar Resíduo' : 'Adicionar Resíduo'}
+            </DialogTitle>
+            <DialogDescription>
+              Informe os dados do resíduo e sua classificação.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-2">
+            <div className="md:col-span-2 space-y-2">
+              <Label>Tipo de Resíduo (Catálogo) *</Label>
+              <Select
+                value={residuoForm.tipoResiduoId}
+                onValueChange={(val) => {
+                  const t = tiposResiduo.find(x => x.id === val)
+                  if (!t) return
+                  setResiduoForm(s => ({
+                    ...s,
+                    tipoResiduoId: t.id,
+                    descricao: t.descricao,
+                    codigoIbama: t.codigoIbama || '',
+                    classe: t.classe || '',
+                    estadoFisico: t.estadoFisico || '',
+                  }))
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Busque pelo resíduo..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="p-2 sticky top-0 bg-background/95 backdrop-blur z-10 border-b border-white/10">
+                    <Input 
+                      placeholder="Pesquisar..." 
+                      value={residuoSearch} 
+                      onChange={e => setResiduoSearch(e.target.value)} 
+                      className="h-8"
+                      onKeyDown={e => e.stopPropagation()} 
+                    />
+                  </div>
+                  {filteredTiposResiduo.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.codigoIbama ? `[${t.codigoIbama}] ` : ''}{t.descricao}
+                    </SelectItem>
+                  ))}
+                  {filteredTiposResiduo.length === 0 && (
+                    <div className="p-2 text-sm text-center text-muted-foreground">Nenhum resíduo encontrado.</div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="md:col-span-2 space-y-2">
+              <Label>Descrição (Caso o catálogo não possua)</Label>
+              <Input
+                value={residuoForm.descricao}
+                onChange={e => setResiduoForm(s => ({ ...s, descricao: e.target.value }))}
+                placeholder="Ex: Lodo de ETE"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Quantidade *</Label>
+              <Input
+                type="number"
+                value={residuoForm.quantidade}
+                onChange={e => setResiduoForm(s => ({ ...s, quantidade: e.target.value }))}
+                placeholder="0.000"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Unidade *</Label>
+              <Select
+                value={residuoForm.unidadeMedida}
+                onValueChange={(v) => {
+                  if (form.residuos.length > 0 && v !== form.residuos[0].unidadeMedida) {
+                    toast.error(`Atenção: A unidade de medida deve ser obrigatoriamente ${form.residuos[0].unidadeMedida} como os demais.`)
+                  }
+                  setResiduoForm(s => ({ ...s, unidadeMedida: v }))
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {unidadeOptions.map((item) => (
+                    <SelectItem key={item} value={item}>{item}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Estado Físico</Label>
+              <Select
+                value={residuoForm.estadoFisico}
+                onValueChange={(v) => setResiduoForm(s => ({ ...s, estadoFisico: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_EMPTY_"><em>Não informado</em></SelectItem>
+                  {estadoFisicoOptions.map((item) => (
+                    <SelectItem key={item} value={item}>{formatEnum(item)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Acondicionamento</Label>
+              <Select
+                value={residuoForm.acondicionamento}
+                onValueChange={(v) => setResiduoForm(s => ({ ...s, acondicionamento: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_EMPTY_"><em>Não informado</em></SelectItem>
+                  {acondicionamentoOptions.map((item) => (
+                    <SelectItem key={item} value={item}>{formatEnum(item)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Classe</Label>
+              <Select
+                value={residuoForm.classe}
+                onValueChange={(v) => setResiduoForm(s => ({ ...s, classe: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_EMPTY_"><em>Não informado</em></SelectItem>
+                  {classeOptions.map((item) => (
+                    <SelectItem key={item} value={item}>{formatClasseResiduo(item)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Tratamento Previsto</Label>
+              <Select
+                value={residuoForm.tecnologiaTratamento}
+                onValueChange={(v) => setResiduoForm((s) => ({ ...s, tecnologiaTratamento: v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_EMPTY_"><em>Não informado</em></SelectItem>
+                  {tipoDestinacaoOptions.map((item) => (
+                    <SelectItem key={item} value={item}>{formatEnum(item)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(residuoForm.unidadeMedida === 'LITRO' || residuoForm.unidadeMedida === 'M3') && (
+              <div className="space-y-2 md:col-span-2">
+                <Label>Densidade (obrigatório para volume)</Label>
+                <Input
+                  type="number"
+                  value={residuoForm.densidade}
+                  onChange={e => setResiduoForm(s => ({ ...s, densidade: e.target.value }))}
+                  placeholder="0.000"
+                />
+              </div>
+            )}
+
+            {residuoForm.classe === 'CLASSE_I_PERIGOSO' && (
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 bg-rose-500/5 p-4 mt-2 rounded-xl border border-rose-500/20">
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-rose-400">Classificação ONU (Obrigatório para Classe I)</Label>
+                </div>
+                <div className="space-y-2">
+                  <Label>Número ONU *</Label>
+                  <Input
+                    value={residuoForm.numeroOnu}
+                    onChange={e => setResiduoForm(s => ({ ...s, numeroOnu: e.target.value }))}
+                    placeholder="Ex: 1230"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Classe de Risco *</Label>
+                  <Input
+                    value={residuoForm.classeRisco}
+                    onChange={e => setResiduoForm(s => ({ ...s, classeRisco: e.target.value }))}
+                    placeholder="Ex: 3"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nome de Embarque *</Label>
+                  <Input
+                    value={residuoForm.nomeEmbarque}
+                    onChange={e => setResiduoForm(s => ({ ...s, nomeEmbarque: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Grupo Embalagem</Label>
+                  <Select
+                    value={residuoForm.grupoEmbalagem}
+                    onValueChange={(v) => setResiduoForm(s => ({ ...s, grupoEmbalagem: v }))}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_EMPTY_"><em>Não informado</em></SelectItem>
+                      {grupoEmbalagemOptions.map((item) => (
+                        <SelectItem key={item} value={item}>{item}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenResiduoForm(false)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                if (!residuoForm.descricao || !residuoForm.quantidade) {
+                  toast.error('Preencha a descrição e a quantidade do resíduo.')
+                  return
+                }
+                const nRes = Number(residuoForm.quantidade)
+                if (!Number.isFinite(nRes) || nRes <= 0) {
+                  toast.error('Quantidade deve ser maior que zero.')
+                  return
+                }
+                if (form.residuos.length > 0 && form.residuos[0].unidadeMedida !== residuoForm.unidadeMedida) {
+                  toast.error(`A unidade informada precisa ser ${form.residuos[0].unidadeMedida} igual ao primeiro item.`)
+                  return
+                }
+                if ((residuoForm.unidadeMedida === 'LITRO' || residuoForm.unidadeMedida === 'M3')) {
+                   const d = Number(residuoForm.densidade)
+                   if (!Number.isFinite(d) || d <= 0) {
+                     toast.error('Densidade é obrigatória quando unidade for Litro ou M³.')
+                     return
+                   }
+                }
+                if (residuoForm.classe === 'CLASSE_I_PERIGOSO') {
+                  if (!residuoForm.numeroOnu || !residuoForm.classeRisco || !residuoForm.nomeEmbarque) {
+                    toast.error('Preencha os dados da ONU para resíduos da Classe I - Perigosos.')
+                    return
+                  }
+                }
+
+                // Cleanup nulls from selects
+                const clean = {
+                  ...residuoForm,
+                  estadoFisico: residuoForm.estadoFisico === '_EMPTY_' ? '' : residuoForm.estadoFisico,
+                  acondicionamento: residuoForm.acondicionamento === '_EMPTY_' ? '' : residuoForm.acondicionamento,
+                  classe: residuoForm.classe === '_EMPTY_' ? '' : residuoForm.classe,
+                  tecnologiaTratamento: residuoForm.tecnologiaTratamento === '_EMPTY_' ? '' : residuoForm.tecnologiaTratamento,
+                  grupoEmbalagem: residuoForm.grupoEmbalagem === '_EMPTY_' ? '' : residuoForm.grupoEmbalagem,
+                }
+
+                setForm(s => {
+                  const arr = [...s.residuos]
+                  if (editingResiduoIdx !== null) {
+                    arr[editingResiduoIdx] = clean
+                  } else {
+                    arr.push(clean)
+                  }
+                  return { ...s, residuos: arr }
+                })
+                setOpenResiduoForm(false)
+              }}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
