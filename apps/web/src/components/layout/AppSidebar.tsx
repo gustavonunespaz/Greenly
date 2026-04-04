@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronRight,
   CalendarDays,
+  CheckSquare,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -33,6 +34,7 @@ const mainNav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Building2 },
   { title: "Agenda", url: "/agenda", icon: CalendarDays },
+  { title: "Tarefas", url: "/tarefas", icon: CheckSquare },
   { title: "Licenças", url: "/licencas", icon: FileCheck },
   { title: "Condicionantes", url: "/condicionantes", icon: ClipboardList },
   { title: "Resíduos", url: "/mtrs", icon: Truck },

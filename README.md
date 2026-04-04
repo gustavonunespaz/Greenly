@@ -71,7 +71,8 @@ Hoje o produto cobre, de forma integrada:
 Referência atual: **2026-04-04**
 
 - **Base de Conformidade**: concluída. Inclui licenciamento completo (RLO, RLI, RLP, DLAE) com monitoramento de condicionantes.
-- **Rastreabilidade de Resíduos**: concluída. Emissão de MTR e CDF em conformidade com **SINIR v1.10**, suportando múltiplos itens e resíduos perigosos.
+- **Rastreabilidade de Resíduos**: concluída. Emissão de MTR e CDF em conformidade com **SINIR v1.10**, suportando múltiplos itens e resíduos perigosos via **wizard de 6 passos**.
+- **Gestão de Agenda e Tarefas**: concluída. Inclusão de tarefas pessoais vinculadas a Clientes, Licenças e MTRs com alertas de antecedência (`notificacaoDias`) customizáveis.
 - **Gestão de Anuências**: módulo de **Saneamento** integrado para controle de anuências municipais/estaduais.
 - **Conformidade Federal**: módulo **IBAMA** integrado para gestão de CTFs e TCFAs.
 - **Ecossistema de Dados**: ~4k órgãos ambientais e ~2.5k tipos de resíduos (NBR 10.004) integrados via seeding automático.
@@ -88,7 +89,9 @@ Documentos de referência do estado atual:
 ### Dashboard e operação diária
 
 - dashboard com KPIs de conformidade, sustentabilidade, vencimentos e rastreabilidade;
-- ações rápidas para criar licença, MTR, condicionante e cliente;
+- **Agenda Interativa**: visão calendarizada de todos os compromissos ambientais;
+- **Gestão de Tarefas**: criação de tarefas pessoais com vinculação a MTRs, Licenças e Clientes;
+- **Alertas Inteligentes**: personalização da antecedência de alertas (`notificacaoDias`) por item;
 - notificações in-app com deep links e ação de marcar todas como lidas;
 - telemetria básica de uso e fluxo.
 
@@ -110,7 +113,7 @@ Documentos de referência do estado atual:
 ### Resíduos e rastreabilidade
 
 - gestão de fontes geradoras, parceiros, MTRs e CDFs;
-- emissão de MTR em conformidade com **SINIR v1.10** (wizard de 6 passos);
+- emissão de MTR em conformidade com **SINIR v1.10** via wizard responsivo de 6 passos;
 - suporte a múltiplos itens por MTR, dados de periculosidade e tipos de armazenamento;
 - integração com `SINIR` e `SIGOR` com envio, reconciliação e timeline técnica.
 
@@ -235,6 +238,7 @@ greenly/
 - `integracao-governo`
 - `notificacao`
 - `auditoria`
+- `tasks` (Gestão de agenda e afazeres vinculados)
 
 ### Superfícies principais do frontend
 
@@ -284,6 +288,13 @@ greenly/
 - `GET /api/clientes`
 - `GET /api/clientes/:id/painel`
 - `GET /api/clientes/cnpj/:cnpj`
+
+### Agenda e Tarefas
+
+- `GET /api/tasks`: listagem das tarefas do usuário (ordenadas por posição)
+- `POST /api/tasks`: criação de tarefa (suporta vínculos com MTR/Licença)
+- `PUT /api/tasks/:id`: atualização parcial (incluindo horários e antecedência)
+- `DELETE /api/tasks/:id`: exclusão lógica
 
 ### Dashboard
 

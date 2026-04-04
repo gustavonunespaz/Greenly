@@ -1351,7 +1351,7 @@ export default function MTRsPage() {
                               </div>
                               <p className="text-sm text-foreground font-medium truncate">{r.descricao || 'Sem descrição'}</p>
                               <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-                                {r.quantidade} {r.unidadeMedida}
+                                {r.quantidade} {formatEnum(r.unidadeMedida)}
                                 {r.estadoFisico && ` · ${formatEnum(r.estadoFisico)}`}
                                 {r.acondicionamento && ` · ${formatEnum(r.acondicionamento)}`}
                               </p>
@@ -1374,7 +1374,7 @@ export default function MTRsPage() {
                           </div>
                         ))}
                         <div className="text-[11px] text-muted-foreground/50 text-right pt-1">
-                          Total: {form.residuos.reduce((acc, r) => acc + Number(r.quantidade || 0), 0).toFixed(3)} {form.residuos[0]?.unidadeMedida || 'KG'}
+                          Total: {form.residuos.reduce((acc, r) => acc + Number(r.quantidade || 0), 0).toFixed(3)} {formatEnum(form.residuos[0]?.unidadeMedida) || 'kg'}
                         </div>
                       </div>
                     )}

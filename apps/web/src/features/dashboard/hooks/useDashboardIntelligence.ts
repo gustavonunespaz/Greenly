@@ -1,9 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useDashboard } from './useDashboard'
 import { useLicencas } from '@/features/licencas/hooks/useLicencas'
 import { useCondicionantes } from '@/features/licencas/hooks/useCondicionantes'
 import { useResiduos, useCDFs } from '@/features/residuos/hooks/useResiduos'
 import { useClientes } from '@/features/clientes/hooks/useClientes'
+import { useTasks } from '@/features/tasks/hooks/useTasks'
+import { OFFICIAL_OBLIGATIONS, STORAGE_KEYS } from '@/lib/constants'
 
 export type KpiHealth = 'ok' | 'warning' | 'critical' | 'info'
 
@@ -274,12 +276,22 @@ function inverseKpiStatusFromPct(
 }
 
 export function useDashboardIntelligence() {
+  const [dismissedFederalIds, setDismissedFederalIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(STORAGE_KEYS.DISMISSED_FEDERAL_OBLIGATIONS)
+      if (saved) setDismissedFederalIds(JSON.parse(saved))
+    }
+  }, [])
+
   const { metrics, isLoading: isLoadingDashboard } = useDashboard()
   const { licencas = [], isLoading: isLoadingLicencas } = useLicencas()
   const { condicionantes = [], isLoading: isLoadingCondicionantes } = useCondicionantes()
   const { mtrs = [], isLoading: isLoadingMtrs } = useResiduos()
   const { cdfs, isLoading: isLoadingCdfs } = useCDFs()
   const { clientes = [], isLoading: isLoadingClientes } = useClientes()
+  const { tasks = [], isLoading: isLoadingTasks } = useTasks()
 
   return useMemo(() => {
     const now = new Date()
@@ -323,8 +335,9 @@ export function useDashboardIntelligence() {
 
     const mtrsDivergentes = mtrs.filter((mtr) => mtr.status === 'COM_DIVERGENCIA').length
 
+    const obgFederaisAtrasadas = 3 - dismissedFederalIds.length
     const naoConformidades =
-      metrics?.pendenciasCriticas ?? licenseSummary.vencidas + condAtrasadas + mtrsDivergentes
+      metrics?.pendenciasCriticas ?? (licenseSummary.vencidas + condAtrasadas + mtrsDivergentes + (obgFederaisAtrasadas > 0 ? obgFederaisAtrasadas : 0))
 
     const universoConformidade = Math.max(licencas.length + condicionantes.length + mtrs.length, 1)
     const indiceNaoConformidades = ratioPct(naoConformidades, universoConformidade)
@@ -695,17 +708,34 @@ export function useDashboardIntelligence() {
       },
     ]
 
-    const obrigacoesOficiais: DashboardDeadlineItem[] = [
-      { id: 'rapp', tipo: 'OBRIGACAO' as const, titulo: 'RAPP (IBAMA)', subtitulo: 'Relatório Anual', dataLimite: new Date(`${now.getFullYear()}-03-31`), diasRestantes: 0, urgencia: 'BAIXA', destino: '/agenda', status: 'PENDENTE' },
-      { id: 'inv', tipo: 'OBRIGACAO' as const, titulo: 'Inventário Nacional', subtitulo: 'SINIR/MMA', dataLimite: new Date(`${now.getFullYear()}-03-31`), diasRestantes: 0, urgencia: 'BAIXA', destino: '/agenda', status: 'PENDENTE' },
-      { id: 'tcfa1', tipo: 'OBRIGACAO' as const, titulo: 'TCFA - 1º Tri', subtitulo: 'Taxa Federal (IBAMA)', dataLimite: new Date(`${now.getFullYear()}-04-05`), diasRestantes: 0, urgencia: 'BAIXA', destino: '/agenda', status: 'PENDENTE' },
-    ].map(ob => {
-      const dias = daysUntil(ob.dataLimite, now)
+    const obrigacoesOficiais: DashboardDeadlineItem[] = OFFICIAL_OBLIGATIONS.map(ob => {
+      const limitDate = new Date(now.getFullYear(), ob.mes, ob.dia)
+      // Ajuste para TCFA4 que vence no ano seguinte
+      if (ob.id === 'tcfa4' && now.getMonth() >= 9) {
+        limitDate.setFullYear(now.getFullYear() + 1)
+      }
+      
+      const dias = daysUntil(limitDate, now)
       let urgencia: DashboardDeadlineItem['urgencia'] = 'BAIXA'
       if (dias <= 15) urgencia = 'ALTA'
       else if (dias <= 45) urgencia = 'MEDIA'
-      return { ...ob, diasRestantes: dias, urgencia, status: dias < 0 ? 'ATRASADA' : 'PENDENTE' }
-    }).filter(ob => ob.diasRestantes > -30 && ob.diasRestantes < 90)
+      
+      return { 
+        id: ob.id,
+        tipo: 'OBRIGACAO' as const,
+        titulo: ob.titulo,
+        subtitulo: ob.subtitulo,
+        dataLimite: limitDate,
+        diasRestantes: dias,
+        urgencia,
+        destino: '/agenda',
+        status: dias < 0 ? 'ATRASADA' : 'PENDENTE'
+      }
+    }).filter(ob => 
+      ob.diasRestantes > -30 && 
+      ob.diasRestantes <= (ob.notificacaoPadraoDias ?? 45) && 
+      !dismissedFederalIds.includes(ob.id)
+    )
 
     const deadlines: DashboardDeadlineItem[] = [
       ...obrigacoesOficiais,
@@ -750,7 +780,9 @@ export function useDashboardIntelligence() {
 
           if (!Number.isFinite(dias)) return null
 
-          if (dias > 120 && condicionante.status !== 'ATRASADA') {
+          // Usar notificacaoDias se definido, caso contrário default de 30 dias
+          const showThreshold = (condicionante as any).notificacaoDias ?? 30
+          if (dias > showThreshold && condicionante.status !== 'ATRASADA') {
             return null
           }
 
@@ -771,6 +803,39 @@ export function useDashboardIntelligence() {
           }
         })
         .filter((item): item is DashboardDeadlineItem => item !== null),
+      ...tasks
+        .map((task) => {
+          const date = parseDate(task.dataPrazo)
+          const dias = daysUntil(date, now)
+
+          if (!Number.isFinite(dias)) return null
+
+          // Só mostra se estiver NO prazo de notificação ou se estiver ATRASADO (e não concluído)
+          // Default de 5 dias para tarefas se não definido
+          const showThreshold = task.notificacaoDias ?? 5
+          if (dias > showThreshold && task.status !== 'ATRASADO' && task.status !== 'A_FAZER') {
+            return null
+          }
+
+          if (task.status === 'CONCLUIDO') return null
+
+          let urgencia: DashboardDeadlineItem['urgencia'] = 'BAIXA'
+          if (dias <= 2) urgencia = 'ALTA'
+          else if (dias <= 5) urgencia = 'MEDIA'
+
+          return {
+            id: task.id,
+            tipo: 'CONDICIONANTE' as any, // Reusing icon/style for now or map to a new category
+            titulo: task.titulo,
+            subtitulo: 'Tarefa Pessoal',
+            dataLimite: date,
+            diasRestantes: dias,
+            urgencia,
+            destino: '/agenda',
+            status: task.status,
+          }
+        })
+        .filter((item): item is DashboardDeadlineItem => item !== null),
     ]
       .sort((a, b) => a.diasRestantes - b.diasRestantes)
       .slice(0, 12)
@@ -781,7 +846,8 @@ export function useDashboardIntelligence() {
       isLoadingCondicionantes ||
       isLoadingMtrs ||
       isLoadingCdfs ||
-      isLoadingClientes
+      isLoadingClientes ||
+      isLoadingTasks
 
     return {
       isLoading: loading,
@@ -822,5 +888,6 @@ export function useDashboardIntelligence() {
     licencas,
     metrics,
     mtrs,
+    tasks,
   ])
 }

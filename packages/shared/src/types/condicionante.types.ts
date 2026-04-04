@@ -15,6 +15,7 @@ export interface CondicionanteDTO {
   proximoPrazo?: string | Date | null
   responsavelCliente?: string | null
   evidenciaUrl?: string | null
+  notificacaoDias?: number | null
 }
 
 export interface CreateCondicionanteDTO {

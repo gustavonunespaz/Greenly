@@ -19,6 +19,7 @@ const NotificacoesPage = lazy(() => import('./pages/NotificacoesPage'))
 const ConfiguracoesPage = lazy(() => import('./pages/ConfiguracoesPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const AgendaPage = lazy(() => import('./pages/AgendaPage'))
+const TasksPage = lazy(() => import('./pages/TasksPage'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 const queryClient = new QueryClient({
@@ -150,6 +151,14 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <AgendaPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tarefas"
+                  element={
+                    <ProtectedRoute>
+                      <TasksPage />
                     </ProtectedRoute>
                   }
                 />

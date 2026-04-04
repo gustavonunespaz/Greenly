@@ -31,6 +31,7 @@ apps/api/src/
 │   ├── residuo/
 │   ├── ibama/
 │   ├── saneamento/
+│   ├── tasks/
 │   └── integracao-governo/
 └── shared/
     ├── container.ts
@@ -46,6 +47,7 @@ Pontos chave:
 - Persistência em PostgreSQL via Drizzle.
 - Alertas e processos assíncronos com BullMQ + Redis.
 - Isolamento multi-tenant com `consultoriaId`.
+- **Integridade de Dados**: Padrão de sanitização em Repositories para converter inputs de interface (como `"none"`) em `null/undefined` para colunas UUID.
 
 ## Frontend (`apps/web`)
 
@@ -64,8 +66,8 @@ apps/web/src/
 Pontos chave:
 
 - Estado remoto com TanStack Query.
-- Dashboard com consolidação analítica em `useDashboardIntelligence`.
-- Responsividade reforçada para CRUDs e modais (sem overflow horizontal visível).
+- Dashboard com consolidação analítica em `useDashboardIntelligence`, permitindo alertas baseados em janelas de tempo dinâmicas (`notificacaoDias`).
+- Responsividade reforçada para CRUDs, modais e wizards complexos (ex: MTR).
 
 ## Dados e integrações
 
