@@ -50,9 +50,12 @@ cd Greenly
 
 # 2. Inicie a infraestrutura inteira (banco é preparado automaticamente)
 docker compose up -d --build
+
+# Opcional: Se quiser customizar portas ou segredos, copie o exemplo antes de subir:
+# cp .env.example .env
 ```
 
-> **Zero config:** O container da API executa automaticamente `db:sync:clean` + `db:audit` (paridade), depois `db:seed` e `db:seed:master-user` no boot. Para forçar migrações no boot, use `DB_MIGRATE_ON_BOOT=true`.
+> **Zero config:** Por padrão, o Docker Compose usa os valores de exemplo do arquivo `.env.example`. O container da API executa automaticamente `db:sync:clean` + `db:audit` (paridade), depois `db:seed` e `db:seed:master-user` no boot.
 
 **Seus ambientes estarão disponíveis instantaneamente:**
 - 🌍 **Landing Page:** [http://localhost:8081](http://localhost:8081)
@@ -538,6 +541,11 @@ Observação:
 - existe configuração de Playwright em `apps/web`, mas a trilha principal validada hoje no repositório está nos testes Vitest e nos smokes acima.
 
 ## Variáveis de ambiente importantes
+
+O projeto utiliza o arquivo `.env.example` na raiz como referência para o Docker Compose. Para customizar seu ambiente:
+
+1. Copie o arquivo: `cp .env.example .env`
+2. Altere os valores no `.env` (ex: `POSTGRES_PORT`, `JWT_ACCESS_SECRET`).
 
 ### Backend (`apps/api/.env`)
 

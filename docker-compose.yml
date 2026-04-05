@@ -4,11 +4,11 @@ services:
     container_name: greenly_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: greenly
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: greenly
+      POSTGRES_DB: ${POSTGRES_DB:-greenly}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-greenly}
     ports:
-      - '5435:5432'
+      - '${POSTGRES_PORT:-5435}:5432'
     volumes:
       - greenly_postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     container_name: greenly_redis
     restart: unless-stopped
     ports:
-      - '6379:6379'
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - greenly_redis_data:/data
     command: redis-server --appendonly yes
@@ -55,19 +55,19 @@ services:
     ports:
       - '3333:3333'
     environment:
-      - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:greenly@postgres:5432/greenly
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - JWT_ACCESS_SECRET=super_secret_dev_key_123
-      - JWT_ACCESS_EXPIRES_IN=1h
-      - JWT_REFRESH_SECRET=ultra_secret_refresh_key_456
-      - JWT_REFRESH_EXPIRES_IN=7d
-      - SMTP_HOST=mailhog
-      - SMTP_PORT=1025
-      - EMAIL_FROM=nao-responda@greenly.test
-      - ENABLE_DOCUMENTO_WORKER=true
-      - DOCUMENTOS_WORKER_CONCURRENCY=2
+      - NODE_ENV=production # No container, roda dist/
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-greenly}@postgres:5432/${POSTGRES_DB:-greenly}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET:-super_secret_dev_key_123}
+      - JWT_ACCESS_EXPIRES_IN=${JWT_ACCESS_EXPIRES_IN:-1h}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-ultra_secret_refresh_key_456}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
+      - SMTP_HOST=${SMTP_HOST:-mailhog}
+      - SMTP_PORT=${SMTP_PORT:-1025}
+      - EMAIL_FROM=${EMAIL_FROM:-nao-responda@greenly.test}
+      - ENABLE_DOCUMENTO_WORKER=${ENABLE_DOCUMENTO_WORKER:-true}
+      - DOCUMENTOS_WORKER_CONCURRENCY=${DOCUMENTOS_WORKER_CONCURRENCY:-2}
     depends_on:
       postgres:
         condition: service_healthy
