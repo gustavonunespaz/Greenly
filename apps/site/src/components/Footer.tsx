@@ -9,8 +9,9 @@ const footerLinks = {
   ],
   'Módulos': [
     { label: 'Licenciamento', href: '#funcionalidades' },
-    { label: 'Condicionantes', href: '#funcionalidades' },
-    { label: 'Resíduos e MTRs', href: '#funcionalidades' },
+    { label: 'Resíduos e MTR/CDF', href: '#funcionalidades' },
+    { label: 'Agenda e Tarefas', href: '#funcionalidades' },
+    { label: 'IBAMA e Saneamento', href: '#funcionalidades' },
     { label: 'Pipeline Documental', href: '#funcionalidades' },
   ],
   Jurídico: [
@@ -84,7 +85,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Greenly. Todos os direitos reservados.
           </p>
           <p className="text-gray-500 text-xs">
-            Feito com 🌿 para quem cuida do meio ambiente
+            Plataforma de gestão e compliance ambiental
           </p>
         </div>
       </div>

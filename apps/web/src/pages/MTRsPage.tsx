@@ -433,7 +433,6 @@ export default function MTRsPage() {
 
   const isFormReady =
     !!form.clienteId &&
-    !!form.fonteGeradoraId &&
     !!form.transportadoraId &&
     !!form.destinadorId &&
     form.residuos.length > 0
@@ -526,7 +525,7 @@ export default function MTRsPage() {
     }))
     setForm({
       clienteId: mtr.clienteId,
-      fonteGeradoraId: mtr.fonteGeradoraId,
+      fonteGeradoraId: mtr.fonteGeradoraId || '',
       transportadoraId: mtr.transportadoraId,
       destinadorId: mtr.destinadorId,
       tipoDestinacao: mtr.tipoDestinacao,
@@ -573,13 +572,12 @@ export default function MTRsPage() {
       setFormError(null)
       if (
         !form.clienteId ||
-        !form.fonteGeradoraId ||
         !form.transportadoraId ||
         !form.destinadorId
       ) {
         applyTrackedFormError(
           buildValidationFormError(
-            'Preencha cliente, fonte geradora, transportadora e destinador.',
+            'Preencha cliente, transportadora e destinador.',
           ),
           'validation',
         )
@@ -601,7 +599,7 @@ export default function MTRsPage() {
           id: editing.id,
           dto: {
             clienteId: form.clienteId,
-            fonteGeradoraId: form.fonteGeradoraId,
+            fonteGeradoraId: form.fonteGeradoraId || null,
             transportadoraId: form.transportadoraId,
             destinadorId: form.destinadorId,
             tipoDestinacao: form.tipoDestinacao,
@@ -627,7 +625,7 @@ export default function MTRsPage() {
       } else {
         await emitirMTR({
           clienteId: form.clienteId,
-          fonteGeradoraId: form.fonteGeradoraId,
+          fonteGeradoraId: form.fonteGeradoraId || undefined,
           transportadoraId: form.transportadoraId,
           destinadorId: form.destinadorId,
           tipoDestinacao: form.tipoDestinacao,
@@ -1384,7 +1382,7 @@ export default function MTRsPage() {
               {
                 id: 'step-gerador',
                 label: 'Gerador',
-                isValid: !!form.clienteId && !!form.fonteGeradoraId,
+                isValid: !!form.clienteId,
                 content: (
                   <div className="space-y-4 py-4">
                     <p className="text-sm text-muted-foreground/80 mb-2">
@@ -1419,17 +1417,22 @@ export default function MTRsPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Ponto de Geração (Origem) *</Label>
+                      <Label>Ponto de Geração (Origem) - opcional</Label>
                       <Select
-                        value={form.fonteGeradoraId}
-                        onValueChange={(v) => setForm((s) => ({ ...s, fonteGeradoraId: v }))}
+                        value={form.fonteGeradoraId || '__none'}
+                        onValueChange={(v) =>
+                          setForm((s) => ({ ...s, fonteGeradoraId: v === '__none' ? '' : v }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue
-                            placeholder={isLoadingFontes ? 'Carregando fontes...' : 'Selecione a fonte'}
+                            placeholder={
+                              isLoadingFontes ? 'Carregando fontes...' : 'Selecione (opcional)'
+                            }
                           />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="__none">Sem ponto de geração</SelectItem>
                           {fontesGeradoras.map((f) => (
                             <SelectItem key={f.id} value={f.id}>
                               {f.descricao || `Fonte ${f.id.substring(0, 6)}`}

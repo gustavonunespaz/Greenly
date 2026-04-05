@@ -1,11 +1,13 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useDashboard } from './useDashboard'
 import { useLicencas } from '@/features/licencas/hooks/useLicencas'
 import { useCondicionantes } from '@/features/licencas/hooks/useCondicionantes'
 import { useResiduos, useCDFs } from '@/features/residuos/hooks/useResiduos'
 import { useClientes } from '@/features/clientes/hooks/useClientes'
 import { useTasks } from '@/features/tasks/hooks/useTasks'
-import { OFFICIAL_OBLIGATIONS, STORAGE_KEYS } from '@/lib/constants'
+import { STORAGE_KEYS } from '@/lib/constants'
+import { obrigacaoAmbientalService } from '@/features/obrigacoes-ambientais/services/obrigacaoAmbientalService'
 
 export type KpiHealth = 'ok' | 'warning' | 'critical' | 'info'
 
@@ -27,7 +29,7 @@ export interface DashboardKpiSection {
 
 export interface DashboardDeadlineItem {
   id: string
-  tipo: 'LICENCA' | 'CONDICIONANTE' | 'OBRIGACAO'
+  tipo: 'LICENCA' | 'CONDICIONANTE' | 'OBRIGACAO' | 'TAREFA'
   titulo: string
   subtitulo: string
   dataLimite: Date | null
@@ -175,6 +177,53 @@ function monthKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
+function buildOfficialObligationId(item: {
+  modulo?: string | null
+  tipo: string
+  competenciaAno?: number | null
+  competenciaMes?: number | null
+  competenciaTrimestre?: number | null
+}) {
+  return [
+    item.modulo ?? 'SEM_MODULO',
+    item.tipo,
+    item.competenciaAno ?? 'SEM_ANO',
+    item.competenciaMes ?? 'SEM_MES',
+    item.competenciaTrimestre ?? 'SEM_TRI',
+  ].join('::')
+}
+
+function routeForOfficialObligation(tipo: string) {
+  if (tipo.startsWith('IBAMA_')) return `/obrigacoes/ibama?tipo=${tipo}`
+  if (tipo === 'SINIR_INVENTARIO_NACIONAL' || tipo === 'SINIR_DMR' || tipo === 'IAT_INVENTARIO_RESIDUOS_INDUSTRIAIS') {
+    return `/obrigacoes/residuos?tipo=${tipo}`
+  }
+  if (
+    tipo === 'GEE_INVENTARIO' ||
+    tipo === 'IAT_DECLARACAO_CARGA_POLUIDORA' ||
+    tipo === 'IAT_DECLARACAO_EMISSOES_ATMOSFERICAS'
+  ) {
+    return `/obrigacoes/emissoes?tipo=${tipo}`
+  }
+  return '/agenda'
+}
+
+function notificationWindowDays(periodicidade?: string | null) {
+  switch (periodicidade) {
+    case 'MENSAL':
+      return 10
+    case 'TRIMESTRAL':
+      return 20
+    case 'SEMESTRAL':
+      return 30
+    case 'ANUAL':
+    case 'BIENAL':
+      return 45
+    default:
+      return 30
+  }
+}
+
 function buildMonthDrafts(reference: Date, count = 6): TrendDraft[] {
   const months: TrendDraft[] = []
 
@@ -276,14 +325,18 @@ function inverseKpiStatusFromPct(
 }
 
 export function useDashboardIntelligence() {
-  const [dismissedFederalIds, setDismissedFederalIds] = useState<string[]>([])
+  const [dismissedObrigacaoIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    const saved = localStorage.getItem(STORAGE_KEYS.DISMISSED_OFFICIAL_OBLIGATIONS)
+    if (!saved) return []
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(STORAGE_KEYS.DISMISSED_FEDERAL_OBLIGATIONS)
-      if (saved) setDismissedFederalIds(JSON.parse(saved))
+    try {
+      const parsed = JSON.parse(saved)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
     }
-  }, [])
+  })
 
   const { metrics, isLoading: isLoadingDashboard } = useDashboard()
   const { licencas = [], isLoading: isLoadingLicencas } = useLicencas()
@@ -292,6 +345,11 @@ export function useDashboardIntelligence() {
   const { cdfs, isLoading: isLoadingCdfs } = useCDFs()
   const { clientes = [], isLoading: isLoadingClientes } = useClientes()
   const { tasks = [], isLoading: isLoadingTasks } = useTasks()
+  const anoAtual = new Date().getFullYear()
+  const { data: padroesOficiais = [], isLoading: isLoadingObrigacoesOficiais } = useQuery({
+    queryKey: ['dashboard-obrigacoes-padroes', anoAtual],
+    queryFn: () => obrigacaoAmbientalService.listarPadroesOficiais({ ano: anoAtual }),
+  })
 
   return useMemo(() => {
     const now = new Date()
@@ -335,9 +393,17 @@ export function useDashboardIntelligence() {
 
     const mtrsDivergentes = mtrs.filter((mtr) => mtr.status === 'COM_DIVERGENCIA').length
 
-    const obgFederaisAtrasadas = 3 - dismissedFederalIds.length
+    const obrigacoesOficiaisAtrasadas = padroesOficiais.reduce((acc, item) => {
+      const id = buildOfficialObligationId(item)
+      if (dismissedObrigacaoIds.includes(id)) return acc
+      const limitDate = parseDate(item.dataLimite)
+      if (!limitDate) return acc
+      return daysUntil(limitDate, now) < 0 ? acc + 1 : acc
+    }, 0)
+
     const naoConformidades =
-      metrics?.pendenciasCriticas ?? (licenseSummary.vencidas + condAtrasadas + mtrsDivergentes + (obgFederaisAtrasadas > 0 ? obgFederaisAtrasadas : 0))
+      metrics?.pendenciasCriticas ??
+      (licenseSummary.vencidas + condAtrasadas + mtrsDivergentes + obrigacoesOficiaisAtrasadas)
 
     const universoConformidade = Math.max(licencas.length + condicionantes.length + mtrs.length, 1)
     const indiceNaoConformidades = ratioPct(naoConformidades, universoConformidade)
@@ -708,34 +774,35 @@ export function useDashboardIntelligence() {
       },
     ]
 
-    const obrigacoesOficiais: DashboardDeadlineItem[] = OFFICIAL_OBLIGATIONS.map(ob => {
-      const limitDate = new Date(now.getFullYear(), ob.mes, ob.dia)
-      // Ajuste para TCFA4 que vence no ano seguinte
-      if (ob.id === 'tcfa4' && now.getMonth() >= 9) {
-        limitDate.setFullYear(now.getFullYear() + 1)
-      }
-      
-      const dias = daysUntil(limitDate, now)
-      let urgencia: DashboardDeadlineItem['urgencia'] = 'BAIXA'
-      if (dias <= 15) urgencia = 'ALTA'
-      else if (dias <= 45) urgencia = 'MEDIA'
-      
-      return { 
-        id: ob.id,
-        tipo: 'OBRIGACAO' as const,
-        titulo: ob.titulo,
-        subtitulo: ob.subtitulo,
-        dataLimite: limitDate,
-        diasRestantes: dias,
-        urgencia,
-        destino: '/agenda',
-        status: dias < 0 ? 'ATRASADA' : 'PENDENTE'
-      }
-    }).filter(ob => 
-      ob.diasRestantes > -30 && 
-      ob.diasRestantes <= (ob.notificacaoPadraoDias ?? 45) && 
-      !dismissedFederalIds.includes(ob.id)
-    )
+    const obrigacoesOficiais: DashboardDeadlineItem[] = padroesOficiais
+      .map((item) => {
+        const limitDate = parseDate(item.dataLimite)
+        if (!limitDate) return null
+
+        const id = buildOfficialObligationId(item)
+        if (dismissedObrigacaoIds.includes(id)) return null
+
+        const dias = daysUntil(limitDate, now)
+        const janelaAviso = notificationWindowDays(item.periodicidade)
+        if (dias < -30 || dias > janelaAviso) return null
+
+        let urgencia: DashboardDeadlineItem['urgencia'] = 'BAIXA'
+        if (dias <= 15) urgencia = 'ALTA'
+        else if (dias <= 45) urgencia = 'MEDIA'
+
+        return {
+          id,
+          tipo: 'OBRIGACAO' as const,
+          titulo: item.titulo,
+          subtitulo: item.subtitulo || item.orgao || item.modulo,
+          dataLimite: limitDate,
+          diasRestantes: dias,
+          urgencia,
+          destino: routeForOfficialObligation(item.tipo),
+          status: dias < 0 ? 'ATRASADA' : 'PENDENTE',
+        }
+      })
+      .filter((item): item is DashboardDeadlineItem => item !== null)
 
     const deadlines: DashboardDeadlineItem[] = [
       ...obrigacoesOficiais,
@@ -825,7 +892,7 @@ export function useDashboardIntelligence() {
 
           return {
             id: task.id,
-            tipo: 'CONDICIONANTE' as any, // Reusing icon/style for now or map to a new category
+            tipo: 'TAREFA' as const,
             titulo: task.titulo,
             subtitulo: 'Tarefa Pessoal',
             dataLimite: date,
@@ -847,7 +914,8 @@ export function useDashboardIntelligence() {
       isLoadingMtrs ||
       isLoadingCdfs ||
       isLoadingClientes ||
-      isLoadingTasks
+      isLoadingTasks ||
+      isLoadingObrigacoesOficiais
 
     return {
       isLoading: loading,
@@ -885,9 +953,13 @@ export function useDashboardIntelligence() {
     isLoadingDashboard,
     isLoadingLicencas,
     isLoadingMtrs,
+    isLoadingObrigacoesOficiais,
+    isLoadingTasks,
     licencas,
     metrics,
     mtrs,
+    padroesOficiais,
     tasks,
+    dismissedObrigacaoIds,
   ])
 }

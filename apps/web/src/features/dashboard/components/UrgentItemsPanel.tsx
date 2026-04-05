@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, Clock, FileCheck, ClipboardList, Truck } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Clock, FileCheck, ClipboardList, Truck, ShieldCheck, ListTodo } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { DashboardDeadlineItem } from '../hooks/useDashboardIntelligence'
@@ -45,21 +45,29 @@ function urgencyConfig(urgencia: DashboardDeadlineItem['urgencia'], dias: number
 const tipoIcon: Record<string, typeof FileCheck> = {
   LICENCA: FileCheck,
   CONDICIONANTE: ClipboardList,
+  OBRIGACAO: ShieldCheck,
+  TAREFA: ListTodo,
   MTR: Truck,
 }
 
 const tipoLabel: Record<string, string> = {
   LICENCA: 'Licença',
   CONDICIONANTE: 'Condicionante',
+  OBRIGACAO: 'Obrigação oficial',
+  TAREFA: 'Tarefa',
   MTR: 'MTR',
 }
 
 function actionLabel(item: DashboardDeadlineItem) {
   if (item.diasRestantes < 0) {
-    return item.tipo === 'LICENCA' ? 'Renovar' : 'Resolver'
+    if (item.tipo === 'LICENCA') return 'Renovar'
+    if (item.tipo === 'OBRIGACAO') return 'Regularizar'
+    return 'Resolver'
   }
 
   if (item.tipo === 'LICENCA') return 'Ver licença'
+  if (item.tipo === 'OBRIGACAO') return 'Ver obrigação'
+  if (item.tipo === 'TAREFA') return 'Abrir agenda'
   if (item.tipo === 'CONDICIONANTE') return 'Ver detalhes'
   return 'Acompanhar'
 }
@@ -81,7 +89,7 @@ export function UrgentItemsPanel({ items, maxItems = 6 }: Props) {
           <Clock className="h-5 w-5 text-primary" strokeWidth={1.5} />
         </div>
         <div>
-          <p className="text-sm font-medium text-foreground">Tudo em dia! 🎉</p>
+          <p className="text-sm font-medium text-foreground">Tudo em dia!</p>
           <p className="text-xs text-muted-foreground/60 mt-0.5">
             Nenhum item exige atenção urgente no momento.
           </p>

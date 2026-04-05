@@ -285,9 +285,7 @@ export default function DashboardPage() {
             {/* Top insight */}
             {risk.insights[0] && (
               <div className="rounded-xl bg-primary/[0.04] border border-primary/10 px-3 py-2.5">
-                <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
-                  💡 {risk.insights[0]}
-                </p>
+                <p className="text-[11px] text-muted-foreground/70 leading-relaxed">{risk.insights[0]}</p>
               </div>
             )}
           </div>

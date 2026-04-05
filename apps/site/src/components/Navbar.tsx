@@ -3,10 +3,10 @@ import { trackCTA } from '@/lib/tracking'
 import { Menu, X } from 'lucide-react'
 
 const navLinks = [
-  { label: 'Soluções', href: '#solucoes' },
-  { label: 'Funcionalidades', href: '#funcionalidades' },
-  { label: 'Como funciona', href: '#como-funciona' },
-  { label: 'Depoimentos', href: '#depoimentos' },
+  { label: 'Diferenciais', href: '#diferenciais' },
+  { label: 'Módulos ativos', href: '#funcionalidades' },
+  { label: 'Implementação', href: '#como-funciona' },
+  { label: 'Entregas', href: '#depoimentos' },
   { label: 'Contato', href: '#contato' },
 ]
 
@@ -72,7 +72,7 @@ export default function Navbar() {
               onClick={() => trackCTA('nav_demo', 'navbar')}
               className="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-greenly-600 to-greenly-500 rounded-xl hover:shadow-[0_0_30px_rgba(5,150,105,0.4)] transition-all duration-300 hover:-translate-y-0.5"
             >
-              Falar com especialista
+              Ver demonstração
             </a>
           </div>
 
@@ -118,7 +118,7 @@ export default function Navbar() {
               onClick={() => { trackCTA('nav_demo_mobile', 'navbar'); setMobileOpen(false) }}
               className="block px-4 py-3 text-center font-semibold text-white bg-gradient-to-r from-greenly-600 to-greenly-500 rounded-xl"
             >
-              Falar com especialista
+              Ver demonstração
             </a>
           </div>
         </div>

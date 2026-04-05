@@ -1,5 +1,4 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
-import { residuosMensais } from "@/lib/mock-data";
 
 type TooltipEntry = {
   color?: string;
@@ -54,7 +53,34 @@ const CustomLegend = ({ payload }: CustomLegendProps) => {
   );
 };
 
-export function WasteChart() {
+type WasteChartPoint = {
+  mes: string;
+  classeI: number;
+  classeIIA: number;
+  classeIIB: number;
+};
+
+type WasteChartProps = {
+  data?: WasteChartPoint[];
+};
+
+export function WasteChart({ data = [] }: WasteChartProps) {
+  if (data.length === 0) {
+    return (
+      <div className="glass-card p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="text-sm font-medium text-foreground">Volume de Resíduos</h3>
+            <p className="text-[11px] text-muted-foreground/50 mt-0.5">Últimos 6 meses (toneladas)</p>
+          </div>
+        </div>
+        <div className="h-[220px] flex items-center justify-center text-xs text-muted-foreground/70">
+          Sem dados consolidados para exibir.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="glass-card p-6">
       <div className="flex items-center justify-between mb-5">
@@ -67,7 +93,7 @@ export function WasteChart() {
         </div>
       </div>
       <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={residuosMensais} barCategoryGap="20%">
+        <BarChart data={data} barCategoryGap="20%">
           <CartesianGrid strokeDasharray="3 3" stroke="hsla(217, 32%, 30%, 0.15)" vertical={false} />
           <XAxis
             dataKey="mes"

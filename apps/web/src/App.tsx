@@ -20,6 +20,10 @@ const ConfiguracoesPage = lazy(() => import('./pages/ConfiguracoesPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const AgendaPage = lazy(() => import('./pages/AgendaPage'))
 const TasksPage = lazy(() => import('./pages/TasksPage'))
+const ObrigacoesIbamaPage = lazy(() => import('./pages/ObrigacoesIbamaPage'))
+const ObrigacoesResiduosPage = lazy(() => import('./pages/ObrigacoesResiduosPage'))
+const ObrigacoesEmissoesPage = lazy(() => import('./pages/ObrigacoesEmissoesPage'))
+const ObrigacoesIatPage = lazy(() => import('./pages/ObrigacoesIatPage'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 const queryClient = new QueryClient({
@@ -159,6 +163,38 @@ const App = () => (
                   element={
                     <ProtectedRoute>
                       <TasksPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/obrigacoes/ibama"
+                  element={
+                    <ProtectedRoute>
+                      <ObrigacoesIbamaPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/obrigacoes/residuos"
+                  element={
+                    <ProtectedRoute>
+                      <ObrigacoesResiduosPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/obrigacoes/emissoes"
+                  element={
+                    <ProtectedRoute>
+                      <ObrigacoesEmissoesPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/obrigacoes/iat"
+                  element={
+                    <ProtectedRoute>
+                      <ObrigacoesIatPage />
                     </ProtectedRoute>
                   }
                 />

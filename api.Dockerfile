@@ -42,11 +42,13 @@ COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/tsconfig.base.json ./apps/
 
-# ── Arquivos necessários para db:push e db:seed no boot ──
-# drizzle-kit precisa dos .ts de schema + drizzle.config.ts
-# tsx precisa dos seeds em src/db/
+# ── Arquivos necessários para migrate/sync/audit/seed no boot ──
+# drizzle-kit precisa de drizzle.config.ts + diretório drizzle/
+# tsx precisa de src/db/ e src/scripts/
 COPY --from=builder /app/apps/api/drizzle.config.ts ./apps/api/
+COPY --from=builder /app/apps/api/drizzle ./apps/api/drizzle
 COPY --from=builder /app/apps/api/src/db ./apps/api/src/db
+COPY --from=builder /app/apps/api/src/scripts ./apps/api/src/scripts
 COPY --from=builder /app/apps/api/tsconfig.json ./apps/api/
 COPY --from=builder /app/packages/shared/src ./packages/shared/src
 COPY --from=builder /app/packages/shared/tsconfig.json ./packages/shared/
@@ -60,5 +62,5 @@ WORKDIR /app/apps/api
 # A porta padrão
 EXPOSE 3333
 
-# Entrypoint: roda db:push + seed antes de iniciar a API
+# Entrypoint: roda migrate/sync/audit + seed antes de iniciar a API
 ENTRYPOINT ["/app/docker-entrypoint-api.sh"]

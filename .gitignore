@@ -8,7 +8,13 @@ build/
 coverage/
 .turbo/
 *.tsbuildinfo
+test-results/
+playwright-report/
 uploads/
 *:Zone.Identifier
 docs/*
+!docs/README.md
+!docs/OBRIGACOES_AMBIENTAIS_OFICIAIS.md
+!docs/INTEGRACAO_ORGAOS_PLAYBOOK.md
 Aludrol/
+tmp/

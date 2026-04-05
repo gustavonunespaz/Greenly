@@ -1,14 +1,39 @@
 import api from "@/lib/api";
 import type {
+  AplicarDocumentoCrudDTO,
+  AplicarDocumentoCrudResponseDTO,
+  DocumentoCrudSugestaoResponseDTO,
   DocumentoQualidadeMetricsResponseDTO,
   DocumentoRevisaoDetalheResponseDTO,
   DocumentoRevisaoPendenteItemDTO,
+  IngerirDocumentoMetadataDTO,
+  IngerirDocumentoResponseDTO,
   RevisarDocumentoDTO,
   RevisarDocumentoResponseDTO,
   StatusRevisaoDocumento,
 } from "@greenly/shared";
 
 export const documentoService = {
+  async ingerirDocumento(
+    arquivo: File,
+    metadata: IngerirDocumentoMetadataDTO,
+  ): Promise<IngerirDocumentoResponseDTO> {
+    const formData = new FormData();
+    formData.append("arquivo", arquivo);
+    formData.append("origem", metadata.origem);
+    if (metadata.clienteId) formData.append("clienteId", metadata.clienteId);
+    if (metadata.licencaId) formData.append("licencaId", metadata.licencaId);
+    if (metadata.tipoDeclarado) formData.append("tipoDeclarado", metadata.tipoDeclarado);
+    if (metadata.categoriaDeclarada) formData.append("categoriaDeclarada", metadata.categoriaDeclarada);
+
+    const { data } = await api.post<IngerirDocumentoResponseDTO>("/documentos/ingestao", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return data;
+  },
+
   async listarPendentesRevisao(input?: {
     statusRevisao?: StatusRevisaoDocumento;
     limit?: number;
@@ -39,6 +64,26 @@ export const documentoService = {
   ): Promise<RevisarDocumentoResponseDTO> {
     const { data } = await api.post<RevisarDocumentoResponseDTO>(
       `/documentos/${processamentoDocumentoId}/revisao`,
+      payload,
+    );
+    return data;
+  },
+
+  async obterSugestaoCrud(
+    processamentoDocumentoId: string,
+  ): Promise<DocumentoCrudSugestaoResponseDTO> {
+    const { data } = await api.get<DocumentoCrudSugestaoResponseDTO>(
+      `/documentos/${processamentoDocumentoId}/sugestao-crud`,
+    );
+    return data;
+  },
+
+  async aplicarCrud(
+    processamentoDocumentoId: string,
+    payload: AplicarDocumentoCrudDTO,
+  ): Promise<AplicarDocumentoCrudResponseDTO> {
+    const { data } = await api.post<AplicarDocumentoCrudResponseDTO>(
+      `/documentos/${processamentoDocumentoId}/aplicar-crud`,
       payload,
     );
     return data;

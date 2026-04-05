@@ -56,6 +56,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Drizzle drift check (schema TS vs migration SQL)
+        env:
+          DATABASE_URL: postgresql://postgres:greenly@127.0.0.1:5435/greenly
+        run: |
+          pnpm --filter @greenly/api db:generate
+          git diff --exit-code -- apps/api/drizzle
+
+      - name: DB parity bootstrap check
+        env:
+          DATABASE_URL: postgresql://postgres:greenly@127.0.0.1:5435/greenly
+        run: |
+          pnpm --filter @greenly/api db:migrate
+          pnpm --filter @greenly/api db:sync:clean
+          pnpm --filter @greenly/api db:audit
+
       - name: Run Sprint 3 gate
         env:
           DATABASE_URL: postgresql://postgres:greenly@127.0.0.1:5435/greenly

@@ -1,4 +1,4 @@
-import { CalendarClock, ArrowRight, FileWarning, ClipboardList } from 'lucide-react'
+import { CalendarClock, ArrowRight, FileWarning, ClipboardList, ShieldCheck, ListTodo } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { DashboardDeadlineItem } from '../hooks/useDashboardIntelligence'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -25,6 +25,13 @@ function formatDaysLeft(days: number) {
   return `Faltam ${days} dia(s)`
 }
 
+function resolveTipoMeta(tipo: DashboardDeadlineItem['tipo']) {
+  if (tipo === 'LICENCA') return { Icon: FileWarning, label: 'Licença' }
+  if (tipo === 'OBRIGACAO') return { Icon: ShieldCheck, label: 'Obrigação oficial' }
+  if (tipo === 'TAREFA') return { Icon: ListTodo, label: 'Tarefa' }
+  return { Icon: ClipboardList, label: 'Condicionante' }
+}
+
 export function UpcomingDeadlinesTimeline({ deadlines }: UpcomingDeadlinesTimelineProps) {
   return (
     <div className="glass-card p-6">
@@ -34,10 +41,10 @@ export function UpcomingDeadlinesTimeline({ deadlines }: UpcomingDeadlinesTimeli
             Vencimentos Próximos
           </p>
           <h3 className="text-lg font-semibold text-foreground mt-1">
-            Cronograma de licenças e condicionantes
+            Cronograma de obrigações, licenças e tarefas
           </h3>
           <p className="text-xs text-muted-foreground/70 mt-1">
-            Priorização por urgência para agir antes de embargo, autuação ou multa.
+            Priorização por urgência para agir antes de embargo, autuação, multa ou atraso operacional.
           </p>
         </div>
         <CalendarClock className="h-5 w-5 text-primary/70 shrink-0" strokeWidth={1.8} />
@@ -47,7 +54,7 @@ export function UpcomingDeadlinesTimeline({ deadlines }: UpcomingDeadlinesTimeli
         <EmptyState
           icon={CalendarClock}
           title="Nenhum vencimento próximo"
-          description="Ainda não há tarefas críticas de renovação ou condicionantes no horizonte recente."
+          description="Ainda não há obrigações oficiais, licenças, condicionantes ou tarefas críticas no horizonte recente."
           compact
         />
       ) : (
@@ -59,6 +66,7 @@ export function UpcomingDeadlinesTimeline({ deadlines }: UpcomingDeadlinesTimeli
                 : item.urgencia === 'MEDIA'
                   ? 'bg-warning'
                   : 'bg-primary'
+            const { Icon, label } = resolveTipoMeta(item.tipo)
 
             return (
               <Link
@@ -103,12 +111,8 @@ export function UpcomingDeadlinesTimeline({ deadlines }: UpcomingDeadlinesTimeli
                       </span>
                       <span className="text-muted-foreground/40">•</span>
                       <span className="text-[11px] text-muted-foreground/70 inline-flex items-center gap-1">
-                        {item.tipo === 'LICENCA' ? (
-                          <FileWarning className="h-3 w-3" />
-                        ) : (
-                          <ClipboardList className="h-3 w-3" />
-                        )}
-                        {item.tipo === 'LICENCA' ? 'Licença' : 'Condicionante'}
+                        <Icon className="h-3 w-3" />
+                        {label}
                       </span>
                     </div>
                   </div>

@@ -16,10 +16,13 @@ const breadcrumbMap: Record<string, string> = {
   '/documentos': 'Revisao Documental',
   '/licencas': 'Licenças Ambientais',
   '/condicionantes': 'Condicionantes',
-  '/mtrs': 'Manifestos de Transporte',
+  '/mtrs': 'Operação de Resíduos (MTR/CDF)',
   '/clientes': 'Clientes',
   '/notificacoes': 'Notificações',
   '/configuracoes': 'Configurações',
+  '/obrigacoes/ibama': 'Obrigações IBAMA',
+  '/obrigacoes/residuos': 'Obrigações de Resíduos',
+  '/obrigacoes/emissoes': 'Obrigações de Emissões',
 };
 
 export function AppLayout({ children, title }: AppLayoutProps) {

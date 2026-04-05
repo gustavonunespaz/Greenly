@@ -30,9 +30,16 @@ Centralize a operação da consultoria. Monitore riscos legais e operacionais. R
 
 O **Greenly** é um monorepo com backend, frontend e contratos compartilhados para operar o dia a dia de consultorias ambientais e de seus clientes.
 
----
+## Para ir direto ao ponto
 
-### 🚀 Quick Start (Subir com 1 Comando)
+- Quer subir tudo rápido: vá para **Quick Start**.
+- Quer desenvolver com hot reload: vá para **Rodando localmente**.
+- Quer entender o papel de cada tecnologia: vá para **Stack tecnológica**.
+- Quer ver endpoints principais: vá para **Endpoints de maior relevância hoje**.
+- Quer ver variáveis de ambiente: vá para **Variáveis de ambiente importantes**.
+- Quer comandos do dia a dia: vá para **Comandos úteis**.
+
+## 🚀 Quick Start (2 minutos)
 
 A maneira mais rápida de rodar o ecossistema inteiro com zero dependências host (apenas Docker instalado) é:
 
@@ -45,7 +52,7 @@ cd Greenly
 docker compose up -d --build
 ```
 
-> **Zero config:** O container da API executa automaticamente `db:push` (schema), `db:seed` (dados de referência) e `db:seed:master-user` (usuário admin) no boot. Não é necessário rodar nenhum comando manual no banco.
+> **Zero config:** O container da API executa automaticamente `db:sync:clean` + `db:audit` (paridade), depois `db:seed` e `db:seed:master-user` no boot. Para forçar migrações no boot, use `DB_MIGRATE_ON_BOOT=true`.
 
 **Seus ambientes estarão disponíveis instantaneamente:**
 - 🌍 **Landing Page:** [http://localhost:8081](http://localhost:8081)
@@ -55,6 +62,15 @@ docker compose up -d --build
 
 **Usuário Master padrão:** `admin@greenly.app` / `greenly123`
 
+### Fluxos comuns
+
+| Objetivo | Faça isso |
+| --- | --- |
+| Quero só abrir o sistema | `docker compose up -d --build` e acesse `http://localhost:8080` |
+| Quero rodar API e frontend em modo dev | Veja **Rodando localmente > Opção 2** |
+| Quero garantir banco consistente | Rode `db:sync:clean` + `db:audit` no `@greenly/api` |
+| Quero restaurar usuário admin | Rode `pnpm user:seed-master` |
+
 ---
 
 Hoje o produto cobre, de forma integrada:
@@ -62,9 +78,22 @@ Hoje o produto cobre, de forma integrada:
 - gestão de clientes, instalações e visão micro por cliente;
 - licenças ambientais e condicionantes com monitoramento de prazo;
 - operação de resíduos com MTR, CDF, parceiros e rastreabilidade;
+- agenda ambiental interativa com tarefas em calendário e Kanban;
 - pipeline documental com ingestão, classificação, revisão humana e métricas de qualidade;
 - integrações governamentais homologáveis com `SINIR` e `SIGOR`;
 - alertas, auditoria, telemetria e dashboards operacionais.
+
+## Diferenciais do Greenly hoje
+
+Referência validada no código: **2026-04-04**
+
+- **Operação fim a fim no mesmo fluxo**: cliente, licença, condicionante, MTR/CDF, documento, tarefa e alerta conectados sem troca de sistema.
+- **Agenda híbrida (Calendário + Kanban)**: tarefas arrastáveis, ajuste de janela por horário e vínculo direto com licenças/MTRs/cliente.
+- **Rastreabilidade de resíduos orientada a integração**: emissão com regras SINIR v1.10, vínculo operacional de parceiros e reconciliação técnica.
+- **Confiabilidade de integração governamental**: filas dedicadas, retries, reconciliação automática, webhook com deduplicação e DLQ.
+- **Documento como gerador de ação**: classificação, revisão por campo, reprocessamento com SLA e sugestão de condicionantes candidatas.
+- **Visão executiva sem perder detalhe operacional**: dashboard com drill-down até o item de origem, risco consolidado e urgências acionáveis.
+- **Base regulatória pronta para uso**: ~4k órgãos ambientais + ~2.5k tipos de resíduos (NBR 10.004) para acelerar onboarding.
 
 ## Status atual do produto
 
@@ -128,6 +157,7 @@ Documentos de referência do estado atual:
 - ingestão com idempotência por hash;
 - classificação heurística;
 - revisão humana por campo;
+- fluxo de aceite com pré-visualização e aplicação assistida no CRUD (Licença, MTR e Condicionantes);
 - sugestão de condicionantes candidatas;
 - reprocessamento com SLA;
 - dashboards de pipeline e qualidade.
@@ -143,41 +173,60 @@ Documentos de referência do estado atual:
 
 ## Stack tecnológica
 
-### Backend
+Resumo rápido:
 
-- `Node.js`
-- `TypeScript`
-- `Express 5`
-- `Drizzle ORM`
-- `postgres`
-- `Redis + BullMQ`
-- `Zod`
-- `jsonwebtoken`
-- `bcryptjs`
-- `winston`
-- `node-cron`
-- `multer`
+- `PostgreSQL`: banco principal (dados transacionais).
+- `Redis + BullMQ`: filas e processamento assíncrono (alertas, e-mail, documentos, governo).
+- `node-cron`: agendamentos automáticos (varreduras e reconciliação).
+- `Nginx`: entrega do frontend e proxy `/api` no container `web`.
+- `MailHog`: caixa SMTP local para inspecionar e-mails.
 
-### Frontend
+### Mapa de tecnologias (o que cada uma faz no código)
 
-- `React 18`
-- `Vite 8`
-- `React Router`
-- `@tanstack/react-query`
-- `react-hook-form`
-- `Zod`
-- `Radix UI`
-- `Tailwind CSS`
-- `Recharts`
-- `Framer Motion`
+| Tecnologia | Onde está no código | Papel no Greenly |
+| --- | --- | --- |
+| `Node.js 20` | `api.Dockerfile`, `web.Dockerfile`, `site.Dockerfile` | Runtime do backend e etapa de build dos frontends. |
+| `TypeScript` | `apps/api`, `apps/web`, `apps/site`, `packages/shared` | Linguagem principal do monorepo, tipando API, SPA e contratos compartilhados. |
+| `Express 5` | `apps/api/src/app.ts`, `apps/api/src/shared/router.ts` | HTTP server da API REST (`/api`, `/health`, middlewares e roteamento). |
+| `helmet` | `apps/api/src/app.ts` | Headers de segurança HTTP da API. |
+| `cors` | `apps/api/src/app.ts` | Controle de origem permitida para consumo do frontend (`CORS_ORIGIN`). |
+| `compression` | `apps/api/src/app.ts` | Compressão gzip das respostas da API. |
+| `Drizzle ORM` | `apps/api/src/db/index.ts`, `apps/api/src/db/schema/*` | Mapeamento de schema PostgreSQL e queries tipadas nos repositórios. |
+| `drizzle-kit` | `apps/api/package.json` (`db:generate`, `db:migrate`, `db:push`) | Geração/aplicação de migrações e sincronização de schema. |
+| `postgres` (driver) | `apps/api/src/db/index.ts` | Conexão low-level com PostgreSQL usada pelo Drizzle. |
+| `PostgreSQL 16` | `docker-compose.yml` (`service: postgres`) | Banco principal de dados transacionais (usuários, licenças, MTR, CDF, etc.). |
+| `Redis 7` | `docker-compose.yml` (`service: redis`) | Infra de filas e estado de processamento assíncrono (via BullMQ). |
+| `ioredis` | `apps/api/src/shared/redis.ts` | Cliente Redis com reconexão e conexão compartilhada/dedicada para workers. |
+| `BullMQ` | `apps/api/src/shared/bullmq.ts`, `apps/api/src/shared/jobs/*` | Filas e workers de alertas, e-mail, documentos e integrações governamentais. |
+| `node-cron` | `apps/api/src/shared/jobs/*Cron.ts` | Agendamento periódico (varredura, reconciliação, retenção e atualização de status). |
+| `nodemailer` | `apps/api/src/shared/EmailService.ts` | Envio de e-mails transacionais disparados por workers. |
+| `MailHog` | `docker-compose.yml` (`service: mailhog`) | SMTP/Web UI local para visualizar e-mails de desenvolvimento. |
+| `jsonwebtoken` | `apps/api/src/modules/auth/auth.service.ts`, `apps/api/src/shared/authMiddleware.ts` | Emissão e validação de JWT de autenticação. |
+| `bcryptjs` | `apps/api/src/modules/auth/auth.service.ts`, `apps/api/src/db/seed*.ts` | Hash e verificação de senha. |
+| `Zod` | `packages/shared/src/contracts.ts`, controllers da API | Validação de contratos de entrada/saída e erros de validação. |
+| `winston` | `apps/api/src/shared/logger.ts` | Logging estruturado da API e dos jobs. |
+| `multer` | `apps/api/src/modules/documento/documento.routes.ts` | Upload de arquivos no pipeline documental. |
+| `React 18` | `apps/web/src/*`, `apps/site/src/*` | Base do frontend da plataforma (`web`) e da landing (`site`). |
+| `Vite 8` | `apps/web/package.json`, `apps/site/package.json` | Dev server e build das aplicações frontend. |
+| `React Router` | `apps/web/src/App.tsx` | Roteamento SPA (rotas protegidas e módulos da plataforma). |
+| `@tanstack/react-query` | `apps/web/src/App.tsx`, `apps/web/src/features/**/hooks` | Fetch/caching de dados de API e invalidação pós-mutation. |
+| `axios` | `apps/web/src/lib/api.ts` | Cliente HTTP da SPA com interceptors de token e tratamento de `401`. |
+| `react-hook-form` | `apps/web/src/components/ui/form.tsx`, formulários de features | Estado/validação de formulários no frontend. |
+| `Radix UI` + `cmdk` | `apps/web/src/components/ui/*` | Primitivos de UI acessíveis (dialogs, menus, popovers, command palette etc.). |
+| `Tailwind CSS` | `apps/web/tailwind.config.ts`, `apps/site/tailwind.config.ts` | Sistema de estilos utilitário para `web` e `site`. |
+| `Recharts` | `apps/web/src/features/dashboard/components/*Chart*.tsx` | Gráficos do dashboard e painéis analíticos. |
+| `Framer Motion` | páginas/componentes em `apps/web/src` e `apps/site/src` | Animações de transição e microinterações visuais. |
+| `next-themes` | `apps/web/src/components/theme-provider.tsx` | Provider de tema da SPA (`ThemeProvider`). |
+| `Nginx` | `web.Dockerfile`, `site.Dockerfile`, `apps/web/nginx.conf` | Servir assets estáticos e, no `web`, proxy de `/api` para `api:3333`. |
+| `Docker Compose` | `docker-compose.yml` | Orquestra API, web, site, postgres, redis e mailhog localmente. |
+| `pnpm workspaces` | `pnpm-workspace.yaml`, `package.json` raiz | Gestão monorepo e compartilhamento de dependências entre apps/pacotes. |
+| `Vitest` | `apps/api/vitest.config.ts`, `apps/web/vitest.config.ts` | Testes unitários e de integração dos workspaces. |
+| `Playwright` | `apps/web/playwright.config.ts` | Base para testes E2E da SPA (quando acionados). |
 
-### Infra local
+### Sequência de boot da API em Docker
 
-- `Docker Compose`
-- `PostgreSQL 16`
-- `Redis 7`
-- `MailHog`
-- `Nginx` no container web
+- `scripts/docker-entrypoint-api.sh` executa no boot: `db:migrate` (opcional), `db:sync:clean`, `db:audit`, `db:seed` e `db:seed:master-user`.
+- Só depois disso a API sobe com `node dist/server.js`.
 
 ## Arquitetura
 
@@ -244,6 +293,8 @@ greenly/
 
 - `/login`
 - `/`
+- `/agenda`
+- `/tarefas`
 - `/clientes` e `/clientes/:id`
 - `/licencas` e `/licencas/:id`
 - `/condicionantes` e `/condicionantes/:id`
@@ -293,7 +344,7 @@ greenly/
 
 - `GET /api/tasks`: listagem das tarefas do usuário (ordenadas por posição)
 - `POST /api/tasks`: criação de tarefa (suporta vínculos com MTR/Licença)
-- `PUT /api/tasks/:id`: atualização parcial (incluindo horários e antecedência)
+- `PATCH /api/tasks/:id`: atualização parcial (incluindo status, posição, horários e antecedência)
 - `DELETE /api/tasks/:id`: exclusão lógica
 
 ### Dashboard
@@ -311,17 +362,25 @@ greenly/
 - `GET /api/documentos/templates-requisitos`
 - `PUT /api/documentos/templates-requisitos`
 - `POST /api/documentos/ingestao`
+- `GET /api/documentos/reprocessamentos/metricas`
 - `GET /api/documentos/revisao/pendentes`
 - `GET /api/documentos/:processamentoDocumentoId/revisao`
 - `POST /api/documentos/:processamentoDocumentoId/revisao`
 - `POST /api/documentos/:processamentoDocumentoId/reprocessar`
 - `GET /api/documentos/:processamentoDocumentoId/condicionantes-candidatas`
+- `POST /api/documentos/classificar`
+- `POST /api/documentos/validar-geoespacial`
 
 ### Integrações governamentais
 
 - `GET /api/integracoes/governo/dashboard`
+- `GET /api/integracoes/governo/mtrs/:id`
+- `GET /api/integracoes/governo/cdfs/:id`
 - `POST /api/integracoes/governo/mtrs/:id/enviar` (suporta v1.10)
 - `POST /api/integracoes/governo/cdfs/:id/enviar`
+- `POST /api/integracoes/governo/mtrs/:id/reconciliar`
+- `POST /api/integracoes/governo/cdfs/:id/reconciliar`
+- `POST /api/integracoes/governo/webhooks/:system`
 
 ### IBAMA e Saneamento
 
@@ -343,7 +402,73 @@ greenly/
 
 ## Rodando localmente
 
-### Portas padrão
+### Opção 1: tudo com Docker (recomendado)
+
+É o caminho mais simples para validar o sistema inteiro.
+
+```bash
+docker compose up -d --build
+```
+
+Após subir:
+
+1. **Landing Page:** [http://localhost:8081](http://localhost:8081)
+2. **Plataforma Web:** [http://localhost:8080](http://localhost:8080)
+3. **API Healthcheck:** [http://localhost:3333/health](http://localhost:3333/health)
+4. **MailHog:** [http://localhost:8025](http://localhost:8025)
+
+### Opção 2: desenvolvimento com hot reload
+
+Use esta opção quando você for alterar código no dia a dia.
+
+Pré-requisitos:
+
+- `Node.js 20+`
+- `pnpm`
+- `Docker` com `docker compose`
+
+Setup:
+
+```bash
+git clone <repo>
+cd Greenly
+
+pnpm install
+cp apps/api/.env.example apps/api/.env
+printf "VITE_API_URL=http://localhost:3333/api\n" > apps/web/.env
+```
+
+Ajuste `apps/api/.env`:
+
+```bash
+DATABASE_URL=postgresql://postgres:greenly@localhost:5435/greenly
+APP_URL=http://localhost:8080
+API_URL=http://localhost:3333
+CORS_ORIGIN=http://localhost:8080
+```
+
+Suba só infraestrutura:
+
+```bash
+docker compose up -d postgres redis mailhog
+```
+
+Prepare o banco:
+
+```bash
+pnpm --filter @greenly/api db:migrate
+pnpm --filter @greenly/api db:sync:clean
+pnpm --filter @greenly/api db:audit
+pnpm --filter @greenly/api db:seed
+```
+
+Inicie os apps:
+
+```bash
+pnpm dev
+```
+
+### Portas padrão (referência)
 
 - `site` (Landing Page): `http://localhost:8081`
 - `web` (Plataforma B2B): `http://localhost:8080`
@@ -351,70 +476,6 @@ greenly/
 - `postgres`: `localhost:5435`
 - `redis`: `localhost:6379`
 - `mailhog`: `http://localhost:8025`
-
-### Pré-requisitos
-
-- `Node.js 20+`
-- `pnpm`
-- `Docker` com `docker compose`
-
-### Setup recomendado para desenvolvimento
-
-```bash
-git clone <repo>
-cd Greenly
-
-pnpm install
-
-cp apps/api/.env.example apps/api/.env
-printf "VITE_API_URL=http://localhost:3333/api\n" > apps/web/.env
-```
-
-Ajuste `apps/api/.env` para o ambiente local com Docker Compose:
-
-```bash
-DATABASE_URL=postgresql://postgres:greenly@localhost:5435/greenly
-APP_URL=http://localhost:8080
-API_URL=http://localhost:3333
-```
-
-Opcionalmente, se quiser alinhar CORS de forma explícita:
-
-```bash
-CORS_ORIGIN=http://localhost:8080
-```
-
-Suba a infraestrutura:
-
-```bash
-docker compose up -d postgres redis mailhog
-```
-
-Prepare a base:
-
-```bash
-pnpm --filter @greenly/api db:push
-pnpm --filter @greenly/api db:seed # Órgãos ambientais, Resíduos e Master User
-```
-
-Inicie frontend e backend:
-
-```bash
-pnpm dev
-```
-
-### Subir tudo em containers (Docker)
-
-Esta é a maneira mais simples de rodar todo o ecossistema (Landing Page, Plataforma, API e Backends). 
-
-```bash
-docker compose up -d --build
-```
-
-Após o container subir, abra no navegador:
-1. **Landing Page:** [http://localhost:8081](http://localhost:8081)
-2. **Plataforma Web:** [http://localhost:8080](http://localhost:8080)
-3. **API Healthcheck:** [http://localhost:3333/health](http://localhost:3333/health)
 
 ## Comandos úteis
 
@@ -438,7 +499,9 @@ pnpm --filter @greenly/api build
 pnpm --filter @greenly/api lint
 pnpm --filter @greenly/api typecheck
 pnpm --filter @greenly/api test
-pnpm --filter @greenly/api db:push
+pnpm --filter @greenly/api db:migrate
+pnpm --filter @greenly/api db:sync:clean
+pnpm --filter @greenly/api db:audit
 pnpm --filter @greenly/api db:seed
 pnpm --filter @greenly/api db:seed:fake
 pnpm --filter @greenly/api db:seed:fake:cleanup
@@ -538,6 +601,7 @@ Entrada rápida:
 
 - `docs/README.md`: índice da documentação viva
 - `docs/plano_acao_benchmarking_ambisis.md`: plano mestre por ondas e sprints
+- `docs/OBRIGACOES_AMBIENTAIS_OFICIAIS.md`: padrão oficial das obrigações ambientais implementadas
 
 ## Roadmap resumido
 
@@ -551,8 +615,8 @@ Situação atual do plano:
 
 Backlog já registrado para depois:
 
-- integrações ambientais gratuitas e oficiais como `INMET`, `ANA/SNIRH`, `INPE Queimadas`, `TerraBrasilis`, `MMA/CNUC`, `IBAMA` e base territorial `IBGE + CEP/CNPJ`;
-- itens comerciais e operacionais do pós-plano em `docs/backlog_pos_plano_acao.md`.
+- integrações ambientais gratuitas e oficiais como `INMET`, `ANA/SNIRH`, `INPE Queimadas`, `TerraBrasilis`, `MMA/CNUC` e base territorial `IBGE + CEP/CNPJ`;
+- evolução dos pacotes comerciais e operacionais no plano mestre (`docs/plano_acao_benchmarking_ambisis.md`).
 
 ## Contribuindo
 

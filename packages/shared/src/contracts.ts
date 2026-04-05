@@ -395,6 +395,13 @@ export const ReprocessarDocumentoSchema = z.object({
 })
 export type ReprocessarDocumentoDTO = z.infer<typeof ReprocessarDocumentoSchema>
 
+export const AplicarDocumentoCrudSchema = z.object({
+  aplicarLicenca: z.boolean().default(true),
+  aplicarMtr: z.boolean().default(true),
+  aplicarCondicionantes: z.boolean().default(true),
+})
+export type AplicarDocumentoCrudDTO = z.infer<typeof AplicarDocumentoCrudSchema>
+
 export const StatusReprocessamentoDocumentoSchema = z.enum(statusReprocessamentoDocumentoValues)
 
 export const DocumentoReprocessamentoMetricasQuerySchema = z.object({
@@ -521,6 +528,173 @@ export interface CondicionanteListItemDTO {
   diasRestantes?: number | null
 }
 
+// ─── Obrigações Ambientais ─────────────
+export const obrigacaoAmbientalModuloValues = [
+  'IBAMA',
+  'RESIDUOS',
+  'EMISSOES_ATMOSFERICAS',
+  'IAT',
+] as const
+export const ObrigacaoAmbientalModuloSchema = z.enum(obrigacaoAmbientalModuloValues)
+
+export const obrigacaoAmbientalTipoValues = [
+  'IBAMA_CTF',
+  'IBAMA_TCFA',
+  'IBAMA_RAPP',
+  'SINIR_INVENTARIO_NACIONAL',
+  'SINIR_DMR',
+  'GEE_INVENTARIO',
+  'IAT_INVENTARIO_RESIDUOS_INDUSTRIAIS',
+  'IAT_DECLARACAO_CARGA_POLUIDORA',
+  'IAT_DECLARACAO_EMISSOES_ATMOSFERICAS',
+  'OUTRA',
+] as const
+export const ObrigacaoAmbientalTipoSchema = z.enum(obrigacaoAmbientalTipoValues)
+
+export const obrigacaoAmbientalStatusValues = [
+  'PENDENTE',
+  'EM_PREENCHIMENTO',
+  'ENTREGUE',
+  'ATRASADA',
+  'DISPENSADA',
+] as const
+export const ObrigacaoAmbientalStatusSchema = z.enum(obrigacaoAmbientalStatusValues)
+
+export const obrigacaoAmbientalPeriodicidadeValues = [
+  'MENSAL',
+  'TRIMESTRAL',
+  'SEMESTRAL',
+  'ANUAL',
+  'BIENAL',
+  'SOB_DEMANDA',
+] as const
+export const ObrigacaoAmbientalPeriodicidadeSchema = z.enum(obrigacaoAmbientalPeriodicidadeValues)
+
+export const obrigacaoAmbientalObrigatoriedadeValues = [
+  'OBRIGATORIA',
+  'CONDICIONAL',
+  'VOLUNTARIA',
+] as const
+export const ObrigacaoAmbientalObrigatoriedadeSchema = z.enum(
+  obrigacaoAmbientalObrigatoriedadeValues,
+)
+
+export const CriarObrigacaoAmbientalSchema = z.object({
+  clienteId: z.string().uuid(),
+  modulo: ObrigacaoAmbientalModuloSchema,
+  tipo: ObrigacaoAmbientalTipoSchema,
+  titulo: z.string().min(2),
+  subtitulo: z.string().optional(),
+  descricao: z.string().optional(),
+  orgao: z.string().optional(),
+  portalUrl: z.string().url().optional(),
+  periodicidade: ObrigacaoAmbientalPeriodicidadeSchema.optional(),
+  competenciaAno: z.number().int().min(2000).max(2100).optional(),
+  competenciaMes: z.number().int().min(1).max(12).optional(),
+  competenciaTrimestre: z.number().int().min(1).max(4).optional(),
+  dataLimite: z.coerce.date().optional(),
+  dataEntrega: z.coerce.date().optional(),
+  status: ObrigacaoAmbientalStatusSchema.optional(),
+  protocolo: z.string().optional(),
+  comprovanteUrl: z.string().optional(),
+  observacoes: z.string().optional(),
+})
+export type CriarObrigacaoAmbientalDTO = z.infer<typeof CriarObrigacaoAmbientalSchema>
+
+export const AtualizarObrigacaoAmbientalSchema = CriarObrigacaoAmbientalSchema
+  .omit({ clienteId: true, modulo: true, tipo: true })
+  .extend({
+    status: ObrigacaoAmbientalStatusSchema.optional(),
+  })
+  .partial()
+export type AtualizarObrigacaoAmbientalDTO = z.infer<typeof AtualizarObrigacaoAmbientalSchema>
+
+export const ListarObrigacoesAmbientaisQuerySchema = z.object({
+  clienteId: z.string().uuid().optional(),
+  modulo: ObrigacaoAmbientalModuloSchema.optional(),
+  status: ObrigacaoAmbientalStatusSchema.optional(),
+  ano: z.coerce.number().int().min(2000).max(2100).optional(),
+  somenteAtrasadas: z
+    .preprocess((value) => {
+      if (value === 'true' || value === true) return true
+      if (value === 'false' || value === false) return false
+      return undefined
+    }, z.boolean().optional())
+    .optional(),
+  busca: z.string().optional(),
+})
+export type ListarObrigacoesAmbientaisQueryDTO = z.infer<typeof ListarObrigacoesAmbientaisQuerySchema>
+
+export const ListarPadroesObrigacoesAmbientaisQuerySchema = z.object({
+  modulo: ObrigacaoAmbientalModuloSchema.optional(),
+  ano: z.coerce.number().int().min(2000).max(2100).default(new Date().getFullYear()),
+})
+export type ListarPadroesObrigacoesAmbientaisQueryDTO = z.infer<
+  typeof ListarPadroesObrigacoesAmbientaisQuerySchema
+>
+
+export const InicializarObrigacoesPadraoSchema = z.object({
+  ano: z.coerce.number().int().min(2000).max(2100).default(new Date().getFullYear()),
+})
+export type InicializarObrigacoesPadraoDTO = z.infer<typeof InicializarObrigacoesPadraoSchema>
+
+export interface ObrigacaoAmbientalResponseDTO {
+  id: string
+  clienteId: string
+  modulo: (typeof obrigacaoAmbientalModuloValues)[number]
+  tipo: (typeof obrigacaoAmbientalTipoValues)[number]
+  titulo: string
+  subtitulo?: string | null
+  descricao?: string | null
+  orgao?: string | null
+  portalUrl?: string | null
+  periodicidade: (typeof obrigacaoAmbientalPeriodicidadeValues)[number]
+  competenciaAno?: number | null
+  competenciaMes?: number | null
+  competenciaTrimestre?: number | null
+  dataLimite?: Date | null
+  dataEntrega?: Date | null
+  status: (typeof obrigacaoAmbientalStatusValues)[number]
+  protocolo?: string | null
+  comprovanteUrl?: string | null
+  observacoes?: string | null
+  criadoEm: Date
+  atualizadoEm: Date
+}
+
+export interface ObrigacaoAmbientalResumoModuloDTO {
+  modulo: (typeof obrigacaoAmbientalModuloValues)[number]
+  total: number
+  pendentes: number
+  atrasadas: number
+  entregues: number
+  taxaConclusaoPct: number
+}
+
+export interface ObrigacaoAmbientalFonteOficialDTO {
+  titulo: string
+  url: string
+}
+
+export interface ObrigacaoAmbientalPadraoOficialDTO {
+  modulo: (typeof obrigacaoAmbientalModuloValues)[number]
+  tipo: (typeof obrigacaoAmbientalTipoValues)[number]
+  titulo: string
+  subtitulo?: string | null
+  descricao?: string | null
+  orgao?: string | null
+  portalUrl?: string | null
+  periodicidade: (typeof obrigacaoAmbientalPeriodicidadeValues)[number]
+  obrigatoriedade: (typeof obrigacaoAmbientalObrigatoriedadeValues)[number]
+  competenciaAno: number
+  competenciaMes?: number | null
+  competenciaTrimestre?: number | null
+  dataLimite?: Date | null
+  regraPrazo: string
+  baseLegal?: string | null
+  fontes: ObrigacaoAmbientalFonteOficialDTO[]
+}
+
 // ─── Resíduos ───────────────────────────
 export const MTRResiduoItemSchema = z.object({
   tipoResiduoId: z.string().uuid().optional(),
@@ -559,7 +733,7 @@ export type MTRResiduoItemDTO = z.infer<typeof MTRResiduoItemSchema>
 
 export const EmitirMTRSchema = z.object({
   clienteId: z.string().uuid(),
-  fonteGeradoraId: z.string().uuid(),
+  fonteGeradoraId: z.string().uuid().optional(),
   transportadoraId: z.string().uuid(),
   destinadorId: z.string().uuid(),
   tipoDestinacao: z.enum([
@@ -593,7 +767,7 @@ export type EmitirMTRDTO = z.infer<typeof EmitirMTRSchema>
 
 export const AtualizarMTRSchema = z.object({
   clienteId: z.string().uuid().optional(),
-  fonteGeradoraId: z.string().uuid().optional(),
+  fonteGeradoraId: z.string().uuid().optional().nullable(),
   transportadoraId: z.string().uuid().optional(),
   destinadorId: z.string().uuid().optional(),
   tipoDestinacao: z.enum([
@@ -626,7 +800,7 @@ export interface MTRResponseDTO {
   numeroMTR?: string | null
   status: string
   clienteId: string
-  fonteGeradoraId: string
+  fonteGeradoraId?: string | null
   transportadoraId: string
   destinadorId: string
   tipoDestinacao: string

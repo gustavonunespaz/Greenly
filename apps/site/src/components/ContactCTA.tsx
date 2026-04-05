@@ -46,24 +46,24 @@ export default function ContactCTA() {
           {/* Left — CTA content */}
           <div>
             <span className={`inline-block px-4 py-1.5 rounded-full bg-greenly-50 border border-greenly-200 text-greenly-700 text-sm font-medium mb-6 transition-all duration-700 shadow-sm ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              Comece agora
+              Entrada assistida
             </span>
             <h2 className={`section-title mb-6 transition-all duration-700 delay-100 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              Pronto para eliminar{' '}
-              <span className="gradient-text">riscos ambientais?</span>
+              Vamos colocar sua operação
+              <span className="gradient-text"> em produção com segurança?</span>
             </h2>
             <p className={`section-subtitle mb-10 transition-all duration-700 delay-200 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-              Fale com um especialista e descubra como a Greenly pode transformar 
-              a operação da sua consultoria. Demonstração personalizada e gratuita.
+              Mostramos os módulos que já estão ativos para o seu cenário e desenhamos um
+              plano de adoção com migração progressiva.
             </p>
 
             {/* Value props */}
             <div className={`space-y-4 transition-all duration-700 delay-300 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
               {[
-                'Demonstração personalizada para seu cenário',
-                'Setup assistido e migração de dados inclusos',
-                'Sem contrato de fidelidade — cancele quando quiser',
-                'Suporte humanizado durante todo o período',
+                'Demonstração orientada à sua operação atual',
+                'Plano de onboarding com dados e responsabilidades',
+                'Acompanhamento de implantação por etapas',
+                'Suporte técnico para evolução contínua',
               ].map((item) => (
                 <div key={item} className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-greenly-600 flex-shrink-0 mt-0.5" />

@@ -242,6 +242,82 @@ export interface RevisarDocumentoResponseDTO {
   revisadoEm: Date
 }
 
+export interface DocumentoCrudLicencaSugestaoDTO {
+  licencaId: string | null
+  numeroLicenca: string | null
+  payloadAtualizacao: {
+    numeroLicenca?: string
+    numeroProcesso?: string
+    orgaoAmbientalId?: string
+    dataEmissao?: Date
+    dataValidade?: Date
+  }
+  condicionantesSugeridas: Array<{
+    codigo?: string | null
+    descricao: string
+    tipo: 'PERIODICA' | 'PONTUAL'
+    periodicidade:
+      | 'SEMANAL'
+      | 'MENSAL'
+      | 'BIMESTRAL'
+      | 'TRIMESTRAL'
+      | 'SEMESTRAL'
+      | 'ANUAL'
+      | null
+    prazo: Date | null
+    diaVencimento?: number | null
+    inicioPeriodicidade?: Date | null
+    confianca: number
+    justificativa: string
+    trechoOrigem?: string | null
+  }>
+  camposMapeados: CampoDocumentoAmbiental[]
+  pendencias: string[]
+}
+
+export interface DocumentoCrudMtrSugestaoDTO {
+  mtrId: string | null
+  numeroMTR: string | null
+  payloadAtualizacao: {
+    numeroMTR?: string
+    dataEmissao?: Date
+    volume?: number
+    unidadeMedida?: 'KG' | 'TON' | 'LITRO' | 'M3' | 'UNIDADE'
+  }
+  itemResiduo?: {
+    descricao?: string
+    codigoIbama?: string
+    quantidade?: number
+    unidadeMedida?: 'KG' | 'TON' | 'LITRO' | 'M3' | 'UNIDADE'
+  }
+  camposMapeados: CampoDocumentoAmbiental[]
+  pendencias: string[]
+}
+
+export interface DocumentoCrudSugestaoResponseDTO {
+  processamentoDocumentoId: string
+  tipoDocumento: TipoDocumentoAmbiental
+  origemDados: 'REVISAO_HUMANA' | 'EXTRACAO_AUTOMATICA'
+  licenca: DocumentoCrudLicencaSugestaoDTO | null
+  mtr: DocumentoCrudMtrSugestaoDTO | null
+  avisos: string[]
+}
+
+export interface DocumentoCrudAplicacaoResultadoDTO {
+  aplicado: boolean
+  entidadeId: string | null
+  entidadeTipo: 'LICENCA' | 'MTR' | 'CONDICIONANTE'
+  camposAtualizados: string[]
+  mensagem: string
+}
+
+export interface AplicarDocumentoCrudResponseDTO {
+  processamentoDocumentoId: string
+  aplicacaoEm: Date
+  resultados: DocumentoCrudAplicacaoResultadoDTO[]
+  avisos: string[]
+}
+
 export interface DocumentoQualidadeTipoItemDTO {
   tipo: TipoDocumentoAmbiental
   revisados: number

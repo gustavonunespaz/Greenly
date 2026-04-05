@@ -83,7 +83,9 @@ pnpm install
 cp apps/api/.env.example apps/api/.env
 echo "VITE_API_URL=http://localhost:3333/api" > apps/web/.env
 docker compose up -d postgres redis mailhog
-pnpm --filter @greenly/api db:push
+pnpm --filter @greenly/api db:migrate
+pnpm --filter @greenly/api db:sync:clean
+pnpm --filter @greenly/api db:audit
 pnpm --filter @greenly/api db:seed # Inclui órgãos ambientais e tipos de resíduos (NBR 10.004)
 pnpm dev
 ```

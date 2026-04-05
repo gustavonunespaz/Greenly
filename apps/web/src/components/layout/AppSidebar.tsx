@@ -3,14 +3,13 @@ import {
   FileCheck,
   Truck,
   FileSearch,
-  ClipboardList,
   Building2,
   Settings,
   Bell,
   LogOut,
   ChevronRight,
   CalendarDays,
-  CheckSquare,
+  ShieldCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -24,20 +23,98 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { motion } from "framer-motion";
 import { ClienteContextSelector } from "@/features/clientes/components/ClienteContextSelector";
 
-const mainNav = [
+type NavChild = {
+  title: string
+  url: string
+  match?: (location: { pathname: string; search: string }) => boolean
+}
+
+type NavItem = {
+  title: string
+  url: string
+  icon: any
+  children?: NavChild[]
+}
+
+function isRouteActive(
+  pathname: string,
+  search: string,
+  url: string,
+  options?: { exactPath?: boolean },
+) {
+  const [urlPath, rawQuery] = url.split('?')
+  const isRoot = urlPath === '/'
+  const pathMatches = options?.exactPath
+    ? pathname === urlPath
+    : isRoot
+      ? pathname === '/'
+      : pathname.startsWith(urlPath)
+
+  if (!pathMatches) return false
+  if (!rawQuery) return true
+
+  const expectedQuery = new URLSearchParams(rawQuery)
+  const currentQuery = new URLSearchParams(search)
+  for (const [key, value] of expectedQuery.entries()) {
+    if (currentQuery.get(key) !== value) return false
+  }
+  return true
+}
+
+const mainNav: NavItem[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Clientes", url: "/clientes", icon: Building2 },
-  { title: "Agenda", url: "/agenda", icon: CalendarDays },
-  { title: "Tarefas", url: "/tarefas", icon: CheckSquare },
-  { title: "Licenças", url: "/licencas", icon: FileCheck },
-  { title: "Condicionantes", url: "/condicionantes", icon: ClipboardList },
-  { title: "Resíduos", url: "/mtrs", icon: Truck },
+  {
+    title: "Agenda",
+    url: "/agenda",
+    icon: CalendarDays,
+    children: [
+      { title: "Tarefas (Kanban)", url: "/tarefas" },
+    ],
+  },
+  {
+    title: "Licenças",
+    url: "/licencas",
+    icon: FileCheck,
+    children: [
+      { title: "Condicionantes", url: "/condicionantes" },
+    ],
+  },
+  { title: "Operação de Resíduos", url: "/mtrs", icon: Truck },
+  {
+    title: "Obrigações Oficiais",
+    url: "/obrigacoes/ibama",
+    icon: ShieldCheck,
+    children: [
+      { title: "IBAMA · CTF", url: "/obrigacoes/ibama?tipo=IBAMA_CTF" },
+      { title: "IBAMA · TCFA", url: "/obrigacoes/ibama?tipo=IBAMA_TCFA" },
+      { title: "IBAMA · RAPP", url: "/obrigacoes/ibama?tipo=IBAMA_RAPP" },
+      { title: "Resíduos · SINIR Inventário", url: "/obrigacoes/residuos?tipo=SINIR_INVENTARIO_NACIONAL" },
+      { title: "Resíduos · SINIR DMR", url: "/obrigacoes/residuos?tipo=SINIR_DMR" },
+      {
+        title: "Resíduos · IAT Inventário Industrial",
+        url: "/obrigacoes/residuos?tipo=IAT_INVENTARIO_RESIDUOS_INDUSTRIAIS",
+      },
+      { title: "Emissões · Inventário GEE", url: "/obrigacoes/emissoes?tipo=GEE_INVENTARIO" },
+      {
+        title: "Emissões · IAT Carga Poluidora",
+        url: "/obrigacoes/emissoes?tipo=IAT_DECLARACAO_CARGA_POLUIDORA",
+      },
+      {
+        title: "Emissões · IAT Emissões Atmosféricas",
+        url: "/obrigacoes/emissoes?tipo=IAT_DECLARACAO_EMISSOES_ATMOSFERICAS",
+      },
+    ],
+  },
   { title: "Documentos", url: "/documentos", icon: FileSearch },
 ];
 
@@ -97,9 +174,14 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainNav.map((item) => {
-                const active = item.url === "/"
-                  ? location.pathname === "/"
-                  : location.pathname.startsWith(item.url);
+                const childActive =
+                  item.children?.some((child) =>
+                    child.match
+                      ? child.match(location)
+                      : isRouteActive(location.pathname, location.search, child.url, { exactPath: true }),
+                  ) ?? false
+                const selfActive = isRouteActive(location.pathname, location.search, item.url)
+                const active = selfActive || childActive
                 
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -127,6 +209,24 @@ export function AppSidebar() {
                         )}
                       </NavLink>
                     </SidebarMenuButton>
+                    {!collapsed && item.children?.length ? (
+                      <SidebarMenuSub>
+                        {item.children.map((child) => {
+                          const childIsActive = child.match
+                            ? child.match(location)
+                            : isRouteActive(location.pathname, location.search, child.url, { exactPath: true })
+                          return (
+                            <SidebarMenuSubItem key={child.title}>
+                              <SidebarMenuSubButton asChild isActive={childIsActive}>
+                                <NavLink to={child.url} className="text-[12px]">
+                                  <span>{child.title}</span>
+                                </NavLink>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          )
+                        })}
+                      </SidebarMenuSub>
+                    ) : null}
                   </SidebarMenuItem>
                 );
               })}

@@ -5,7 +5,7 @@ export type UnidadeMedida = 'KG' | 'TON' | 'LITRO' | 'M3' | 'UNIDADE'
 export interface MTRDTO {
   id: string
   clienteId: string
-  fonteGeradoraId: string
+  fonteGeradoraId?: string | null
   transportadoraId: string
   destinadorId: string
   numeroMTR?: string | null
@@ -24,7 +24,7 @@ export interface MTRDTO {
 
 export interface CreateMTRDTO {
   clienteId: string
-  fonteGeradoraId: string
+  fonteGeradoraId?: string
   transportadoraId: string
   destinadorId: string
   numeroMTR?: string

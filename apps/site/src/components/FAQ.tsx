@@ -4,36 +4,36 @@ import { ChevronDown } from 'lucide-react'
 
 const faqs = [
   {
-    q: 'A Greenly atende empresas com gestão ambiental interna ou só consultorias?',
-    a: 'Atendemos ambos. A plataforma é projetada para consultorias ambientais, mas também serve empresas que fazem autogestão. Na configuração, você define o tipo de operação e a interface se adapta ao seu perfil.',
+    q: 'A Greenly atende apenas consultorias ambientais?',
+    a: 'Não. O foco principal é consultoria ambiental, mas times internos de compliance também operam bem na plataforma com a mesma base de módulos.',
   },
   {
-    q: 'Como funciona a integração com SINIR e SIGOR?',
-    a: 'Temos adaptadores HTTP dedicados para cada sistema. O envio de MTRs e CDFs é feito pela plataforma com rastreabilidade completa: tentativas, retornos, reconciliação automática e DLQ para erros. Tudo auditável.',
+    q: 'Quais módulos já estão prontos hoje?',
+    a: 'Licenças, condicionantes, resíduos (MTR/CDF), agenda e tarefas, saneamento, IBAMA, pipeline documental, notificações, auditoria e dashboards operacionais.',
   },
   {
-    q: 'Preciso migrar todos os meus dados de uma vez?',
-    a: 'Não. Nosso onboarding é assistido e gradual. Você pode começar com um cliente-piloto, validar os fluxos e depois migrar a carteira inteira. Fornecemos ferramentas de importação e suporte dedicado.',
+    q: 'Como funciona a integração com SINIR e SIGOR na prática?',
+    a: 'A integração já opera com envio, reconciliação e atualização de status. A arquitetura inclui retries, DLQ e webhook deduplicado para manter a operação resiliente.',
   },
   {
-    q: 'Os dados ficam seguros? Como funciona a segregação multi-tenant?',
-    a: 'Cada consultoria opera em um tenant isolado com segregação lógica por consultoriaId em todas as operações. A autenticação usa JWT com refresh token persistido, e toda ação é rastreada em trilha de auditoria.',
+    q: 'Consigo importar dados sem parar a operação atual?',
+    a: 'Sim. O onboarding é assistido e pode começar com uma carteira piloto. A migração é progressiva para evitar ruptura no processo do time.',
   },
   {
-    q: 'Quais documentos a plataforma processa automaticamente?',
-    a: 'Licenças, requerimentos, MTRs, CDFs, documentos IBAMA/CTF/TCFA e mais. A classificação é automática por tipo, com extração de campos e revisão humana quando necessário. O sistema aprende com as correções.',
+    q: 'Existe apoio para cadastro inicial de clientes?',
+    a: 'Sim. O sistema tem consulta de CNPJ para autopreenchimento de dados e integração de localidade (estado, cidade e endereço) para reduzir retrabalho.',
   },
   {
-    q: 'Existe contrato de fidelidade ou período mínimo?',
-    a: 'Não. Nossos planos são mensais e você pode cancelar a qualquer momento. Acreditamos que a permanência deve ser por valor entregue, não por obrigação contratual.',
+    q: 'A plataforma tem rastreabilidade para auditorias?',
+    a: 'Temos trilha de auditoria com eventos críticos, histórico de integrações e logs por entidade para sustentar fiscalização e governança interna.',
   },
   {
-    q: 'A plataforma funciona offline?',
-    a: 'Estamos desenvolvendo o modo offline-first (PWA) para operações de campo. Na versão atual, a plataforma opera 100% online, com performance otimizada para conexões mais lentas.',
+    q: 'Como funcionam alertas e prazos?',
+    a: 'Os alertas são configuráveis por item (`notificacaoDias`) e chegam com ação direta para a tela certa, reduzindo risco de perda de prazo.',
   },
   {
-    q: 'Como funciona o suporte técnico?',
-    a: 'Oferecemos suporte humanizado por chat e e-mail com SLA de resposta. Para planos Enterprise, incluímos gestor de conta dedicado e treinamento periódico da equipe.',
+    q: 'Qual é o modelo de contrato?',
+    a: 'A contratação é mensal, com suporte de implantação. O escopo de acompanhamento varia conforme o plano acordado com o time comercial.',
   },
 ]
 
@@ -48,17 +48,23 @@ export default function FAQ() {
       <div className="absolute inset-0 bg-gradient-to-b from-[#f8fafc] to-white" />
 
       <div ref={ref} className="relative z-10 max-w-4xl mx-auto px-6 lg:px-8">
-        {/* Section header */}
         <div className="text-center mb-16">
-          <span className={`inline-block px-4 py-1.5 rounded-full bg-greenly-50 border border-greenly-200 text-greenly-700 text-sm font-medium mb-6 transition-all duration-700 shadow-sm ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+          <span
+            className={`inline-block px-4 py-1.5 rounded-full bg-greenly-50 border border-greenly-200 text-greenly-700 text-sm font-medium mb-6 transition-all duration-700 shadow-sm ${
+              isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+          >
             Perguntas frequentes
           </span>
-          <h2 className={`section-title mb-6 transition-all duration-700 delay-100 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
-            Tudo que você precisa saber
+          <h2
+            className={`section-title mb-6 transition-all duration-700 delay-100 ${
+              isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+            }`}
+          >
+            Dúvidas sobre o estado atual da plataforma
           </h2>
         </div>
 
-        {/* FAQ items */}
         <div className="space-y-3">
           {faqs.map((faq, i) => (
             <div
