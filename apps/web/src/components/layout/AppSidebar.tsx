@@ -10,6 +10,7 @@ import {
   ChevronRight,
   CalendarDays,
   ShieldCheck,
+  ClipboardList,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -23,26 +24,21 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { motion } from "framer-motion";
 import { ClienteContextSelector } from "@/features/clientes/components/ClienteContextSelector";
 
-type NavChild = {
-  title: string
-  url: string
-  match?: (location: { pathname: string; search: string }) => boolean
-}
-
 type NavItem = {
   title: string
   url: string
   icon: any
-  children?: NavChild[]
+}
+
+type NavSection = {
+  label: string
+  items: NavItem[]
 }
 
 function isRouteActive(
@@ -70,52 +66,35 @@ function isRouteActive(
   return true
 }
 
-const mainNav: NavItem[] = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Clientes", url: "/clientes", icon: Building2 },
+const navSections: NavSection[] = [
   {
-    title: "Agenda",
-    url: "/agenda",
-    icon: CalendarDays,
-    children: [
-      { title: "Tarefas (Kanban)", url: "/tarefas" },
+    label: "Operação",
+    items: [
+      { title: "Documentos", url: "/documentos", icon: FileSearch },
+      { title: "Licenças", url: "/licencas", icon: FileCheck },
+      { title: "Operação de Resíduos", url: "/mtrs", icon: Truck },
+      { title: "Condicionantes", url: "/condicionantes", icon: ClipboardList },
     ],
   },
   {
-    title: "Licenças",
-    url: "/licencas",
-    icon: FileCheck,
-    children: [
-      { title: "Condicionantes", url: "/condicionantes" },
+    label: "Estratégia",
+    items: [
+      { title: "Dashboard", url: "/", icon: LayoutDashboard },
+      { title: "Agenda", url: "/agenda", icon: CalendarDays },
     ],
   },
-  { title: "Operação de Resíduos", url: "/mtrs", icon: Truck },
   {
-    title: "Obrigações Oficiais",
-    url: "/obrigacoes/ibama",
-    icon: ShieldCheck,
-    children: [
-      { title: "IBAMA · CTF", url: "/obrigacoes/ibama?tipo=IBAMA_CTF" },
-      { title: "IBAMA · TCFA", url: "/obrigacoes/ibama?tipo=IBAMA_TCFA" },
-      { title: "IBAMA · RAPP", url: "/obrigacoes/ibama?tipo=IBAMA_RAPP" },
-      { title: "Resíduos · SINIR Inventário", url: "/obrigacoes/residuos?tipo=SINIR_INVENTARIO_NACIONAL" },
-      { title: "Resíduos · SINIR DMR", url: "/obrigacoes/residuos?tipo=SINIR_DMR" },
-      {
-        title: "Resíduos · IAT Inventário Industrial",
-        url: "/obrigacoes/residuos?tipo=IAT_INVENTARIO_RESIDUOS_INDUSTRIAIS",
-      },
-      { title: "Emissões · Inventário GEE", url: "/obrigacoes/emissoes?tipo=GEE_INVENTARIO" },
-      {
-        title: "Emissões · IAT Carga Poluidora",
-        url: "/obrigacoes/emissoes?tipo=IAT_DECLARACAO_CARGA_POLUIDORA",
-      },
-      {
-        title: "Emissões · IAT Emissões Atmosféricas",
-        url: "/obrigacoes/emissoes?tipo=IAT_DECLARACAO_EMISSOES_ATMOSFERICAS",
-      },
+    label: "Cadastros",
+    items: [
+      { title: "Clientes", url: "/clientes", icon: Building2 },
     ],
   },
-  { title: "Documentos", url: "/documentos", icon: FileSearch },
+  {
+    label: "Compliance",
+    items: [
+      { title: "Obrigações Oficiais", url: "/obrigacoes/ibama", icon: ShieldCheck },
+    ],
+  },
 ];
 
 const systemNav = [
@@ -132,6 +111,39 @@ export function AppSidebar() {
   const initials = user?.nome
     ? user.nome.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
     : '??';
+
+  function renderNavItem(item: NavItem, layoutId: string) {
+    const active = isRouteActive(location.pathname, location.search, item.url);
+
+    return (
+      <SidebarMenuItem key={item.title}>
+        <SidebarMenuButton asChild>
+          <NavLink
+            to={item.url}
+            end={item.url === "/"}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground transition-all duration-200 hover:bg-white/[0.04] hover:text-foreground group relative"
+            activeClassName="bg-primary/[0.08] text-primary font-medium"
+          >
+            {active && (
+              <motion.div
+                layoutId={layoutId}
+                className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary"
+                transition={{ type: "spring", stiffness: 350, damping: 30 }}
+              />
+            )}
+            <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />
+            {!collapsed && <span className="text-[13px]">{item.title}</span>}
+            {!collapsed && active && (
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-primary/50" strokeWidth={1.5} />
+            )}
+            {item.title === "Notificações" && (
+              <span className="absolute top-2 left-7 h-2 w-2 rounded-full bg-destructive ring-2 ring-sidebar" />
+            )}
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
@@ -166,109 +178,47 @@ export function AppSidebar() {
       </div>
 
       <SidebarContent className="px-2 pt-4">
-        {/* Main Nav */}
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-muted-foreground/50 text-[10px] uppercase tracking-[0.12em] font-medium px-3 mb-2">
-            Principal
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {mainNav.map((item) => {
-                const childActive =
-                  item.children?.some((child) =>
-                    child.match
-                      ? child.match(location)
-                      : isRouteActive(location.pathname, location.search, child.url, { exactPath: true }),
-                  ) ?? false
-                const selfActive = isRouteActive(location.pathname, location.search, item.url)
-                const active = selfActive || childActive
-                
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.url}
-                        end={item.url === "/"}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground transition-all duration-200 hover:bg-white/[0.04] hover:text-foreground group relative"
-                        activeClassName="bg-primary/[0.08] text-primary font-medium"
-                      >
-                        {/* Active indicator bar */}
-                        {active && (
-                          <motion.div
-                            layoutId="sidebar-active"
-                            className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary"
-                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                          />
-                        )}
-                        <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />
-                        {!collapsed && (
-                          <span className="text-[13px]">{item.title}</span>
-                        )}
-                        {!collapsed && active && (
-                          <ChevronRight className="h-3.5 w-3.5 ml-auto text-primary/50" strokeWidth={1.5} />
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                    {!collapsed && item.children?.length ? (
-                      <SidebarMenuSub>
-                        {item.children.map((child) => {
-                          const childIsActive = child.match
-                            ? child.match(location)
-                            : isRouteActive(location.pathname, location.search, child.url, { exactPath: true })
-                          return (
-                            <SidebarMenuSubItem key={child.title}>
-                              <SidebarMenuSubButton asChild isActive={childIsActive}>
-                                <NavLink to={child.url} className="text-[12px]">
-                                  <span>{child.title}</span>
-                                </NavLink>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          )
-                        })}
-                      </SidebarMenuSub>
-                    ) : null}
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navSections.map((section, sectionIndex) => (
+          <SidebarGroup key={section.label}>
+            <SidebarGroupLabel
+              className={`text-muted-foreground/50 text-[10px] uppercase tracking-[0.12em] font-medium px-3 mb-2 ${
+                sectionIndex > 0 ? "mt-4" : ""
+              }`}
+            >
+              {section.label}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {section.items.map((item) => renderNavItem(item, "sidebar-active"))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
 
-        {/* System Nav */}
+        {!collapsed && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <div className="mx-2 mt-4 rounded-xl border border-primary/20 bg-primary/10 p-3">
+                <p className="text-[11px] font-medium text-primary">Da operação à estratégia</p>
+                <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                  1. Operação (Documentos, Licenças, MTR)
+                  <br />
+                  2. Compliance (Condicionantes, Obrigações)
+                  <br />
+                  3. Estratégia (Dashboard e Agenda)
+                </p>
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground/50 text-[10px] uppercase tracking-[0.12em] font-medium px-3 mb-2 mt-4">
             Sistema
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {systemNav.map((item) => {
-                const active = location.pathname.startsWith(item.url);
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.url}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground transition-all duration-200 hover:bg-white/[0.04] hover:text-foreground relative"
-                        activeClassName="bg-primary/[0.08] text-primary font-medium"
-                      >
-                        {active && (
-                          <motion.div
-                            layoutId="sidebar-active-system"
-                            className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary"
-                            transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                          />
-                        )}
-                        <item.icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />
-                        {!collapsed && <span className="text-[13px]">{item.title}</span>}
-                        {/* Notification dot */}
-                        {item.title === "Notificações" && (
-                          <span className="absolute top-2 left-7 h-2 w-2 rounded-full bg-destructive ring-2 ring-sidebar" />
-                        )}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {systemNav.map((item) => renderNavItem(item, "sidebar-active-system"))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

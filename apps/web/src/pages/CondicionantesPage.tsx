@@ -20,6 +20,7 @@ import { useClienteContexto } from '@/features/clientes/components/ClienteContex
 import { useTrackViewLoaded } from '@/hooks/use-track-view-loaded'
 import { ViewToggle, useViewMode } from '@/components/ui/view-toggle'
 import { ChevronRight } from 'lucide-react'
+import { DocumentoExtracaoInline } from '@/features/documentos/components/DocumentoExtracaoInline'
 
 const filterLabels: Record<string, string> = {
   TODAS: 'Todas',
@@ -180,6 +181,13 @@ export default function CondicionantesPage() {
             </Button>
           </div>
         ) : null}
+
+        <DocumentoExtracaoInline
+          modulo="LICENCA"
+          clienteId={clienteIdFilter}
+          clienteNome={clienteFiltroNome}
+          licencaId={licencaIdPrefill}
+        />
 
         {isLoading ? (
           <div className="space-y-3">

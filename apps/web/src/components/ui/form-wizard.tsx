@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 
 export interface WizardStep {
@@ -30,6 +30,7 @@ export function FormWizard({
   const isFirst = currentIndex === 0
   const isLast = currentIndex === steps.length - 1
   const canAdvance = step?.isValid !== false
+  const progressPercent = Math.round(((currentIndex + 1) / steps.length) * 100)
 
   function goNext() {
     if (!canAdvance || isLast) return
@@ -60,57 +61,28 @@ export function FormWizard({
 
   return (
     <div className="space-y-5">
-      {/* Step indicator */}
-      <div className="flex items-center gap-2">
-        {steps.map((s, i) => {
-          const isPast = i < currentIndex
-          const isCurrent = i === currentIndex
-
-          return (
-            <div key={s.id} className="flex items-center gap-2 flex-1">
-              <button
-                onClick={() => {
-                  if (i < currentIndex) {
-                    setDirection(-1)
-                    setCurrentIndex(i)
-                  }
-                }}
-                disabled={i > currentIndex}
-                className={`flex items-center gap-1.5 text-[11px] font-medium transition-all duration-200 ${
-                  isCurrent
-                    ? 'text-primary'
-                    : isPast
-                      ? 'text-primary/60 cursor-pointer hover:text-primary'
-                      : 'text-muted-foreground/35'
-                }`}
-              >
-                <div
-                  className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-semibold transition-all duration-200 ${
-                    isCurrent
-                      ? 'bg-primary text-primary-foreground ring-2 ring-primary/25'
-                      : isPast
-                        ? 'bg-primary/20 text-primary'
-                        : 'bg-white/[0.06] text-muted-foreground/40'
-                  }`}
-                >
-                  {isPast ? <Check className="h-3 w-3" /> : i + 1}
-                </div>
-                <span className="hidden sm:inline truncate">{s.label}</span>
-              </button>
-              {i < steps.length - 1 && (
-                <div
-                  className={`flex-1 h-px transition-all duration-300 ${
-                    isPast ? 'bg-primary/40' : 'bg-white/[0.08]'
-                  }`}
-                />
-              )}
-            </div>
-          )
-        })}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-foreground">{step.label}</p>
+          <p className="text-[11px] text-muted-foreground">
+            Etapa {currentIndex + 1} de {steps.length}
+          </p>
+        </div>
+        <div className="h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
+          <motion.div
+            className="h-full rounded-full bg-primary"
+            initial={false}
+            animate={{ width: `${progressPercent}%` }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          />
+        </div>
+        <p className="text-[11px] text-muted-foreground/70">
+          Preencha apenas os campos desta etapa para avançar.
+        </p>
       </div>
 
       {/* Step content */}
-      <div className="min-h-[250px] relative overflow-hidden">
+      <div className="min-h-[220px] relative overflow-hidden">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step.id}

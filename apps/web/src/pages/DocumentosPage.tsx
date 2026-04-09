@@ -16,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import type {
   DocumentoCampoExtraidoDTO,
   OrigemProcessamentoDocumento,
@@ -112,8 +113,40 @@ function labelStatus(status: StatusRevisaoDocumento): string {
   return statusOptions.find((option) => option.value === status)?.label ?? status;
 }
 
+const CAMPO_CRUD_LABELS: Record<string, string> = {
+  clienteId: "Cliente",
+  orgaoAmbientalId: "Órgão ambiental",
+  tipo: "Tipo",
+  status: "Status",
+  numeroProcesso: "Número do processo",
+  numeroLicenca: "Número da licença",
+  dataEmissao: "Data de emissão",
+  dataValidade: "Data de validade",
+  municipioEmissor: "Município emissor",
+  observacoes: "Observações",
+  fonteGeradoraId: "Ponto de geração",
+  transportadoraId: "Transportadora",
+  destinadorId: "Destinador",
+  tipoDestinacao: "Método de destinação",
+  nomeMotorista: "Motorista",
+  cpfMotorista: "CPF do motorista",
+  placaVeiculo: "Placa do veículo",
+  dataTransporte: "Data do transporte",
+  numeroMTR: "Número do MTR",
+};
+
+function resumirCamposCrud(payload: Record<string, unknown>): string {
+  const keys = Object.keys(payload || {});
+  if (!keys.length) return "Nenhum campo detectado automaticamente";
+
+  const labels = keys.map((key) => CAMPO_CRUD_LABELS[key] || key);
+  if (labels.length <= 4) return labels.join(", ");
+  return `${labels.slice(0, 4).join(", ")} e +${labels.length - 4}`;
+}
+
 export default function DocumentosPage() {
   useTrackViewLoaded("documentos");
+  const navigate = useNavigate();
 
   const { clienteId, clienteNome } = useClienteContexto();
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
@@ -932,11 +965,11 @@ export default function DocumentosPage() {
           }
         }}
       >
-        <DialogContent className="max-w-5xl">
+          <DialogContent className="max-w-5xl">
           <DialogHeader>
-            <DialogTitle>Aceite final e aplicacao no CRUD</DialogTitle>
+            <DialogTitle>Assistente de aplicação no cadastro</DialogTitle>
             <DialogDescription>
-              Revise as sugestoes geradas pelo documento e selecione quais entidades devem ser atualizadas.
+              Escolha onde aplicar os dados extraídos. Você pode aplicar agora ou abrir a tela do cadastro para revisar.
             </DialogDescription>
           </DialogHeader>
 
@@ -974,8 +1007,9 @@ export default function DocumentosPage() {
                 </div>
               </div>
 
-              <div className="space-y-2 rounded-xl border border-white/[0.08] p-3 bg-white/[0.02]">
-                <div className="flex items-center gap-2">
+                <div className="space-y-2 rounded-xl border border-white/[0.08] p-3 bg-white/[0.02]">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                   <Checkbox
                     checked={crudPayload.aplicarLicenca}
                     onCheckedChange={(checked) =>
@@ -987,6 +1021,19 @@ export default function DocumentosPage() {
                     disabled={!sugestaoCrud.licenca}
                   />
                   <p className="text-sm font-medium text-foreground">Aplicar atualizacao em Licenca</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setCrudDialogOpen(false);
+                      setDialogOpen(false);
+                      navigate("/licencas");
+                    }}
+                  >
+                    Abrir Licenças
+                  </Button>
                 </div>
                 {!sugestaoCrud.licenca ? (
                   <p className="text-xs text-muted-foreground pl-6">
@@ -998,10 +1045,7 @@ export default function DocumentosPage() {
                       Licenca alvo: {sugestaoCrud.licenca.licencaId ?? "nao identificada"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Campos para atualizar:{" "}
-                      {Object.keys(sugestaoCrud.licenca.payloadAtualizacao).length > 0
-                        ? Object.keys(sugestaoCrud.licenca.payloadAtualizacao).join(", ")
-                        : "nenhum campo valido detectado"}
+                      Campos sugeridos: {resumirCamposCrud(sugestaoCrud.licenca.payloadAtualizacao)}
                     </p>
                     {sugestaoCrud.licenca.pendencias.length > 0 ? (
                       <p className="text-xs text-warning">
@@ -1013,7 +1057,8 @@ export default function DocumentosPage() {
               </div>
 
               <div className="space-y-2 rounded-xl border border-white/[0.08] p-3 bg-white/[0.02]">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                   <Checkbox
                     checked={crudPayload.aplicarMtr}
                     onCheckedChange={(checked) =>
@@ -1025,6 +1070,19 @@ export default function DocumentosPage() {
                     disabled={!sugestaoCrud.mtr}
                   />
                   <p className="text-sm font-medium text-foreground">Aplicar atualizacao em MTR</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setCrudDialogOpen(false);
+                      setDialogOpen(false);
+                      navigate("/mtrs");
+                    }}
+                  >
+                    Abrir MTRs
+                  </Button>
                 </div>
                 {!sugestaoCrud.mtr ? (
                   <p className="text-xs text-muted-foreground pl-6">
@@ -1036,10 +1094,7 @@ export default function DocumentosPage() {
                       MTR alvo: {sugestaoCrud.mtr.mtrId ?? "nao identificado"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Campos para atualizar:{" "}
-                      {Object.keys(sugestaoCrud.mtr.payloadAtualizacao).length > 0
-                        ? Object.keys(sugestaoCrud.mtr.payloadAtualizacao).join(", ")
-                        : "nenhum campo valido detectado"}
+                      Campos sugeridos: {resumirCamposCrud(sugestaoCrud.mtr.payloadAtualizacao)}
                     </p>
                     {sugestaoCrud.mtr.pendencias.length > 0 ? (
                       <p className="text-xs text-warning">
@@ -1051,7 +1106,8 @@ export default function DocumentosPage() {
               </div>
 
               <div className="space-y-2 rounded-xl border border-white/[0.08] p-3 bg-white/[0.02]">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
                   <Checkbox
                     checked={crudPayload.aplicarCondicionantes}
                     onCheckedChange={(checked) =>
@@ -1063,6 +1119,19 @@ export default function DocumentosPage() {
                     disabled={!sugestaoCrud.licenca || sugestaoCrud.licenca.condicionantesSugeridas.length === 0}
                   />
                   <p className="text-sm font-medium text-foreground">Criar condicionantes sugeridas</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      setCrudDialogOpen(false);
+                      setDialogOpen(false);
+                      navigate("/condicionantes");
+                    }}
+                  >
+                    Abrir Condicionantes
+                  </Button>
                 </div>
                 <p className="text-xs text-muted-foreground pl-6">
                   Itens elegiveis: {sugestaoCrud.licenca?.condicionantesSugeridas.length ?? 0}

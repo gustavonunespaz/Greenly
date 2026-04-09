@@ -46,6 +46,7 @@ import { FormWizard, type WizardStep } from '@/components/ui/form-wizard'
 import { ViewToggle, useViewMode } from '@/components/ui/view-toggle'
 import { ChevronRight } from 'lucide-react'
 import { formatEnum } from '@/lib/utils'
+import { DocumentoExtracaoInline } from '@/features/documentos/components/DocumentoExtracaoInline'
 
 
 const statusOptions = [
@@ -813,6 +814,12 @@ export default function MTRsPage() {
           </div>
         ) : null}
 
+        <DocumentoExtracaoInline
+          modulo="MTR"
+          clienteId={clienteIdFilter}
+          clienteNome={clienteFiltroNome}
+        />
+
         {isLoading ? (
           <SkeletonMTR />
         ) : mtrsFiltrados.length === 0 ? (
@@ -1244,7 +1251,7 @@ export default function MTRsPage() {
             steps={[
               {
                 id: 'step-at',
-                label: 'AT',
+                label: 'Configuração inicial',
                 isValid: true,
                 content: (
                   <div className="space-y-4 py-4">
@@ -1381,7 +1388,7 @@ export default function MTRsPage() {
               },
               {
                 id: 'step-gerador',
-                label: 'Gerador',
+                label: 'Gerador do resíduo',
                 isValid: !!form.clienteId,
                 content: (
                   <div className="space-y-4 py-4">
@@ -1446,7 +1453,7 @@ export default function MTRsPage() {
               },
               {
                 id: 'step-cadeia',
-                label: 'Destinação',
+                label: 'Transportadora e destino',
                 isValid: (() => {
                   const t = transportadoras.find(p => p.id === form.transportadoraId)
                   const d = destinadores.find(p => p.id === form.destinadorId)
@@ -1579,7 +1586,7 @@ export default function MTRsPage() {
               },
               {
                 id: 'step-motorista',
-                label: 'Transporte',
+                label: 'Dados de transporte',
                 content: (
                   <div className="space-y-4 py-4">
                     <p className="text-sm text-muted-foreground/80 mb-2">
@@ -1628,7 +1635,7 @@ export default function MTRsPage() {
               },
               {
                 id: 'step-final',
-                label: 'Envio',
+                label: 'Finalização',
                 content: (
                   <div className="space-y-4 py-4">
                     <p className="text-sm text-muted-foreground/80 mb-2">

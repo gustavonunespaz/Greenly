@@ -52,6 +52,7 @@ import { FormWizard, type WizardStep } from "@/components/ui/form-wizard";
 import { ViewToggle, useViewMode } from "@/components/ui/view-toggle";
 import { ChevronRight } from "lucide-react";
 import { formatEnum } from "@/lib/utils";
+import { DocumentoExtracaoInline } from "@/features/documentos/components/DocumentoExtracaoInline";
 
 
 const item = {
@@ -490,6 +491,13 @@ export default function LicencasPage() {
           </div>
         ) : null}
 
+        <DocumentoExtracaoInline
+          modulo="LICENCA"
+          clienteId={clienteIdFilter}
+          clienteNome={clienteFiltroNome}
+          licencaId={editing?.id ?? null}
+        />
+
         {isLoading ? (
           <SkeletonTable />
         ) : filtered.length === 0 ? (
@@ -771,51 +779,96 @@ export default function LicencasPage() {
             onComplete={handleSave}
             steps={[
               {
-                id: "step1",
-                label: "Identificação",
-                isValid: !!form.clienteId && !!form.orgaoAmbientalId,
+                id: "step-obrigatorios",
+                label: "Dados obrigatórios",
+                isValid:
+                  !!form.clienteId &&
+                  !!form.orgaoAmbientalId &&
+                  !!form.tipo &&
+                  ((orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.esfera === "MUNICIPAL" ||
+                    orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.sigla === "SMMA")
+                    ? !!form.municipioEmissor?.trim()
+                    : true),
                 content: (
                   <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Cliente *</Label>
-                      <Select value={form.clienteId} onValueChange={(v) => setForm((s) => ({ ...s, clienteId: v }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um cliente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {clientes.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Comece pelos dados essenciais. Estes campos garantem rastreabilidade e compliance da licença.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Cliente *</Label>
+                        <Select value={form.clienteId} onValueChange={(v) => setForm((s) => ({ ...s, clienteId: v }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um cliente" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {clientes.map((c) => (
+                              <SelectItem key={c.id} value={c.id}>
+                                {c.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>{editing ? "Órgão ambiental" : "Órgão ambiental *"}</Label>
+                        <Select value={form.orgaoAmbientalId} onValueChange={(v) => setForm((s) => ({ ...s, orgaoAmbientalId: v }))}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o órgão" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(orgaosAmbientais || []).map((o) => (
+                              <SelectItem key={o.id} value={o.id}>
+                                {o.sigla} - {o.nome}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Tipo *</Label>
+                        <Select value={form.tipo} onValueChange={(v) => setForm((s) => ({ ...s, tipo: v }))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {tipoOptions.map((tipo) => (
+                              <SelectItem key={tipo} value={tipo}>
+                                {formatEnum(tipo)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Status</Label>
+                        <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statusOptions.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {formatEnum(status)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>{editing ? "Órgão Ambiental" : "Órgão Ambiental *"}</Label>
-                      <Select value={form.orgaoAmbientalId} onValueChange={(v) => setForm((s) => ({ ...s, orgaoAmbientalId: v }))}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o órgão" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(orgaosAmbientais || []).map((o) => (
-                            <SelectItem key={o.id} value={o.id}>
-                              {o.sigla} - {o.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {(orgaosAmbientais?.find(o => o.id === form.orgaoAmbientalId)?.esfera === 'MUNICIPAL' || 
-                      orgaosAmbientais?.find(o => o.id === form.orgaoAmbientalId)?.sigla === 'SMMA') && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2">
-                        <Label>Qual Município? *</Label>
-                        <Input 
-                          placeholder="Ex: Curitiba - PR" 
-                          value={form.municipioEmissor} 
-                          onChange={(e) => setForm(s => ({ ...s, municipioEmissor: e.target.value }))} 
+                    {(orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.esfera === "MUNICIPAL" ||
+                      orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.sigla === "SMMA") && (
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-2">
+                        <Label>Município emissor *</Label>
+                        <Input
+                          placeholder="Ex: Curitiba - PR"
+                          value={form.municipioEmissor}
+                          onChange={(e) => setForm((s) => ({ ...s, municipioEmissor: e.target.value }))}
                         />
                       </motion.div>
                     )}
@@ -823,77 +876,46 @@ export default function LicencasPage() {
                 )
               },
               {
-                id: "step2",
-                label: "Licença",
-                isValid: !!form.tipo,
-                content: (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Tipo *</Label>
-                      <Select value={form.tipo} onValueChange={(v) => setForm((s) => ({ ...s, tipo: v }))}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tipoOptions.map((tipo) => (
-                            <SelectItem key={tipo} value={tipo}>
-                              {formatEnum(tipo)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Status</Label>
-                      <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {statusOptions.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {formatEnum(status)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Número da Licença</Label>
-                      <Input value={form.numeroLicenca} onChange={(e) => setForm((s) => ({ ...s, numeroLicenca: e.target.value }))} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Número do Processo</Label>
-                      <Input value={form.numeroProcesso} onChange={(e) => setForm((s) => ({ ...s, numeroProcesso: e.target.value }))} />
-                    </div>
-                  </div>
-                )
-              },
-              {
-                id: "step3",
-                label: "Prazos",
-                content: (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Data de Emissão</Label>
-                      <Input type="date" value={form.dataEmissao} onChange={(e) => setForm((s) => ({ ...s, dataEmissao: e.target.value }))} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Data de Validade</Label>
-                      <Input type="date" value={form.dataValidade} onChange={(e) => setForm((s) => ({ ...s, dataValidade: e.target.value }))} />
-                    </div>
-                  </div>
-                )
-              },
-              {
-                id: "step4",
-                label: "Condicionantes",
+                id: "step-detalhes",
+                label: "Detalhes da licença",
                 content: (
                   <div className="space-y-4 py-4">
+                    <p className="text-xs text-muted-foreground">
+                      Preencha identificadores e prazos da licença para facilitar busca e alertas automáticos.
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Número da licença</Label>
+                        <Input value={form.numeroLicenca} onChange={(e) => setForm((s) => ({ ...s, numeroLicenca: e.target.value }))} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Número do processo</Label>
+                        <Input value={form.numeroProcesso} onChange={(e) => setForm((s) => ({ ...s, numeroProcesso: e.target.value }))} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Data de emissão</Label>
+                        <Input type="date" value={form.dataEmissao} onChange={(e) => setForm((s) => ({ ...s, dataEmissao: e.target.value }))} />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Data de validade</Label>
+                        <Input type="date" value={form.dataValidade} onChange={(e) => setForm((s) => ({ ...s, dataValidade: e.target.value }))} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              },
+              {
+                id: "step-complementos",
+                label: "Condicionantes e notas",
+                content: (
+                  <div className="space-y-4 py-4">
+                    <p className="text-xs text-muted-foreground">
+                      Esta etapa é opcional e ajuda a deixar o acompanhamento completo desde o cadastro.
+                    </p>
                     <div className="flex justify-between items-center bg-white/[0.02] p-4 rounded-xl border border-white/[0.06]">
                       <div>
                         <Label>Condicionantes Anexas (Opcional)</Label>
@@ -1009,14 +1031,7 @@ export default function LicencasPage() {
                         </div>
                       ))}
                     </div>
-                  </div>
-                )
-              },
-              {
-                id: "step5",
-                label: "Detalhes",
-                content: (
-                  <div className="space-y-4 py-4">
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Empreendimento</Label>

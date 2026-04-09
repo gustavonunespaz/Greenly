@@ -33,6 +33,46 @@ Aplicar os pontos de maior valor do benchmarking na plataforma Greenly para:
 | Predicao de risco com IA | Ausente | Media-baixa (agora) | P3 |
 | Camada interna de produtividade (MCP/IDP) | Ausente | Media-baixa (agora) | P3 |
 
+## Benchmark adicional - Onegreen (incluido em 09/04/2026)
+
+Referencia funcional usada como benchmark adicional para licenciamento ambiental corporativo.
+
+Premissa:
+- usar o Onegreen como **norte de produto** para comparacao de cobertura funcional e experiencia do gestor;
+- manter posicionamento Greenly como plataforma de compliance ponta a ponta (licencas + condicionantes + residuos + documentos + integracoes oficiais).
+
+### Matriz comparativa preliminar (Greenly x Onegreen)
+
+| Capability benchmark (Onegreen) | Leitura preliminar no Greenly | Gap prioritario | Prioridade |
+|---|---|---|---|
+| Automatizacao do fluxo de aprovacao | Parcial (ha fluxos de revisao documental, mas nao um workflow unificado de aprovacao por etapa) | workflow de aprovacao configuravel por tipo de processo | P0 |
+| Monitoramento continuo de protocolos e prazos de licencas | Presente | melhorar previsao de risco por atraso e escalonamento automatico | P0 |
+| Acompanhamento de estudos ambientais por empreendimento | Parcial | vinculo explicito "estudo -> licenca/empreendimento/condicionante" com status e evidencias | P1 |
+| Controle pleno de atividades e condicionantes | Presente | consolidar visao executiva tipo farol por unidade/cliente | P0 |
+| Alertas por e-mail para responsaveis | Presente | motor de regras de notificacao por criticidade e perfil | P1 |
+| Centralizacao documental de licenciamento | Presente | reforcar governanca documental por ciclo de vida do processo | P0 |
+| Relatorios por usuario ou unidade operacional | Parcial | pacote de relatorios gerenciais por unidade, carteira e responsavel | P1 |
+| Consulta de status de qualquer etapa do processo | Parcial | linha de vida unica do processo (timeline com marcos e status) | P0 |
+| Farol de riscos de projetos/empreendimentos | Parcial | score composto de risco (prazo, legal, operacional, documental) | P0 |
+| Mapeamento geografico (projetos/licencas/estudos/condicionantes) | Parcial (validacao geoespacial existe no pipeline documental) | mapa operacional no frontend com camadas e filtros | P1 |
+| Timeline de marcos de projeto | Parcial | timeline integrada com alertas e bloqueios de etapa | P0 |
+
+### Backlog objetivo derivado do benchmark Onegreen
+
+Itens de execucao prioritaria:
+
+1. Workflow de aprovacao configuravel por etapa e perfil (com SLA, parecer e trilha de auditoria).
+2. Farol de risco executivo por empreendimento/unidade/cliente.
+3. Timeline unica de licenciamento (protocolo, estudo, licenca, condicionante, renovacao, pendencias).
+4. Relatorios gerenciais por usuario, unidade operacional e carteira de clientes.
+5. Mapa geografico operacional para visualizacao de ativos e compromissos ambientais.
+
+### Encaixe no roadmap atual
+
+- Onda 1 a Onda 3: absorver itens `P0` (workflow, farol, timeline, riscos e escalonamento).
+- Onda 3 a Onda 4: absorver itens `P1` (relatorios gerenciais e mapeamento geografico).
+- Onda 5: evoluir inteligencia preditiva sobre os dados consolidados (risco de atraso e nao conformidade).
+
 ## Mapa completo de ondas
 | Onda | Periodo | Sprints | Foco principal |
 |---|---|---|---|
