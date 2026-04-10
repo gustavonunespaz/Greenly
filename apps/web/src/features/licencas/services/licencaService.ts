@@ -8,6 +8,8 @@ import {
   OrgaoAmbientalResponseDTO,
   CondicionanteListItemDTO,
   AtualizarStatusCondicionanteDTO,
+  CondicionanteExtracaoResponseDTO,
+  ExtracaoCondicionantesStatusDTO,
 } from '@greenly/shared'
 
 export const licencaService = {
@@ -55,6 +57,28 @@ export const licencaService = {
     dto: AtualizarStatusCondicionanteDTO,
   ): Promise<CondicionanteListItemDTO> {
     const { data } = await api.patch<CondicionanteListItemDTO>(`/licencas/condicionantes/${id}/status`, dto)
+    return data
+  },
+
+  // ── Extração de Condicionantes via IA ──
+  async extrairCondicionantes(licencaId: string): Promise<ExtracaoCondicionantesStatusDTO> {
+    const { data } = await api.post<ExtracaoCondicionantesStatusDTO>(`/licencas/${licencaId}/extrair-condicionantes`)
+    return data
+  },
+
+  async listarCondicionantesExtraidas(licencaId: string): Promise<CondicionanteExtracaoResponseDTO[]> {
+    const { data } = await api.get<CondicionanteExtracaoResponseDTO[]>(`/licencas/${licencaId}/condicionantes-extraidas`)
+    return data
+  },
+
+  async validarCondicionantesExtraidas(
+    licencaId: string,
+    validacoes: Array<{ condicionanteId: string; aceita: boolean }>,
+  ): Promise<{ aceitas: number; rejeitadas: number }> {
+    const { data } = await api.post<{ aceitas: number; rejeitadas: number }>(
+      `/licencas/${licencaId}/validar-condicionantes`,
+      { validacoes },
+    )
     return data
   },
 }

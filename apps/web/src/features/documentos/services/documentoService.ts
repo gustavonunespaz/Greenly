@@ -95,4 +95,21 @@ export const documentoService = {
     );
     return data;
   },
+
+  async vincularCliente(
+    processamentoDocumentoId: string,
+    clienteId: string,
+  ): Promise<void> {
+    await api.post(`/documentos/${processamentoDocumentoId}/vincular-cliente`, {
+      clienteId,
+    });
+  },
+
+  async resolverParceiro(
+    processamentoDocumentoId: string,
+    payload: { cnpj: string; tipo: "TRANSPORTADOR" | "DESTINADOR"; nome?: string; estado?: string },
+  ): Promise<any> {
+    const { data } = await api.post(`/documentos/${processamentoDocumentoId}/resolver-parceiro`, payload);
+    return data;
+  },
 };

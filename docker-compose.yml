@@ -68,6 +68,8 @@ services:
       - EMAIL_FROM=${EMAIL_FROM:-nao-responda@greenly.test}
       - ENABLE_DOCUMENTO_WORKER=${ENABLE_DOCUMENTO_WORKER:-true}
       - DOCUMENTOS_WORKER_CONCURRENCY=${DOCUMENTOS_WORKER_CONCURRENCY:-2}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - ENABLE_CONDICIONANTE_EXTRACAO_WORKER=${ENABLE_CONDICIONANTE_EXTRACAO_WORKER:-true}
     depends_on:
       postgres:
         condition: service_healthy

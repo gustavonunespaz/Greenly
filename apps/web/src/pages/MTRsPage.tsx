@@ -42,11 +42,12 @@ import {
 import { useTrackViewLoaded } from '@/hooks/use-track-view-loaded'
 import { trackFirstValidAction, trackFlowCompleted, trackFormError } from '@/lib/telemetry'
 import { useClienteContexto } from '@/features/clientes/components/ClienteContextProvider'
-import { FormWizard, type WizardStep } from '@/components/ui/form-wizard'
 import { ViewToggle, useViewMode } from '@/components/ui/view-toggle'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Loader2 } from 'lucide-react'
 import { formatEnum } from '@/lib/utils'
 import { DocumentoExtracaoInline } from '@/features/documentos/components/DocumentoExtracaoInline'
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 
 
 const statusOptions = [
@@ -168,6 +169,13 @@ const defaultForm: FormState = {
   armazenadorTemporarioId: '',
   dataTransporte: '',
   residuos: [],
+}
+
+function toDateInput(value?: string | Date | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
 }
 
 function SkeletonMTR() {
@@ -545,6 +553,31 @@ export default function MTRsPage() {
     })
     setFormError(null)
     setOpen(true)
+  }
+
+  function handleAutoFill(payload: any) {
+    setForm((prev) => ({
+      ...prev,
+      numeroMTR: payload.numeroMTR || prev.numeroMTR,
+      placaVeiculo: payload.placaVeiculo || prev.placaVeiculo,
+      nomeMotorista: payload.nomeMotorista || prev.nomeMotorista,
+      cpfMotorista: payload.cpfMotorista || prev.cpfMotorista,
+      dataTransporte: toDateInput(payload.dataTransporte) || prev.dataTransporte,
+      observacoes: payload.observacoes ? `${prev.observacoes}\n${payload.observacoes}`.trim() : prev.observacoes,
+      residuos: payload.residuos ? [
+        ...prev.residuos,
+        ...payload.residuos.map((r: any) => ({
+          descricao: r.descricao || "",
+          quantidade: r.quantidade || "0",
+          unidadeMedida: r.unidadeMedida || "KG",
+          codigoIbama: r.codigoIbama || "",
+          classe: r.classe || "CLASSE_II_NAO_PERIGOSO",
+          estadoFisico: r.estadoFisico || "SOLIDO",
+          acondicionamento: r.acondicionamento || "OUTROS"
+        }))
+      ] : prev.residuos
+    }));
+    toast.info("Campos preenchidos a partir do documento. Por favor, revise os dados.");
   }
 
   function buildResiduoDTOs(): MTRResiduoItemDTO[] {
@@ -1222,468 +1255,444 @@ export default function MTRsPage() {
           }
         }}
       >
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Editar MTR' : 'Novo MTR'}</DialogTitle>
-            <DialogDescription>
-              {editing
-                ? 'Atualize os dados do manifesto selecionado.'
-                : 'Emita um novo manifesto de transporte de resíduos.'}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden text-foreground">
+          <div className="p-6 pb-2 shrink-0">
+            <DialogHeader className="flex flex-row items-center justify-between space-y-0">
+              <div className="space-y-1">
+                <DialogTitle>{editing ? 'Editar MTR' : 'Novo MTR'}</DialogTitle>
+                <DialogDescription>
+                  {editing
+                    ? 'Atualize os dados do manifesto selecionado.'
+                    : 'Emita um novo manifesto de transporte de resíduos.'}
+                </DialogDescription>
+              </div>
+              {!editing && (
+                <DocumentoExtracaoInline
+                  modulo="MTR"
+                  variant="mini"
+                  clienteId={form.clienteId}
+                  onAutoFill={handleAutoFill}
+                />
+              )}
+            </DialogHeader>
 
-          <FormErrorCallout
-            error={formError}
-            onAction={() => {
-              if (!formError) return
-              if (formError.actionKind === 'retry') {
-                void handleSave()
-                return
-              }
-              setFormError(null)
-            }}
-          />
-          <FormWizard
-            isSubmitting={isSaving}
-            onCancel={() => setOpen(false)}
-            onComplete={handleSave}
-            submitLabel="Emitir MTR"
-            steps={[
-              {
-                id: 'step-at',
-                label: 'Configuração inicial',
-                isValid: true,
-                content: (
-                  <div className="space-y-4 py-4">
-                    <p className="text-sm text-muted-foreground/80 mb-2">
-                      Conforme SINIR, informe se este manifesto utilizará Armazenamento Temporário. Se sim, apenas 1 resíduo será permitido por MTR.
-                    </p>
-                    <div className="glass-card p-4 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          id="usaAT"
-                          checked={form.usaArmazenamentoTemporario}
-                          onChange={(e) => {
-                            const usa = e.target.checked
-                            setForm(s => ({
-                              ...s,
-                              usaArmazenamentoTemporario: usa,
-                              armazenadorTemporarioId: usa ? s.armazenadorTemporarioId : '',
-                              residuos: usa && s.residuos.length > 1 ? [s.residuos[0]] : s.residuos,
-                            }))
-                          }}
-                          className="h-4 w-4 rounded border-white/20 bg-white/5 accent-primary"
-                        />
-                        <Label htmlFor="usaAT" className="cursor-pointer">
-                          Este MTR utiliza Armazenamento Temporário (AT)
-                        </Label>
-                      </div>
-                      {form.usaArmazenamentoTemporario && (
-                        <div className="space-y-2 pl-7">
-                          <Label>Armazenador Temporário (parceiro)</Label>
-                          <Select
-                            value={form.armazenadorTemporarioId}
-                            onValueChange={(v) => setForm(s => ({ ...s, armazenadorTemporarioId: v }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione o armazenador temporário" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {parceirosGlobais.map(p => (
-                                <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-[11px] text-amber-300/80 flex items-center gap-1.5">
-                            <AlertTriangle className="h-3 w-3" />
-                            Com AT, apenas 1 resíduo é permitido por manifesto.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+            <FormErrorCallout
+              error={formError}
+              onAction={() => {
+                if (!formError) return
+                if (formError.actionKind === 'retry') {
+                  void handleSave()
+                  return
+                }
+                setFormError(null)
+              }}
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 min-h-0 bg-white/[0.01]">
+            <div className="space-y-8 py-4">
+              {/* Seção 1: Participantes e Configuração */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">1</Badge>
+                  <h3 className="text-sm font-semibold">Participantes e Configuração</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Gerador (Cliente) *</Label>
+                    <Select
+                      value={form.clienteId}
+                      disabled={!!globalClienteId}
+                      onValueChange={(v) =>
+                        setForm((s) => ({
+                          ...s,
+                          clienteId: v,
+                          fonteGeradoraId: '',
+                          transportadoraId: '',
+                          destinadorId: '',
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Selecione um cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientes.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )
-              },
-              {
-                id: 'step-residuos',
-                label: 'Resíduos',
-                isValid: form.residuos.length > 0,
-                content: (
-                  <div className="space-y-4 py-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground/80">
-                        Adicione os resíduos que compõem este manifesto. Limite SINIR: 45 toneladas por MTR.
-                      </p>
-                      <Button
-                        size="sm"
-                        className="gap-1.5 h-8 rounded-xl"
-                        onClick={() => {
-                          setEditingResiduoIdx(null)
-                          setResiduoForm(defaultResiduoItem)
-                          setResiduoSearch('')
-                          setOpenResiduoForm(true)
-                        }}
-                        disabled={form.usaArmazenamentoTemporario && form.residuos.length >= 1}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Adicionar
-                      </Button>
-                    </div>
 
-                    {form.residuos.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center">
-                        <Package className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
-                        <p className="text-sm text-muted-foreground/60">Nenhum resíduo adicionado.</p>
-                        <p className="text-xs text-muted-foreground/40 mt-1">Clique em "Adicionar" para incluir resíduos ao manifesto.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                        {form.residuos.map((r, idx) => (
-                          <div key={idx} className="glass-card p-3 flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                {r.codigoIbama && (
-                                  <span className="text-[10px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                                    {r.codigoIbama}
-                                  </span>
-                                )}
-                                {r.classe && (
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${r.classe === 'CLASSE_I_PERIGOSO' ? 'bg-rose-500/15 text-rose-200' : 'bg-white/[0.06] text-muted-foreground'}`}>
-                                    {formatClasseResiduo(r.classe)}
-                                  </span>
+                  <div className="space-y-2">
+                    <Label>Ponto de Geração (Origem)</Label>
+                    <Select
+                      value={form.fonteGeradoraId || '__none'}
+                      onValueChange={(v) =>
+                        setForm((s) => ({ ...s, fonteGeradoraId: v === '__none' ? '' : v }))
+                      }
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue
+                          placeholder={
+                            isLoadingFontes ? 'Carregando fontes...' : 'Selecione (opcional)'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">Sem ponto de geração</SelectItem>
+                        {fontesGeradoras.map((f) => (
+                          <SelectItem key={f.id} value={f.id}>
+                            {f.descricao || `Fonte ${f.id.substring(0, 6)}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Transportadora *</Label>
+                    <Select
+                      value={form.transportadoraId}
+                      onValueChange={(v) => setForm((s) => ({ ...s, transportadoraId: v }))}
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue
+                          placeholder={
+                            !form.clienteId
+                              ? 'Selecione um cliente primeiro'
+                              : isLoadingParceirosCliente
+                                ? 'Carregando...'
+                                : 'Selecionar'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {form.transportadoraId &&
+                        !transportadoras.some((parceiro) => parceiro.id === form.transportadoraId) ? (
+                          <SelectItem value={form.transportadoraId}>
+                            {partnerMap.get(form.transportadoraId) || 'Logística Legado'}
+                          </SelectItem>
+                        ) : null}
+                        {transportadoras.map((p) => {
+                          const expirada = isLicencaExpirada(p)
+                          return (
+                            <SelectItem key={p.id} value={p.id} className={expirada ? 'opacity-70' : ''}>
+                              <div className="flex items-center justify-between w-full gap-2">
+                                <span>{p.name || p.nome}</span>
+                                {expirada && (
+                                  <Badge variant="destructive" className="h-4 px-1 text-[9px] uppercase">Vencida</Badge>
                                 )}
                               </div>
-                              <p className="text-sm text-foreground font-medium truncate">{r.descricao || 'Sem descrição'}</p>
-                              <p className="text-[11px] text-muted-foreground/70 mt-0.5">
-                                {r.quantidade} {formatEnum(r.unidadeMedida)}
-                                {r.estadoFisico && ` · ${formatEnum(r.estadoFisico)}`}
-                                {r.acondicionamento && ` · ${formatEnum(r.acondicionamento)}`}
-                              </p>
-                            </div>
-                            <div className="flex gap-1 shrink-0">
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
-                                setEditingResiduoIdx(idx)
-                                setResiduoForm(r)
-                                setResiduoSearch(r.descricao)
-                                setOpenResiduoForm(true)
-                              }}>
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => {
-                                setForm(s => ({ ...s, residuos: s.residuos.filter((_, i) => i !== idx) }))
-                              }}>
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
+                            </SelectItem>
+                          )
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Destinador *</Label>
+                    <Select
+                      value={form.destinadorId}
+                      onValueChange={(v) => setForm((s) => ({ ...s, destinadorId: v }))}
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue
+                          placeholder={
+                            !form.clienteId
+                              ? 'Selecione um cliente primeiro'
+                              : isLoadingParceirosCliente
+                                ? 'Carregando...'
+                                : 'Selecionar'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {form.destinadorId &&
+                        !destinadores.some((parceiro) => parceiro.id === form.destinadorId) ? (
+                          <SelectItem value={form.destinadorId}>
+                            {partnerMap.get(form.destinadorId) || 'Destinador Legado'}
+                          </SelectItem>
+                        ) : null}
+                        {destinadores.map((p) => {
+                          const expirada = isLicencaExpirada(p)
+                          return (
+                            <SelectItem key={p.id} value={p.id} className={expirada ? 'opacity-70' : ''}>
+                              <div className="flex items-center justify-between w-full gap-2">
+                                <span>{p.name || p.nome}</span>
+                                {expirada && (
+                                  <Badge variant="destructive" className="h-4 px-1 text-[9px] uppercase">Vencida</Badge>
+                                )}
+                              </div>
+                            </SelectItem>
+                          )
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="glass-card p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id="usaAT_single"
+                      checked={form.usaArmazenamentoTemporario}
+                      onChange={(e) => {
+                        const usa = e.target.checked
+                        setForm(s => ({
+                          ...s,
+                          usaArmazenamentoTemporario: usa,
+                          armazenadorTemporarioId: usa ? s.armazenadorTemporarioId : '',
+                          residuos: usa && s.residuos.length > 1 ? [s.residuos[0]] : s.residuos,
+                        }))
+                      }}
+                      className="h-4 w-4 rounded border-white/20 bg-white/5 accent-primary"
+                    />
+                    <Label htmlFor="usaAT_single" className="cursor-pointer">
+                      Este MTR utiliza Armazenamento Temporário (AT)
+                    </Label>
+                  </div>
+                  {form.usaArmazenamentoTemporario && (
+                    <div className="space-y-2 pl-7">
+                      <Label>Armazenador Temporário</Label>
+                      <Select
+                        value={form.armazenadorTemporarioId}
+                        onValueChange={(v) => setForm(s => ({ ...s, armazenadorTemporarioId: v }))}
+                      >
+                        <SelectTrigger className="rounded-xl">
+                          <SelectValue placeholder="Selecione o armazenador temporário" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {parceirosGlobais.map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-amber-300/80 flex items-center gap-1.5">
+                        <AlertTriangle className="h-3 w-3" />
+                        Com AT, apenas 1 resíduo é permitido por manifesto.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <Separator className="bg-white/[0.06]" />
+
+              {/* Seção 2: Resíduos */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">2</Badge>
+                    <h3 className="text-sm font-semibold">Resíduos</h3>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 h-8 rounded-xl"
+                    onClick={() => {
+                      setEditingResiduoIdx(null)
+                      setResiduoForm(defaultResiduoItem)
+                      setResiduoSearch('')
+                      setOpenResiduoForm(true)
+                    }}
+                    disabled={form.usaArmazenamentoTemporario && form.residuos.length >= 1}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Adicionar Resíduo
+                  </Button>
+                </div>
+
+                {form.residuos.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center bg-white/[0.01]">
+                    <Package className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
+                    <p className="text-sm text-muted-foreground/60">Nenhum resíduo adicionado.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {form.residuos.map((r, idx) => (
+                      <div key={idx} className="glass-card p-3 flex items-start justify-between gap-3 group">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            {r.codigoIbama && (
+                              <span className="text-[10px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                {r.codigoIbama}
+                              </span>
+                            )}
+                            {r.classe && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${r.classe === 'CLASSE_I_PERIGOSO' ? 'bg-rose-500/15 text-rose-200' : 'bg-white/[0.06] text-muted-foreground'}`}>
+                                {formatClasseResiduo(r.classe)}
+                              </span>
+                            )}
                           </div>
-                        ))}
-                        <div className="text-[11px] text-muted-foreground/50 text-right pt-1">
-                          Total: {form.residuos.reduce((acc, r) => acc + Number(r.quantidade || 0), 0).toFixed(3)} {formatEnum(form.residuos[0]?.unidadeMedida) || 'kg'}
+                          <p className="text-sm text-foreground font-medium truncate">{r.descricao || 'Sem descrição'}</p>
+                          <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                            {r.quantidade} {formatEnum(r.unidadeMedida)}
+                            {r.estadoFisico && ` · ${formatEnum(r.estadoFisico)}`}
+                            {r.acondicionamento && ` · ${formatEnum(r.acondicionamento)}`}
+                          </p>
+                        </div>
+                        <div className="flex gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => {
+                            setEditingResiduoIdx(idx)
+                            setResiduoForm(r)
+                            setResiduoSearch(r.descricao)
+                            setOpenResiduoForm(true)
+                          }}>
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => {
+                            setForm(s => ({ ...s, residuos: s.residuos.filter((_, i) => i !== idx) }))
+                          }}>
+                            <X className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
-                    )}
-                  </div>
-                )
-              },
-              {
-                id: 'step-gerador',
-                label: 'Gerador do resíduo',
-                isValid: !!form.clienteId,
-                content: (
-                  <div className="space-y-4 py-4">
-                    <p className="text-sm text-muted-foreground/80 mb-2">
-                       Defina quem está gerando o resíduo e onde ele está sendo gerado.
-                    </p>
-                    <div className="space-y-2">
-                      <Label>Gerador (Cliente) *</Label>
-                      <Select
-                        value={form.clienteId}
-                        disabled={!!globalClienteId}
-                        onValueChange={(v) =>
-                          setForm((s) => ({
-                            ...s,
-                            clienteId: v,
-                            fonteGeradoraId: '',
-                            transportadoraId: '',
-                            destinadorId: '',
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um cliente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {clientes.map((c) => (
-                            <SelectItem key={c.id} value={c.id}>
-                              {c.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Ponto de Geração (Origem) - opcional</Label>
-                      <Select
-                        value={form.fonteGeradoraId || '__none'}
-                        onValueChange={(v) =>
-                          setForm((s) => ({ ...s, fonteGeradoraId: v === '__none' ? '' : v }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={
-                              isLoadingFontes ? 'Carregando fontes...' : 'Selecione (opcional)'
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none">Sem ponto de geração</SelectItem>
-                          {fontesGeradoras.map((f) => (
-                            <SelectItem key={f.id} value={f.id}>
-                              {f.descricao || `Fonte ${f.id.substring(0, 6)}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    ))}
+                    <div className="text-[11px] text-muted-foreground/50 text-right pt-2 pr-2">
+                      Total: <span className="text-foreground font-medium">{form.residuos.reduce((acc, r) => acc + Number(r.quantidade || 0), 0).toFixed(3)} {formatEnum(form.residuos[0]?.unidadeMedida) || 'kg'}</span>
                     </div>
                   </div>
-                )
-              },
-              {
-                id: 'step-cadeia',
-                label: 'Transportadora e destino',
-                isValid: (() => {
-                  const t = transportadoras.find(p => p.id === form.transportadoraId)
-                  const d = destinadores.find(p => p.id === form.destinadorId)
-                  const tValida = t ? !isLicencaExpirada(t) : true
-                  const dValida = d ? !isLicencaExpirada(d) : true
-                  return !!form.transportadoraId && !!form.destinadorId && !!form.tipoDestinacao && tValida && dValida
-                })(),
-                content: (
-                  <div className="space-y-4 py-4">
-                    <p className="text-sm text-muted-foreground/80 mb-2">
-                       Especifique como o resíduo será transportado e qual será seu destino final.
-                    </p>
-                    {form.clienteId && (!transportadoras.length || !destinadores.length) ? (
-                      <div className="rounded-lg border border-dashed border-primary/35 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
-                        Este cliente não possui parceiros suficientes cadastrados.
-                        <button
-                          type="button"
-                          onClick={() => { setOpen(false); abrirDialogVinculo(); }}
-                          className="ml-1 text-primary hover:underline"
-                        >
-                          Vincular agora
-                        </button>
-                      </div>
-                    ) : null}
+                )}
+              </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Transportadora *</Label>
-                        <Select
-                          value={form.transportadoraId}
-                          onValueChange={(v) => setForm((s) => ({ ...s, transportadoraId: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={
-                                !form.clienteId
-                                  ? 'Selecione um cliente primeiro'
-                                  : isLoadingParceirosCliente
-                                    ? 'Carregando...'
-                                    : 'Selecionar'
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {form.transportadoraId &&
-                            !transportadoras.some((parceiro) => parceiro.id === form.transportadoraId) ? (
-                              <SelectItem value={form.transportadoraId}>
-                                {partnerMap.get(form.transportadoraId) || 'Logística Legado'}
-                              </SelectItem>
-                            ) : null}
-                            {transportadoras.map((p) => {
-                              const expirada = isLicencaExpirada(p)
-                              return (
-                                <SelectItem key={p.id} value={p.id} className={expirada ? 'opacity-70' : ''}>
-                                  <div className="flex items-center justify-between w-full gap-2">
-                                    <span>{p.name || p.nome}</span>
-                                    {expirada && (
-                                      <Badge variant="destructive" className="h-4 px-1 text-[9px] uppercase">Vencida</Badge>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              )
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
+              <Separator className="bg-white/[0.06]" />
 
-                      <div className="space-y-2">
-                        <Label>Destinador *</Label>
-                        <Select
-                          value={form.destinadorId}
-                          onValueChange={(v) => setForm((s) => ({ ...s, destinadorId: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={
-                                !form.clienteId
-                                  ? 'Selecione um cliente primeiro'
-                                  : isLoadingParceirosCliente
-                                    ? 'Carregando...'
-                                    : 'Selecionar'
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {form.destinadorId &&
-                            !destinadores.some((parceiro) => parceiro.id === form.destinadorId) ? (
-                              <SelectItem value={form.destinadorId}>
-                                {partnerMap.get(form.destinadorId) || 'Destinador Legado'}
-                              </SelectItem>
-                            ) : null}
-                            {destinadores.map((p) => {
-                              const expirada = isLicencaExpirada(p)
-                              return (
-                                <SelectItem key={p.id} value={p.id} className={expirada ? 'opacity-70' : ''}>
-                                  <div className="flex items-center justify-between w-full gap-2">
-                                    <span>{p.name || p.nome}</span>
-                                    {expirada && (
-                                      <Badge variant="destructive" className="h-4 px-1 text-[9px] uppercase">Vencida</Badge>
-                                    )}
-                                  </div>
-                                </SelectItem>
-                              )
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Método de Destinação *</Label>
-                      <Select
-                        value={form.tipoDestinacao}
-                        onValueChange={(v) => setForm((s) => ({ ...s, tipoDestinacao: v }))}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tipoDestinacaoOptions.map((item) => (
-                            <SelectItem key={item} value={item}>
-                              {formatEnum(item)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+              {/* Seção 3: Logística e Transporte */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">3</Badge>
+                  <h3 className="text-sm font-semibold">Logística e Transporte</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Método de Destinação *</Label>
+                    <Select
+                      value={form.tipoDestinacao}
+                      onValueChange={(v) => setForm((s) => ({ ...s, tipoDestinacao: v }))}
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tipoDestinacaoOptions.map((item) => (
+                          <SelectItem key={item} value={item}>
+                            {formatEnum(item)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )
-              },
-              {
-                id: 'step-motorista',
-                label: 'Dados de transporte',
-                content: (
-                  <div className="space-y-4 py-4">
-                    <p className="text-sm text-muted-foreground/80 mb-2">
-                       (Opcional) Informe os dados do motorista, veículo e data prevista para o transporte.
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Nome do Motorista</Label>
-                        <Input
-                          value={form.nomeMotorista}
-                          onChange={(e) => setForm((s) => ({ ...s, nomeMotorista: e.target.value }))}
-                        />
-                      </div>
 
-                      <div className="space-y-2">
-                        <Label>CPF do Motorista</Label>
-                        <Input
-                          value={form.cpfMotorista}
-                          onChange={(e) => setForm((s) => ({ ...s, cpfMotorista: e.target.value }))}
-                          placeholder="000.000.000-00"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Placa do Veículo</Label>
-                        <Input
-                          value={form.placaVeiculo}
-                          onChange={(e) =>
-                            setForm((s) => ({ ...s, placaVeiculo: e.target.value.toUpperCase() }))
-                          }
-                          placeholder="ABC-1234"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Data do Transporte</Label>
-                        <Input
-                          type="date"
-                          value={form.dataTransporte}
-                          onChange={(e) => setForm((s) => ({ ...s, dataTransporte: e.target.value }))}
-                        />
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Data do Transporte</Label>
+                    <Input
+                      type="date"
+                      className="rounded-xl"
+                      value={form.dataTransporte}
+                      onChange={(e) => setForm((s) => ({ ...s, dataTransporte: e.target.value }))}
+                    />
                   </div>
-                )
-              },
-              {
-                id: 'step-final',
-                label: 'Finalização',
-                content: (
-                  <div className="space-y-4 py-4">
-                    <p className="text-sm text-muted-foreground/80 mb-2">
-                       Observações finais e dados do documento gerado no sistema ambiental.
-                    </p>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Número do MTR</Label>
-                        <Input
-                          value={form.numeroMTR}
-                          onChange={(e) => setForm((s) => ({ ...s, numeroMTR: e.target.value }))}
-                          placeholder="Auto-gerado pelo SINIR"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Status</Label>
-                        <Select
-                          value={form.status}
-                          onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.map((item) => (
-                              <SelectItem key={item} value={item}>
-                                {formatEnum(item)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label>Observações adicionais</Label>
-                      <Textarea
-                        value={form.observacoes}
-                        onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))}
-                        className="min-h-[100px]"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Nome do Motorista</Label>
+                    <Input
+                      className="rounded-xl"
+                      value={form.nomeMotorista}
+                      onChange={(e) => setForm((s) => ({ ...s, nomeMotorista: e.target.value }))}
+                      placeholder="Nome completo"
+                    />
                   </div>
-                )
-              }
-            ]}
-          />
+
+                  <div className="space-y-2">
+                    <Label>CPF do Motorista</Label>
+                    <Input
+                      className="rounded-xl"
+                      value={form.cpfMotorista}
+                      onChange={(e) => setForm((s) => ({ ...s, cpfMotorista: e.target.value }))}
+                      placeholder="000.000.000-00"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Placa do Veículo</Label>
+                    <Input
+                      className="rounded-xl"
+                      value={form.placaVeiculo}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, placaVeiculo: e.target.value.toUpperCase() }))
+                      }
+                      placeholder="ABC-1234"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="bg-white/[0.06]" />
+
+              {/* Seção 4: Finalização */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">4</Badge>
+                  <h3 className="text-sm font-semibold">Finalização</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Número do MTR (Governo)</Label>
+                    <Input
+                      className="rounded-xl"
+                      value={form.numeroMTR}
+                      onChange={(e) => setForm((s) => ({ ...s, numeroMTR: e.target.value }))}
+                      placeholder="Ex: 123.456.789"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Status Atual *</Label>
+                    <Select
+                      value={form.status}
+                      onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}
+                    >
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((item) => (
+                          <SelectItem key={item} value={item}>
+                            {formatEnum(item)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Observações Adicionais</Label>
+                  <Textarea
+                    value={form.observacoes}
+                    onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))}
+                    className="min-h-[80px] rounded-xl resize-none"
+                    placeholder="Notas internas ou observações do documento..."
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="p-6 pt-2 border-t border-white/[0.06] shrink-0">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={isSaving} className="rounded-xl">
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving || !isFormReady} className="rounded-xl gap-2 min-w-[120px]">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {editing ? "Salvar Alterações" : "Emitir MTR"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

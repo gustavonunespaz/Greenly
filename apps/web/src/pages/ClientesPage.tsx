@@ -42,7 +42,10 @@ import {
 } from '@/lib/form-actionable-error'
 import { useTrackViewLoaded } from '@/hooks/use-track-view-loaded'
 import { trackFirstValidAction, trackFlowCompleted, trackFormError } from '@/lib/telemetry'
-import { FormWizard, type WizardStep } from '@/components/ui/form-wizard'
+import { DocumentoExtracaoInline } from '@/features/documentos/components/DocumentoExtracaoInline'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
 import {
   CidadeOption,
   EstadoOption,
@@ -237,6 +240,23 @@ export default function ClientesPage() {
   const [cidades, setCidades] = useState<CidadeOption[]>([])
   const [isLoadingEstados, setIsLoadingEstados] = useState(false)
   const [isLoadingCidades, setIsLoadingCidades] = useState(false)
+
+  const handleAutoFill = (data: any) => {
+    setForm(prev => ({
+      ...prev,
+      nome: data.nome_razao_social || data.nome || prev.nome,
+      cnpj: data.cnpj || data.cpf || prev.cnpj,
+      email: data.email || prev.email,
+      telefone: data.telefone || prev.telefone,
+      cep: data.cep || prev.cep,
+      logradouro: data.logradouro || prev.logradouro,
+      numero: data.numero || prev.numero,
+      complemento: data.complemento || prev.complemento,
+      bairro: data.bairro || prev.bairro,
+      estado: data.estado || prev.estado,
+      cidade: data.cidade || prev.cidade,
+    }))
+  }
   const [isBuscandoCnpj, setIsBuscandoCnpj] = useState(false)
   const [isBuscandoCep, setIsBuscandoCep] = useState(false)
   const hasClientes = (clientes || []).length > 0
@@ -692,15 +712,12 @@ export default function ClientesPage() {
                           {cliente.cidade || '—'} / {cliente.estado || '—'}
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ring-1 ${
-                              cliente.ativo
-                                ? 'bg-primary/10 text-primary ring-primary/20'
-                                : 'bg-muted/50 text-muted-foreground/70 ring-border'
-                            }`}
+                          <Badge 
+                            variant={cliente.ativo ? "default" : "secondary"}
+                            className="rounded-full text-[10px] font-medium"
                           >
                             {cliente.ativo ? 'Ativo' : 'Inativo'}
-                          </span>
+                          </Badge>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex justify-end gap-1.5">
@@ -803,292 +820,326 @@ export default function ClientesPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
-            <DialogDescription>
-              {editing
-                ? 'Atualize as informações do cliente selecionado.'
-                : 'Cadastre um cliente para vinculá-lo a licenças e MTRs.'}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden text-foreground">
+          <div className="p-6 pb-2 shrink-0">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between gap-4">
+                <span>{editing ? 'Editar Cliente' : 'Novo Cliente'}</span>
+                {!editing && (
+                  <DocumentoExtracaoInline 
+                    modulo="LICENCA"
+                    variant="mini"
+                    onAutoFill={handleAutoFill}
+                  />
+                )}
+              </DialogTitle>
+              <DialogDescription>
+                {editing
+                  ? 'Atualize os dados cadastrais do cliente selecionado.'
+                  : 'Cadastre um novo cliente para iniciar a gestão ambiental.'}
+              </DialogDescription>
+            </DialogHeader>
 
-          <FormErrorCallout
-            error={formError}
-            onAction={() => {
-              if (!formError) return
-              if (formError.actionKind === 'retry') {
-                void handleSave()
-                return
-              }
-              setFormError(null)
-            }}
-          />
-          
-          <FormWizard
-            isSubmitting={isSaving}
-            onCancel={() => setOpen(false)}
-            onComplete={handleSave}
-            steps={[
-              {
-                id: 'step1',
-                label: 'Identificação',
-                isValid: !!form.nome.trim() && digitsOnly(form.cnpj).length === 14 && !!form.tipoCadastro,
-                content: (
-                  <div className="space-y-4 py-4">
+            <FormErrorCallout
+              error={formError}
+              onAction={() => {
+                if (!formError) return
+                if (formError.actionKind === 'retry') {
+                  void handleSave()
+                  return
+                }
+                setFormError(null)
+              }}
+            />
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 min-h-0 bg-white/[0.01]">
+            <div className="space-y-8 py-4">
+              {/* Seção 1: Identificação */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">1</Badge>
+                  <h3 className="text-sm font-semibold">Identificação e Atividade</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="cnpj">CNPJ / CPF *</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="cnpj"
+                        placeholder="00.000.000/0000-00"
+                        value={form.cnpj}
+                        onChange={(e) => setForm((s) => ({ ...s, cnpj: formatCnpjInput(e.target.value) }))}
+                        className="rounded-xl"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        onClick={handleBuscarCnpj}
+                        disabled={isBuscandoCnpj || digitsOnly(form.cnpj).length !== 14}
+                        className="shrink-0 rounded-xl"
+                        title="Consultar dados da Receita Federal"
+                      >
+                        {isBuscandoCnpj ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Building2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="nome">Nome / Razão Social *</Label>
+                    <Input
+                      id="nome"
+                      placeholder="Nome oficial da empresa"
+                      value={form.nome}
+                      onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo">Tipo de Cadastro *</Label>
+                    <Select
+                      value={form.tipoCadastro}
+                      onValueChange={(v: ClienteFormState['tipoCadastro']) =>
+                        setForm((s) => ({ ...s, tipoCadastro: v }))
+                      }
+                    >
+                      <SelectTrigger id="tipo" className="rounded-xl">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tipoCadastroOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="setor">Setor Principal</Label>
+                    <Select
+                      value={form.setor}
+                      onValueChange={(v) => setForm((s) => ({ ...s, setor: v }))}
+                    >
+                      <SelectTrigger id="setor" className="rounded-xl">
+                        <SelectValue placeholder="Selecione o setor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {setorFormOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cnae">CNAE Principal</Label>
+                    <Input
+                      id="cnae"
+                      placeholder="Ex: 38.11-4-00"
+                      value={form.cnae}
+                      onChange={(e) => setForm((s) => ({ ...s, cnae: e.target.value }))}
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="bg-white/[0.06]" />
+
+              {/* Seção 2: Contato */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">2</Badge>
+                  <h3 className="text-sm font-semibold">Contato</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">E-mail Comercial</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="empresa@exemplo.com.br"
+                      value={form.email}
+                      onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="telefone">Telefone</Label>
+                    <Input
+                      id="telefone"
+                      placeholder="(00) 00000-0000"
+                      value={form.telefone}
+                      onChange={(e) => setForm((s) => ({ ...s, telefone: e.target.value }))}
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="bg-white/[0.06]" />
+
+              {/* Seção 3: Localização */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">3</Badge>
+                  <h3 className="text-sm font-semibold">Endereço</h3>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label>CNPJ *</Label>
-                      <div className="flex items-center gap-2">
+                      <Label htmlFor="cep">CEP</Label>
+                      <div className="flex gap-2">
                         <Input
-                          value={form.cnpj}
-                          onChange={(e) =>
-                            setForm((s) => ({ ...s, cnpj: formatCnpjInput(e.target.value) }))
-                          }
-                          placeholder="00.000.000/0000-00"
+                          id="cep"
+                          placeholder="00000-000"
+                          value={form.cep}
+                          onChange={(e) => setForm((s) => ({ ...s, cep: formatCepInput(e.target.value) }))}
+                          className="rounded-xl"
                         />
                         <Button
                           type="button"
-                          variant="outline"
-                          className="shrink-0 gap-2"
-                          onClick={() => void handleBuscarCnpj()}
-                          disabled={isBuscandoCnpj}
+                          variant="secondary"
+                          size="icon"
+                          onClick={handleBuscarCep}
+                          disabled={isBuscandoCep || digitsOnly(form.cep).length !== 8}
+                          className="shrink-0 rounded-xl"
                         >
-                          {isBuscandoCnpj ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                          Buscar CNPJ
+                          {isBuscandoCep ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                         </Button>
                       </div>
-                      <p className="text-[11px] text-muted-foreground/70">
-                        Consulta automática para preencher razão social, contato, CNAE e endereço.
-                      </p>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label>Nome *</Label>
+                    <div className="md:col-span-2 space-y-2">
+                      <Label htmlFor="logradouro">Rua / Logradouro</Label>
                       <Input
-                        value={form.nome}
-                        onChange={(e) => setForm((s) => ({ ...s, nome: e.target.value }))}
-                        placeholder="Razão social / nome do cliente"
+                        id="logradouro"
+                        value={form.logradouro}
+                        onChange={(e) => setForm((s) => ({ ...s, logradouro: e.target.value }))}
+                        className="rounded-xl"
                       />
                     </div>
+                  </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label>Tipo de cadastro *</Label>
+                      <Label htmlFor="numero">Número</Label>
+                      <Input
+                        id="numero"
+                        value={form.numero}
+                        onChange={(e) => setForm((s) => ({ ...s, numero: e.target.value }))}
+                        className="rounded-xl"
+                      />
+                    </div>
+                    <div className="md:col-span-2 space-y-2">
+                      <Label htmlFor="complemento">Complemento</Label>
+                      <Input
+                        id="complemento"
+                        value={form.complemento}
+                        onChange={(e) => setForm((s) => ({ ...s, complemento: e.target.value }))}
+                        className="rounded-xl"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="bairro">Bairro</Label>
+                      <Input
+                        id="bairro"
+                        value={form.bairro}
+                        onChange={(e) => setForm((s) => ({ ...s, bairro: e.target.value }))}
+                        className="rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="estado">Estado</Label>
                       <Select
-                        value={form.tipoCadastro}
-                        onValueChange={(value: ClienteFormState['tipoCadastro']) =>
-                          setForm((s) => ({ ...s, tipoCadastro: value }))
-                        }
+                        value={form.estado}
+                        onValueChange={(v) => setForm((s) => ({ ...s, estado: v, cidade: '' }))}
                       >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o tipo do cliente" />
+                        <SelectTrigger id="estado" className="rounded-xl">
+                          <SelectValue placeholder={isLoadingEstados ? '...' : 'Selecione'} />
                         </SelectTrigger>
                         <SelectContent>
-                          {tipoCadastroOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
+                          {estadoFormOptions.map((uf) => (
+                            <SelectItem key={uf.sigla} value={uf.sigla}>
+                              {uf.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="cidade">Cidade</Label>
+                      <Select
+                        value={form.cidade}
+                        onValueChange={(v) => setForm((s) => ({ ...s, cidade: v }))}
+                        disabled={!form.estado || isLoadingCidades}
+                      >
+                        <SelectTrigger id="cidade" className="rounded-xl">
+                          <SelectValue placeholder={isLoadingCidades ? '...' : 'Selecione'} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {cidadeFormOptions.map((cid) => (
+                            <SelectItem key={cid.id} value={cid.nome}>
+                              {cid.nome}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
-                )
-              },
-              {
-                id: 'step2',
-                label: 'Contato & Atuação',
-                content: (
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>E-mail</Label>
-                        <Input
-                          value={form.email}
-                          onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-                          placeholder="contato@empresa.com"
-                        />
-                      </div>
+                </div>
+              </div>
 
-                      <div className="space-y-2">
-                        <Label>Telefone</Label>
-                        <Input
-                          value={form.telefone}
-                          onChange={(e) => setForm((s) => ({ ...s, telefone: e.target.value }))}
-                          placeholder="(00) 00000-0000"
-                        />
-                      </div>
+              <Separator className="bg-white/[0.06]" />
 
-                      <div className="space-y-2">
-                        <Label>Setor</Label>
-                        <Select
-                          value={form.setor || undefined}
-                          onValueChange={(value) => setForm((s) => ({ ...s, setor: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o setor" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {setorFormOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>CNAE</Label>
-                        <Input
-                          value={form.cnae}
-                          onChange={(e) => setForm((s) => ({ ...s, cnae: e.target.value }))}
-                          placeholder="0000-0/00"
-                        />
-                      </div>
-                    </div>
+              {/* Seção 4: Configurações */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">4</Badge>
+                  <h3 className="text-sm font-semibold">Configurações de Acesso</h3>
+                </div>
+                <div className="flex items-center justify-between p-4 glass-card rounded-xl">
+                  <div className="space-y-1">
+                    <Label htmlFor="ativo-switch" className="text-sm font-medium">Status da Conta</Label>
+                    <p className="text-xs text-muted-foreground">Clientes inativos não podem emitir MTRs ou gerir licenças.</p>
                   </div>
-                )
-              },
-              {
-                id: 'step3',
-                label: 'Endereço',
-                content: (
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>CEP</Label>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={form.cep}
-                            onChange={(e) => setForm((s) => ({ ...s, cep: formatCepInput(e.target.value) }))}
-                            placeholder="00000-000"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="shrink-0 gap-2"
-                            onClick={() => void handleBuscarCep()}
-                            disabled={isBuscandoCep}
-                          >
-                            {isBuscandoCep ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                            Buscar
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Estado (UF)</Label>
-                        <Select
-                          value={form.estado || undefined}
-                          onValueChange={(value) =>
-                            setForm((s) => ({ ...s, estado: value, cidade: '' }))
-                          }
-                          disabled={isLoadingEstados}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={isLoadingEstados ? 'Carregando...' : 'Selecione o estado'} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {estadoFormOptions.map((estado) => (
-                              <SelectItem key={`${estado.id}-${estado.sigla}`} value={estado.sigla}>
-                                {estado.sigla} - {estado.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Cidade</Label>
-                        <Select
-                          value={form.cidade || undefined}
-                          onValueChange={(value) => setForm((s) => ({ ...s, cidade: value }))}
-                          disabled={!form.estado || isLoadingCidades}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={
-                                !form.estado
-                                  ? 'Selecione o estado primeiro'
-                                  : isLoadingCidades
-                                    ? 'Carregando...'
-                                    : 'Selecione a cidade'
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {cidadeFormOptions.map((cidade) => (
-                              <SelectItem key={`${cidade.id}-${cidade.nome}`} value={cidade.nome}>
-                                {cidade.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2 md:col-span-2">
-                        <Label>Logradouro</Label>
-                        <Input
-                          value={form.logradouro}
-                          onChange={(e) => setForm((s) => ({ ...s, logradouro: e.target.value }))}
-                          placeholder="Rua, avenida..."
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Número</Label>
-                        <Input
-                          value={form.numero}
-                          onChange={(e) => setForm((s) => ({ ...s, numero: e.target.value }))}
-                          placeholder="123"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Bairro</Label>
-                        <Input
-                          value={form.bairro}
-                          onChange={(e) => setForm((s) => ({ ...s, bairro: e.target.value }))}
-                          placeholder="Bairro"
-                        />
-                      </div>
-
-                      <div className="space-y-2 md:col-span-2">
-                        <Label>Complemento</Label>
-                        <Input
-                          value={form.complemento}
-                          onChange={(e) => setForm((s) => ({ ...s, complemento: e.target.value }))}
-                          placeholder="Sala, bloco, referência..."
-                        />
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`text-[11px] font-medium ${form.ativo ? 'text-primary' : 'text-muted-foreground'}`}>
+                      {form.ativo ? 'ATIVO' : 'INATIVO'}
+                    </span>
+                    <Switch
+                      id="ativo-switch"
+                      checked={form.ativo}
+                      onCheckedChange={(v) => setForm((s) => ({ ...s, ativo: v }))}
+                    />
                   </div>
-                )
-              },
-              {
-                id: 'step4',
-                label: 'Configurações',
-                content: (
-                  <div className="space-y-4 py-4">
-                    <div className="flex items-center justify-between rounded-lg border border-border px-3 py-4 bg-white/[0.02]">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Cliente ativo</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Use inativo para ocultar o cliente sem perder o histórico.
-                        </p>
-                      </div>
-                      <Switch
-                        checked={form.ativo}
-                        onCheckedChange={(checked) => setForm((s) => ({ ...s, ativo: checked }))}
-                      />
-                    </div>
-                  </div>
-                )
-              }
-            ]}
-          />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="p-6 pt-2 border-t border-white/[0.06] shrink-0">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={isSaving} className="rounded-xl">
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving || !isFormReady} className="rounded-xl gap-2 min-w-[120px]">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {editing ? "Salvar Alterações" : "Cadastrar Cliente"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppLayout>

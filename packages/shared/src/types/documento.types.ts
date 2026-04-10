@@ -60,6 +60,18 @@ export const campoDocumentoAmbientalValues = [
   'ART_REFERENCIA',
   'TIPO_RELATORIO',
   'REFERENCIA_MENSAL',
+  'CNPJ_TRANSPORTADOR',
+  'CNPJ_DESTINADOR',
+  'NOME_EMPREENDIMENTO',
+  'ATIVIDADE_LICENCIADA',
+  'TIPO_LICENCA',
+  'MUNICIPIO_EMISSOR',
+  'TIPO_DESTINACAO',
+  'MOTORISTA_NOME',
+  'MOTORISTA_CPF',
+  'MOTORISTA_PLACA',
+  'DATA_TRANSPORTE',
+  'OBSERVACAO',
 ] as const
 
 export type CampoDocumentoAmbiental = (typeof campoDocumentoAmbientalValues)[number]
@@ -249,8 +261,13 @@ export interface DocumentoCrudLicencaSugestaoDTO {
     numeroLicenca?: string
     numeroProcesso?: string
     orgaoAmbientalId?: string
+    nomeEmpreendimento?: string
+    atividadeLicenciada?: string
+    municipioEmissor?: string
     dataEmissao?: Date
     dataValidade?: Date
+    tipo?: string
+    extracaoDadosIa?: any
   }
   condicionantesSugeridas: Array<{
     codigo?: string | null
@@ -283,6 +300,21 @@ export interface DocumentoCrudMtrSugestaoDTO {
     dataEmissao?: Date
     volume?: number
     unidadeMedida?: 'KG' | 'TON' | 'LITRO' | 'M3' | 'UNIDADE'
+    transportadoraId?: string
+    destinadorId?: string
+    tipoDestinacao?:
+      | 'ATERRO_SANITARIO'
+      | 'ATERRO_INDUSTRIAL'
+      | 'INCINERACAO'
+      | 'COPROCESSAMENTO'
+      | 'RECICLAGEM'
+      | 'COMPOSTAGEM'
+      | 'TRATAMENTO_BIOLOGICO'
+      | 'TRATAMENTO_QUIMICO'
+      | 'TRATAMENTO_FISICO'
+      | 'REUTILIZACAO'
+      | 'LOGISTICA_REVERSA'
+      | 'OUTRO'
   }
   itemResiduo?: {
     descricao?: string
@@ -300,6 +332,12 @@ export interface DocumentoCrudSugestaoResponseDTO {
   origemDados: 'REVISAO_HUMANA' | 'EXTRACAO_AUTOMATICA'
   licenca: DocumentoCrudLicencaSugestaoDTO | null
   mtr: DocumentoCrudMtrSugestaoDTO | null
+  clienteSugestao: {
+    nome: string | null
+    cnpj: string | null
+    existente: boolean
+    clienteId?: string | null
+  } | null
   avisos: string[]
 }
 

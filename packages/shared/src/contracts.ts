@@ -357,7 +357,7 @@ export const RevisarDocumentoSchema = z.object({
   statusRevisao: z.enum(['APROVADO_SEM_AJUSTES', 'APROVADO_COM_AJUSTES', 'REJEITADO']),
   tempoRevisaoSegundos: z.coerce.number().int().min(0).max(86400).optional(),
   observacoes: z.string().trim().max(1000).optional(),
-  campos: z.array(RevisarDocumentoCampoSchema).min(1),
+  campos: z.array(RevisarDocumentoCampoSchema),
 })
 export type RevisarDocumentoDTO = z.infer<typeof RevisarDocumentoSchema>
 
@@ -399,6 +399,7 @@ export const AplicarDocumentoCrudSchema = z.object({
   aplicarLicenca: z.boolean().default(true),
   aplicarMtr: z.boolean().default(true),
   aplicarCondicionantes: z.boolean().default(true),
+  condicionantesIndicesSelecionados: z.array(z.number()).optional(), // Indices na lista sugerida
 })
 export type AplicarDocumentoCrudDTO = z.infer<typeof AplicarDocumentoCrudSchema>
 
@@ -469,6 +470,18 @@ export interface LicencaResponseDTO {
   orgaoSigla?: string | null
   orgaoNome?: string | null
   orgaoEsfera?: string | null
+  extracaoCondicionantesStatus?: string | null
+  extracaoDadosIa?: any | null
+}
+
+export interface LicencaDadosExtraidosIADTO {
+  numeroLicenca?: string | null
+  numeroProcesso?: string | null
+  nomeEmpreendimento?: string | null
+  atividadeLicenciada?: string | null
+  dataEmissao?: string | null
+  dataValidade?: string | null
+  municipioEmissor?: string | null
 }
 
 export interface OrgaoAmbientalResponseDTO {
@@ -527,6 +540,34 @@ export interface CondicionanteListItemDTO {
   responsavelCliente?: string | null
   diasRestantes?: number | null
 }
+
+// ── Extração de Condicionantes via IA ──
+export interface CondicionanteExtracaoResponseDTO {
+  id: string
+  licencaId: string
+  codigo?: string | null
+  descricao: string
+  tipo: string
+  prazo?: Date | null
+  periodicidade?: string | null
+  confiancaExtracaoIa?: number | null
+  origemExtracao: 'MANUAL' | 'IA_GEMINI'
+  status: string
+}
+
+export const ValidarCondicionantesExtracaoSchema = z.object({
+  validacoes: z.array(z.object({
+    condicionanteId: z.string().uuid(),
+    aceita: z.boolean(),
+  })).min(1),
+})
+export type ValidarCondicionantesExtracaoDTO = z.infer<typeof ValidarCondicionantesExtracaoSchema>
+
+export interface ExtracaoCondicionantesStatusDTO {
+  status: string
+  message: string
+}
+
 
 // ─── Obrigações Ambientais ─────────────
 export const obrigacaoAmbientalModuloValues = [

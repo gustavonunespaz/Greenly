@@ -48,12 +48,14 @@ import {
 import { useTrackViewLoaded } from "@/hooks/use-track-view-loaded";
 import { trackFirstValidAction, trackFlowCompleted, trackFormError } from "@/lib/telemetry";
 import { useClienteContexto } from "@/features/clientes/components/ClienteContextProvider";
-import { FormWizard, type WizardStep } from "@/components/ui/form-wizard";
-import { ViewToggle, useViewMode } from "@/components/ui/view-toggle";
-import { ChevronRight } from "lucide-react";
 import { formatEnum } from "@/lib/utils";
 import { DocumentoExtracaoInline } from "@/features/documentos/components/DocumentoExtracaoInline";
-
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { ViewToggle, useViewMode } from "@/components/ui/view-toggle";
+import { ChevronRight, Loader2 } from "lucide-react";
+import { ExtracaoCondicionantesIa } from "@/features/licencas/components/ExtracaoCondicionantesIa";
 
 const item = {
   hidden: { opacity: 0, y: 8 },
@@ -227,6 +229,42 @@ export default function LicencasPage() {
   const hasLicencas = (licencas || []).length > 0;
   const hasActiveFilter = filter !== "TODAS" || !!search.trim() || !!clienteIdFilter;
   const isFormReady = !!form.clienteId && !!form.tipo && (!!editing || !!form.orgaoAmbientalId);
+  
+  // State for inline condition creation (when editing)
+  const [isCriandoCond, setIsCriandoCond] = useState(false);
+  const [novaCondForm, setNovaCondForm] = useState({
+    descricao: "",
+    prazo: "",
+    tipo: "PONTUAL" as const,
+    codigo: "",
+  });
+
+  const condicionantesDaLicenca = useMemo(() => {
+    if (!editing?.id) return [];
+    return (condicionantes || []).filter(c => c.licencaId === editing.id);
+  }, [condicionantes, editing?.id]);
+
+  async function handleAddInlineCondicionante() {
+    if (!editing?.id || !novaCondForm.descricao) return;
+    try {
+      setIsCriandoCond(true);
+      await criarCondicionante({
+        licencaId: editing.id,
+        dto: {
+          ...novaCondForm,
+          prazo: novaCondForm.prazo ? new Date(novaCondForm.prazo) : undefined,
+          status: 'A_CUMPRIR'
+        }
+      });
+      setNovaCondForm({ descricao: "", prazo: "", tipo: "PONTUAL", codigo: "" });
+      toast.success("Condicionante adicionada!");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Erro ao adicionar condicionante."));
+    } finally {
+      setIsCriandoCond(false);
+    }
+  }
+
   useTrackViewLoaded("licencas");
 
   function applyTrackedFormError(
@@ -299,6 +337,30 @@ export default function LicencasPage() {
     setOpen(true);
   }
 
+  function handleAutoFill(payload: any) {
+    setForm((prev) => ({
+      ...prev,
+      numeroLicenca: payload.numeroLicenca || prev.numeroLicenca,
+      numeroProcesso: payload.numeroProcesso || prev.numeroProcesso,
+      dataEmissao: toDateInput(payload.dataEmissao) || prev.dataEmissao,
+      dataValidade: toDateInput(payload.dataValidade) || prev.dataValidade,
+      nomeEmpreendimento: payload.nomeEmpreendimento || prev.nomeEmpreendimento,
+      atividadeLicenciada: payload.atividadeLicenciada || prev.atividadeLicenciada,
+      municipioEmissor: payload.municipioEmissor || prev.municipioEmissor,
+      observacoes: payload.observacoes ? `${prev.observacoes}\n${payload.observacoes}`.trim() : prev.observacoes,
+      condicionantes: payload.condicionantes ? [
+        ...prev.condicionantes,
+        ...payload.condicionantes.map((c: any) => ({
+          descricao: c.descricao || "",
+          tipo: c.tipo || "PONTUAL",
+          codigo: c.codigo || "",
+          prazo: c.prazo ? toDateInput(c.prazo) : ""
+        }))
+      ] : prev.condicionantes
+    }));
+    toast.info("Campos preenchidos a partir do documento. Por favor, revise os dados.");
+  }
+
   async function handleSave() {
     try {
       setFormError(null);
@@ -328,15 +390,13 @@ export default function LicencasPage() {
       }
 
       // L1-FE: Validate municipioEmissor for municipal agencies
-      if (!editing) {
-        const selectedOrgao = orgaosAmbientais?.find(o => o.id === form.orgaoAmbientalId);
-        if (selectedOrgao?.esfera === 'MUNICIPAL' && !form.municipioEmissor?.trim()) {
-          applyTrackedFormError(
-            buildValidationFormError("Para órgãos municipais, informe o município emissor."),
-            "validation",
-          );
-          return;
-        }
+      const selectedOrgao = orgaosAmbientais?.find(o => o.id === form.orgaoAmbientalId);
+      if (selectedOrgao?.esfera === 'MUNICIPAL' && !form.municipioEmissor?.trim()) {
+        applyTrackedFormError(
+          buildValidationFormError("Para órgãos municipais, informe o município emissor."),
+          "validation",
+        );
+        return;
       }
 
       let licencaIdSalva = editing?.id;
@@ -751,206 +811,332 @@ export default function LicencasPage() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Editar Licença" : "Nova Licença"}</DialogTitle>
-            <DialogDescription>
-              {editing
-                ? "Atualize os dados da licença selecionada."
-                : "Cadastre uma nova licença e vincule ao cliente correto."}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden text-foreground">
+          <div className="p-6 pb-2 shrink-0">
+            <DialogHeader className="flex flex-row items-center justify-between space-y-0">
+              <div className="space-y-1">
+                <DialogTitle>{editing ? "Editar Licença" : "Nova Licença"}</DialogTitle>
+                <DialogDescription>
+                  {editing
+                    ? "Atualize os dados da licença selecionada."
+                    : "Cadastre uma nova licença preenchendo as informações abaixo."}
+                </DialogDescription>
+              </div>
+              {!editing && (
+                <DocumentoExtracaoInline
+                  modulo="LICENCA"
+                  variant="mini"
+                  clienteId={form.clienteId}
+                  onAutoFill={handleAutoFill}
+                />
+              )}
+            </DialogHeader>
 
-          <FormErrorCallout
-            error={formError}
-            onAction={() => {
-              if (!formError) return;
-              if (formError.actionKind === "retry") {
-                void handleSave();
-                return;
-              }
-              setFormError(null);
-            }}
-          />
+            <FormErrorCallout
+              error={formError}
+              onAction={() => {
+                if (!formError) return;
+                if (formError.actionKind === "retry") {
+                  void handleSave();
+                  return;
+                }
+                setFormError(null);
+              }}
+            />
+          </div>
 
-          <FormWizard
-            isSubmitting={isSaving}
-            onCancel={() => setOpen(false)}
-            onComplete={handleSave}
-            steps={[
-              {
-                id: "step-obrigatorios",
-                label: "Dados obrigatórios",
-                isValid:
-                  !!form.clienteId &&
-                  !!form.orgaoAmbientalId &&
-                  !!form.tipo &&
-                  ((orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.esfera === "MUNICIPAL" ||
-                    orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.sigla === "SMMA")
-                    ? !!form.municipioEmissor?.trim()
-                    : true),
-                content: (
-                  <div className="space-y-4 py-4">
-                    <p className="text-xs text-muted-foreground">
-                      Comece pelos dados essenciais. Estes campos garantem rastreabilidade e compliance da licença.
-                    </p>
+          <div className="flex-1 overflow-y-auto px-6 min-h-0 bg-white/[0.01]">
+            <div className="space-y-8 py-4">
+              {/* Seção 1: Dados do Órgão e Cliente */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">1</Badge>
+                  <h3 className="text-sm font-semibold">Dados da Emissão</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Cliente *</Label>
+                    <Select value={form.clienteId} onValueChange={(v) => setForm((s) => ({ ...s, clienteId: v }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientes.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>{editing ? "Órgão ambiental" : "Órgão ambiental *"}</Label>
+                    <Select value={form.orgaoAmbientalId} onValueChange={(v) => setForm((s) => ({ ...s, orgaoAmbientalId: v }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o órgão" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(orgaosAmbientais || []).map((o) => (
+                          <SelectItem key={o.id} value={o.id}>
+                            {o.sigla} - {o.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Tipo *</Label>
+                    <Select value={form.tipo} onValueChange={(v) => setForm((s) => ({ ...s, tipo: v }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tipoOptions.map((tipo) => (
+                          <SelectItem key={tipo} value={tipo}>
+                            {formatEnum(tipo)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusOptions.map((status) => (
+                          <SelectItem key={status} value={status}>
+                            {formatEnum(status)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {(orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.esfera === "MUNICIPAL" ||
+                  orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.sigla === "SMMA") && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-2">
+                    <Label>Município emissor *</Label>
+                    <Input
+                      placeholder="Ex: Curitiba - PR"
+                      value={form.municipioEmissor}
+                      onChange={(e) => setForm((s) => ({ ...s, municipioEmissor: e.target.value }))}
+                    />
+                  </motion.div>
+                )}
+              </div>
+
+              <Separator className="bg-white/[0.06]" />
+
+              {/* Seção 2: Identificação e Datas */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">2</Badge>
+                  <h3 className="text-sm font-semibold">Identificação e Prazos</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Número da licença</Label>
+                    <Input value={form.numeroLicenca} onChange={(e) => setForm((s) => ({ ...s, numeroLicenca: e.target.value }))} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Número do processo</Label>
+                    <Input value={form.numeroProcesso} onChange={(e) => setForm((s) => ({ ...s, numeroProcesso: e.target.value }))} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Data de emissão</Label>
+                    <Input type="date" value={form.dataEmissao} onChange={(e) => setForm((s) => ({ ...s, dataEmissao: e.target.value }))} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Data de validade</Label>
+                    <Input type="date" value={form.dataValidade} onChange={(e) => setForm((s) => ({ ...s, dataValidade: e.target.value }))} />
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="bg-white/[0.06]" />
+
+              {/* Seção 3: Detalhes Complementares */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">3</Badge>
+                  <h3 className="text-sm font-semibold">Detalhes Complementares</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 text-foreground">
+                    <Label>Empreendimento</Label>
+                    <Input value={form.nomeEmpreendimento} onChange={(e) => setForm((s) => ({ ...s, nomeEmpreendimento: e.target.value }))} />
+                  </div>
+
+                  <div className="space-y-2 text-foreground">
+                    <Label>Atividade Licenciada</Label>
+                    <Input value={form.atividadeLicenciada} onChange={(e) => setForm((s) => ({ ...s, atividadeLicenciada: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Observações</Label>
+                  <Textarea value={form.observacoes} onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))} className="min-h-[100px]" />
+                </div>
+              </div>
+
+              <Separator className="bg-white/[0.06]" />
+
+              {/* Seção 4: Condicionantes */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="h-6 w-6 rounded-full p-0 flex items-center justify-center text-[10px]">4</Badge>
+                    <h3 className="text-sm font-semibold">Condicionantes Ambientais</h3>
+                  </div>
+                  {!editing && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="h-8 rounded-xl px-3"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          condicionantes: [
+                            ...prev.condicionantes,
+                            { descricao: "", tipo: "PONTUAL", codigo: "", prazo: "" },
+                          ],
+                        }))
+                      }
+                    >
+                      <Plus className="w-3.5 h-3.5 mr-1" />
+                      Adicionar Regra
+                    </Button>
+                  )}
+                </div>
+
+                {editing ? (
+                  /* Modo Edição: Listagem e Adição Inline */
+                  <div className="space-y-4">
+                    <ExtracaoCondicionantesIa 
+                      licencaId={editing.id} 
+                      statusExtracao={editing.extracaoCondicionantesStatus} 
+                      dadosLicenca={editing.extracaoDadosIa}
+                      onAutoFill={handleAutoFill}
+                    />
+
+                    {condicionantesDaLicenca.length > 0 ? (
                       <div className="space-y-2">
-                        <Label>Cliente *</Label>
-                        <Select value={form.clienteId} onValueChange={(v) => setForm((s) => ({ ...s, clienteId: v }))}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um cliente" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {clientes.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {condicionantesDaLicenca.map((c) => (
+                          <div key={c.id} className="glass-card p-3 flex items-start justify-between gap-3 group">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                {c.codigo && (
+                                  <span className="text-[10px] font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                                    {c.codigo}
+                                  </span>
+                                )}
+                                <StatusBadge status={c.status} className="h-4 text-[9px]" />
+                              </div>
+                              <p className="text-xs text-foreground font-medium">{c.descricao}</p>
+                              {c.prazo && (
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                  Prazo: {new Date(c.prazo).toLocaleDateString('pt-BR')}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-
-                      <div className="space-y-2">
-                        <Label>{editing ? "Órgão ambiental" : "Órgão ambiental *"}</Label>
-                        <Select value={form.orgaoAmbientalId} onValueChange={(v) => setForm((s) => ({ ...s, orgaoAmbientalId: v }))}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione o órgão" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {(orgaosAmbientais || []).map((o) => (
-                              <SelectItem key={o.id} value={o.id}>
-                                {o.sigla} - {o.nome}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-white/10 p-6 text-center bg-white/[0.01]">
+                        <ClipboardList className="h-6 w-6 mx-auto text-muted-foreground/30 mb-2" />
+                        <p className="text-xs text-muted-foreground/60">Nenhuma condicionante para esta licença.</p>
                       </div>
-
-                      <div className="space-y-2">
-                        <Label>Tipo *</Label>
-                        <Select value={form.tipo} onValueChange={(v) => setForm((s) => ({ ...s, tipo: v }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {tipoOptions.map((tipo) => (
-                              <SelectItem key={tipo} value={tipo}>
-                                {formatEnum(tipo)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Status</Label>
-                        <Select value={form.status} onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {statusOptions.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {formatEnum(status)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {(orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.esfera === "MUNICIPAL" ||
-                      orgaosAmbientais?.find((o) => o.id === form.orgaoAmbientalId)?.sigla === "SMMA") && (
-                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="space-y-2">
-                        <Label>Município emissor *</Label>
-                        <Input
-                          placeholder="Ex: Curitiba - PR"
-                          value={form.municipioEmissor}
-                          onChange={(e) => setForm((s) => ({ ...s, municipioEmissor: e.target.value }))}
-                        />
-                      </motion.div>
                     )}
-                  </div>
-                )
-              },
-              {
-                id: "step-detalhes",
-                label: "Detalhes da licença",
-                content: (
-                  <div className="space-y-4 py-4">
-                    <p className="text-xs text-muted-foreground">
-                      Preencha identificadores e prazos da licença para facilitar busca e alertas automáticos.
-                    </p>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Número da licença</Label>
-                        <Input value={form.numeroLicenca} onChange={(e) => setForm((s) => ({ ...s, numeroLicenca: e.target.value }))} />
+                    {/* Formulário Inline para Nova Condicionante */}
+                    <div className="glass-card p-4 space-y-4 bg-primary/5 border-primary/20">
+                      <div className="flex items-center gap-2">
+                        <Plus className="h-3 w-3 text-primary" />
+                        <span className="text-[11px] font-bold uppercase text-primary tracking-wider">Nova Condicionante</span>
                       </div>
-
-                      <div className="space-y-2">
-                        <Label>Número do processo</Label>
-                        <Input value={form.numeroProcesso} onChange={(e) => setForm((s) => ({ ...s, numeroProcesso: e.target.value }))} />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                         <div className="space-y-1">
+                           <Label className="text-[10px] uppercase text-muted-foreground/70">Código</Label>
+                           <Input
+                             placeholder="Ex: C-01"
+                             className="h-8 text-xs"
+                             value={novaCondForm.codigo}
+                             onChange={(e) => setNovaCondForm(p => ({ ...p, codigo: e.target.value }))}
+                           />
+                         </div>
+                         <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-muted-foreground/70">Tipo</Label>
+                            <Select
+                              value={novaCondForm.tipo}
+                              onValueChange={(val: 'PONTUAL' | 'PERIODICA') => setNovaCondForm(p => ({ ...p, tipo: val }))}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="PONTUAL">Pontual</SelectItem>
+                                <SelectItem value="PERIODICA">Periódica</SelectItem>
+                              </SelectContent>
+                            </Select>
+                         </div>
+                         <div className="space-y-1">
+                            <Label className="text-[10px] uppercase text-muted-foreground/70">Prazo</Label>
+                            <Input
+                              type="date"
+                              className="h-8 text-xs"
+                              value={novaCondForm.prazo}
+                              onChange={(e) => setNovaCondForm(p => ({ ...p, prazo: e.target.value }))}
+                            />
+                         </div>
+                         <div className="flex items-end">
+                            <Button 
+                              className="h-8 w-full text-xs gap-1.5" 
+                              onClick={handleAddInlineCondicionante}
+                              disabled={isCriandoCond || !novaCondForm.descricao}
+                            >
+                              {isCriandoCond ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                              Adicionar
+                            </Button>
+                         </div>
                       </div>
-
-                      <div className="space-y-2">
-                        <Label>Data de emissão</Label>
-                        <Input type="date" value={form.dataEmissao} onChange={(e) => setForm((s) => ({ ...s, dataEmissao: e.target.value }))} />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Data de validade</Label>
-                        <Input type="date" value={form.dataValidade} onChange={(e) => setForm((s) => ({ ...s, dataValidade: e.target.value }))} />
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase text-muted-foreground/70">Descrição *</Label>
+                        <Textarea 
+                          placeholder="Descreva a regra ou obrigação..." 
+                          className="min-h-[60px] text-xs resize-none"
+                          value={novaCondForm.descricao}
+                          onChange={(e) => setNovaCondForm(p => ({ ...p, descricao: e.target.value }))}
+                        />
                       </div>
                     </div>
                   </div>
-                )
-              },
-              {
-                id: "step-complementos",
-                label: "Condicionantes e notas",
-                content: (
-                  <div className="space-y-4 py-4">
-                    <p className="text-xs text-muted-foreground">
-                      Esta etapa é opcional e ajuda a deixar o acompanhamento completo desde o cadastro.
-                    </p>
-                    <div className="flex justify-between items-center bg-white/[0.02] p-4 rounded-xl border border-white/[0.06]">
-                      <div>
-                        <Label>Condicionantes Anexas (Opcional)</Label>
-                        <p className="text-xs text-muted-foreground mt-1">Registre as regras intrínsecas a esta licença. Elas gerarão prazos na agenda.</p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="rounded-xl px-3 h-8 shadow-none"
-                        onClick={() =>
-                          setForm((prev) => ({
-                            ...prev,
-                            condicionantes: [
-                              ...prev.condicionantes,
-                              { descricao: "", tipo: "PONTUAL", codigo: "", prazo: "" },
-                            ],
-                          }))
-                        }
-                      >
-                        <Plus className="w-3.5 h-3.5 mr-1" />
-                        Adicionar Regra
-                      </Button>
-                    </div>
-
-                    <div className="space-y-3 mt-4">
-                      {form.condicionantes.length === 0 && (
-                        <div className="text-center py-8 glass-card border-dashed">
-                          <p className="text-sm text-muted-foreground/70">Nenhuma condicionante adicionada neste momento.</p>
-                        </div>
-                      )}
-
-                      {form.condicionantes.map((cond, idx) => (
-                        <div key={idx} className="bg-white/[0.02] border border-white/[0.06] p-4 rounded-xl space-y-3 relative overflow-hidden group">
-                           <Button
+                ) : (
+                  /* Modo Criação: Lote (Rapidas) */
+                  <div className="space-y-3">
+                    {form.condicionantes.length === 0 ? (
+                       <div className="rounded-xl border border-dashed border-white/10 p-6 text-center bg-white/[0.01]">
+                        <p className="text-xs text-muted-foreground/60">Lista vazia. Use o botão acima para adicionar regras iniciais.</p>
+                       </div>
+                    ) : (
+                      form.condicionantes.map((cond, idx) => (
+                        <div key={idx} className="bg-white/[0.02] border border-white/[0.06] p-4 rounded-xl space-y-3 relative group">
+                          <Button
                             type="button"
                             variant="ghost"
                             size="icon"
@@ -962,25 +1148,25 @@ export default function LicencasPage() {
                                 return { ...prev, condicionantes: arr };
                               })
                             }
-                           >
+                          >
                             <Trash2 className="w-3.5 h-3.5" />
-                           </Button>
+                          </Button>
 
-                          <div className="flex flex-col md:flex-row gap-3">
-                             <div className="w-full md:w-1/3 space-y-1">
-                               <Label className="text-[10px] uppercase text-muted-foreground/70">Código (Opcional)</Label>
-                               <Input
-                                  placeholder="Ex: C-01"
-                                  className="h-8 text-sm"
-                                  value={cond.codigo}
-                                  onChange={(e) => setForm((p) => {
-                                    const arr = [...p.condicionantes];
-                                    arr[idx].codigo = e.target.value;
-                                    return { ...p, condicionantes: arr };
-                                  })}
-                               />
-                             </div>
-                             <div className="w-full md:w-1/3 space-y-1">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] uppercase text-muted-foreground/70">Código</Label>
+                              <Input
+                                placeholder="Ex: C-01"
+                                className="h-8 text-sm"
+                                value={cond.codigo}
+                                onChange={(e) => setForm((p) => {
+                                  const arr = [...p.condicionantes];
+                                  arr[idx].codigo = e.target.value;
+                                  return { ...p, condicionantes: arr };
+                                })}
+                              />
+                            </div>
+                            <div className="space-y-1">
                                 <Label className="text-[10px] uppercase text-muted-foreground/70">Tipo</Label>
                                 <Select
                                   value={cond.tipo}
@@ -998,27 +1184,25 @@ export default function LicencasPage() {
                                     <SelectItem value="PERIODICA">Periódica</SelectItem>
                                   </SelectContent>
                                 </Select>
-                             </div>
-                             <div className="w-full md:w-1/3 space-y-1">
-                               <Label className="text-[10px] uppercase text-muted-foreground/70 flex justify-between">
-                                 Prazo <span className="lowercase font-normal">vazio = contínuo</span>
-                               </Label>
-                               <Input
-                                  type="date"
-                                  className="h-8 text-sm"
-                                  value={cond.prazo}
-                                  onChange={(e) => setForm((p) => {
-                                    const arr = [...p.condicionantes];
-                                    arr[idx].prazo = e.target.value;
-                                    return { ...p, condicionantes: arr };
-                                  })}
-                               />
-                             </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] uppercase text-muted-foreground/70">Prazo</Label>
+                              <Input
+                                 type="date"
+                                 className="h-8 text-sm"
+                                 value={cond.prazo}
+                                 onChange={(e) => setForm((p) => {
+                                   const arr = [...p.condicionantes];
+                                   arr[idx].prazo = e.target.value;
+                                   return { ...p, condicionantes: arr };
+                                 })}
+                              />
+                            </div>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[10px] uppercase text-muted-foreground/70">Descrição *</Label>
                             <Textarea
-                              placeholder="Descrição da regra ou exigência estabelecida pelo órgão"
+                              placeholder="Descrição da regra..."
                               className="min-h-[60px] text-sm resize-none"
                               value={cond.descricao}
                               onChange={(e) => setForm((p) => {
@@ -1029,30 +1213,23 @@ export default function LicencasPage() {
                             />
                           </div>
                         </div>
-                      ))}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Empreendimento</Label>
-                        <Input value={form.nomeEmpreendimento} onChange={(e) => setForm((s) => ({ ...s, nomeEmpreendimento: e.target.value }))} />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label>Atividade Licenciada</Label>
-                        <Input value={form.atividadeLicenciada} onChange={(e) => setForm((s) => ({ ...s, atividadeLicenciada: e.target.value }))} />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Observações</Label>
-                      <Textarea value={form.observacoes} onChange={(e) => setForm((s) => ({ ...s, observacoes: e.target.value }))} className="min-h-[100px]" />
-                    </div>
+                      ))
+                    )}
                   </div>
-                )
-              }
-            ]}
-          />
+                )}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="p-6 pt-2 border-t border-white/[0.06] shrink-0">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={isSaving} className="rounded-xl">
+              Cancelar
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving} className="rounded-xl gap-2 min-w-[120px]">
+              {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {editing ? "Salvar Alterações" : "Criar Licença"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </AppLayout>

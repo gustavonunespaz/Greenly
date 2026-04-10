@@ -494,6 +494,8 @@ Progresso Sprint 9 (execucao antecipada - 2026-03-30):
 ## Onda 4 - Operacao de campo offline-first
 
 ### Sprint 10 (2026-08-03 a 2026-08-14) - Fundacao PWA offline
+Status: Planejado
+
 Objetivo:
 - permitir trabalho de campo sem depender de conectividade continua.
 
@@ -508,7 +510,16 @@ Gate de aceite:
 - criacao/edicao de checklist em modo offline funcionando,
 - sincronizacao posterior sem perda de dados.
 
+Progresso Sprint 10 (planejado):
+- [ ] service worker e manifest implementados.
+- [ ] schema de IndexedDB para checklists e anexos definido.
+- [ ] fila local de sincronizacao construida.
+- [ ] UI de status online/offline disponivel.
+- [ ] politicas de expiracao e criptografia locais documentadas.
+
 ### Sprint 11 (2026-08-17 a 2026-08-28) - Evidencias de campo
+Status: Planejado
+
 Objetivo:
 - capturar evidencias reais com baixa friccao.
 
@@ -523,7 +534,16 @@ Gate de aceite:
 - 98% de sucesso em upload de evidencias no ciclo offline->online,
 - anexos acessiveis e rastreaveis no historico.
 
+Progresso Sprint 11 (planejado):
+- [ ] captura de foto e audio implementada no app PWA.
+- [ ] compressao e fila batch de upload prontos.
+- [ ] metadados de geolocalizacao e timestamp persistidos.
+- [ ] validador de integridade e assinatura de anexos ativado.
+- [ ] runbook de cadeia de custodia documentado.
+
 ### Sprint 12 (2026-08-31 a 2026-09-11) - Sincronizacao robusta
+Status: Planejado
+
 Objetivo:
 - eliminar perda e conflito de dados em cenarios reais de campo.
 
@@ -538,9 +558,18 @@ Gate de aceite:
 - zero perda de dados em testes controlados,
 - taxa de sincronizacao > 98%.
 
+Progresso Sprint 12 (planejado):
+- [ ] estrategia de conflitos definida e implementada.
+- [ ] reenvio seletivo por item em falha construido.
+- [ ] logs de sincronizacao por dispositivo ativos.
+- [ ] painel de diagnostico de sincronizacao publicado.
+- [ ] testes de caos com alternancia de conectividade executados.
+
 ## Onda 5 - IA aplicada + hardening + go-live
 
 ### Sprint 13 (2026-09-14 a 2026-09-25) - Speech-to-text e assistencia
+Status: Planejado
+
 Objetivo:
 - acelerar producao de relatorios de campo com IA assistiva.
 
@@ -554,7 +583,16 @@ Entregas:
 Gate de aceite:
 - reducao minima de 30% no tempo de redacao de observacoes.
 
+Progresso Sprint 13 (planejado):
+- [ ] modelo de transcricao integrado ao fluxo de checklist.
+- [ ] sugestao automatizada de texto para nao conformidades disponível.
+- [ ] aprovacoes humanas exigidas antes de publicacao.
+- [ ] registro de alteracoes de texto e auditoria habilitados.
+- [ ] diretrizes de privacidade de IA documentadas.
+
 ### Sprint 14 (2026-09-28 a 2026-10-09) - Predicao de risco MVP
+Status: Planejado
+
 Objetivo:
 - sair de monitoramento reativo para gestao preditiva inicial.
 
@@ -568,7 +606,16 @@ Entregas:
 Gate de aceite:
 - modelo com utilidade comprovada em teste piloto interno.
 
+Progresso Sprint 14 (planejado):
+- [ ] modelo MVP treinado com dados historicos internos.
+- [ ] score de risco calculado por entitade principal.
+- [ ] widget de dashboard com explicacao simples publicado.
+- [ ] rotina de recalculo periodico agendada.
+- [ ] teste de drift e estabilidade documentado.
+
 ### Sprint 15 (2026-10-12 a 2026-10-23) - Hardening final e prontidao de escala
+Status: Planejado
+
 Objetivo:
 - garantir estabilidade, seguranca e preparo para expansao comercial.
 
@@ -584,6 +631,13 @@ Gate de aceite:
 - indicadores de erro e latencia dentro das metas definidas,
 - operacao pronta para escala controlada,
 - checklist de privacidade/compliance assinado para go-live.
+
+Progresso Sprint 15 (planejado):
+- [ ] melhorias de performance identificadas e implementadas.
+- [ ] auditoria de seguranca aplicada ao produto e infraestrutura.
+- [ ] runbooks operacionais e de incidente publicados.
+- [ ] pacote de treinamento e materiais de go-live preparados.
+- [ ] checklist final de privacidade/compliance aprovado.
 
 ## Ritmo de execucao "um por vez"
 Processo oficial entre sprints:
@@ -623,6 +677,21 @@ Processo oficial entre sprints:
 | Evolucao de features quebrar UX | testes quinzenais com usuarios + telemetria |
 | Regressao tecnica no core | suite E2E de fluxos criticos e checklist de release |
 | Vazamento de dados sensiveis multicliente | segregacao tenant, mascaramento em logs, trilha de auditoria e controles de acesso |
+
+## Responsabilidades e governanca do plano
+- Product Owner / Sponsor: definir prioridades de valor e validar gates.
+- Tech Lead: validar arquitetura, qualidade e entregas tecnicas.
+- Engenharia de Produto: executar sprints e garantir entrega vertical.
+- QA / Homologacao: validar aceite de fluxo e regressao.
+- Operacoes / DevOps: garantir infraestrutura, observabilidade e deploys.
+- Juridico/Regulatorio: validar requisitos legais e riscos de compliance.
+
+## Dependencias criticas
+- definicao de escopo por cliente / consultoria para integracoes externas.
+- maturidade do pipeline documental antes de expandir AI/condicionantes.
+- disponibilidade de ambientes homolog de SINIR/SIGOR.
+- cobertura de testes E2E para evitar regressao nos fluxos de campo.
+- funcionamento do PWA offline nos navegadores suportados.
 
 ## Sprint atual em andamento
 Consolidacao pos-Sprint 6 (2026-03-29):

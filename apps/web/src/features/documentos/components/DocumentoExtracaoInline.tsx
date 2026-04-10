@@ -2,13 +2,16 @@ import { type ChangeEvent, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Building,
   CheckCircle2,
   FileUp,
   Gauge,
   Loader2,
+  Plus,
   ShieldCheck,
   Sparkles,
   Upload,
+  UserPlus,
   XCircle,
 } from "lucide-react";
 import type {
@@ -34,6 +37,8 @@ import { toast } from "@/components/ui/sonner";
 import { documentoService } from "@/features/documentos/services/documentoService";
 import { useDocumentoCrudSugestao } from "@/features/documentos/hooks/useDocumentoCrudSugestao";
 import { useDocumentoRevisaoDetalhe } from "@/features/documentos/hooks/useDocumentoRevisaoDetalhe";
+import { useClientes } from "@/features/clientes/hooks/useClientes";
+import { clienteService } from "@/features/clientes/services/clienteService";
 import { getApiErrorMessage } from "@/lib/http-error";
 
 const ARQUIVOS_ACEITOS =
@@ -51,6 +56,8 @@ interface DocumentoExtracaoInlineProps {
   clienteId?: string | null;
   clienteNome?: string | null;
   licencaId?: string | null;
+  onAutoFill?: (payload: any) => void;
+  variant?: "inline" | "mini";
 }
 
 function defaultCrudPayload(modulo: ModuloExtracao) {
@@ -59,6 +66,7 @@ function defaultCrudPayload(modulo: ModuloExtracao) {
       aplicarLicenca: true,
       aplicarMtr: false,
       aplicarCondicionantes: true,
+      condicionantesIndicesSelecionados: [] as number[],
     };
   }
 
@@ -106,6 +114,8 @@ const CAMPO_CRUD_LABELS: Record<string, string> = {
   status: "Status",
   numeroProcesso: "Numero do processo",
   numeroLicenca: "Numero da licenca",
+  nomeEmpreendimento: "Nome do empreendimento",
+  atividadeLicenciada: "Atividade licenciada",
   dataEmissao: "Data de emissao",
   dataValidade: "Data de validade",
   municipioEmissor: "Municipio emissor",
@@ -143,8 +153,12 @@ export function DocumentoExtracaoInline({
   clienteId,
   clienteNome,
   licencaId,
+  onAutoFill,
+  variant = "inline",
 }: DocumentoExtracaoInlineProps) {
   const queryClient = useQueryClient();
+  const { criarCliente, isCriando } = useClientes();
+  const [isVinculando, setIsVinculando] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const dialogOpenedAtRef = useRef<number | null>(null);
 
@@ -260,6 +274,48 @@ export function DocumentoExtracaoInline({
     },
   });
 
+  const resolverParceiroMutation = useMutation({
+    mutationFn: async ({
+      processamentoId,
+      cnpj,
+      tipo,
+    }: {
+      processamentoId: string;
+      cnpj: string;
+      tipo: "TRANSPORTADOR" | "DESTINADOR";
+    }) => {
+      let nomeEncontrado: string | undefined;
+      let estadoEncontrado: string | undefined;
+
+      try {
+        const dados = await clienteService.buscarCnpj(cnpj);
+        if (dados.razaoSocial) {
+          nomeEncontrado = dados.razaoSocial;
+          estadoEncontrado = dados.estado;
+          toast.info(`Dados encontrados: ${dados.razaoSocial}`);
+        }
+      } catch (err) {
+        console.warn("Nao foi possivel consultar os dados da Receita Federal para este CNPJ.");
+      }
+
+      return documentoService.resolverParceiro(processamentoId, {
+        cnpj,
+        tipo,
+        nome: nomeEncontrado,
+        estado: estadoEncontrado,
+      });
+    },
+    onSuccess: (result, variables) => {
+      toast.success("Parceiro cadastrado e vinculado com sucesso!");
+      queryClient.invalidateQueries({
+        queryKey: ["documentos-sugestao-crud", variables.processamentoId],
+      });
+    },
+    onError: (error) => {
+      toast.error(getApiErrorMessage(error, "Erro ao cadastrar parceiro"));
+    },
+  });
+
   const camposCorrigidos = camposForm.filter(isCampoCorrigido).length;
   const acuraciaPreview =
     camposForm.length > 0
@@ -370,13 +426,105 @@ export function DocumentoExtracaoInline({
         avisos: result.avisos,
       });
 
+      if (onAutoFill && result.resultados.length > 0) {
+        // Find the most relevant payload to return
+        const res = result.resultados.find(r => r.aplicado && (r.entidadeTipo === 'LICENCA' || r.entidadeTipo === 'MTR'));
+        if (res && sugestaoCrud) {
+          const payload = res.entidadeTipo === 'LICENCA' ? sugestaoCrud.licenca?.payloadAtualizacao : sugestaoCrud.mtr?.payloadAtualizacao;
+          if (payload) {
+            onAutoFill(payload);
+            setCrudDialogOpen(false);
+            setDialogOpen(false);
+          }
+        }
+      }
+
       toast.success("Aplicacao no CRUD concluida.");
     } catch (error: unknown) {
       toast.error(getApiErrorMessage(error, "Nao foi possivel aplicar a sugestao no CRUD."));
     }
   }
 
+  async function handleCriarEVincularCliente() {
+    if (!sugestaoCrud?.clienteSugestao || !processamentoSelecionado) return;
+    
+    const { nome, cnpj } = sugestaoCrud.clienteSugestao;
+    if (!cnpj) {
+      toast.error("CNPJ nao identificado para criacao automatica.");
+      return;
+    }
+
+    try {
+      setIsVinculando(true);
+      // 1. Criar o cliente (ou usar o existente se a sugestao mudou entre cliques)
+      let clienteId = sugestaoCrud.clienteSugestao.clienteId;
+      
+      if (!clienteId) {
+        const novoCliente = await criarCliente({
+          nome: nome || "Cliente Extraido via IA",
+          cnpj: cnpj,
+          tipoCadastro: "OUTRO",
+          ativo: true,
+        });
+        clienteId = novoCliente.id;
+        toast.success(`Cliente "${novoCliente.nome}" cadastrado com sucesso.`);
+      }
+
+      // 2. Vincular o documento a este cliente
+      await documentoService.vincularCliente(processamentoSelecionado, clienteId!);
+      
+      // 3. Atualizar sugestoes
+      await sugestaoCrudQuery.refetch();
+      
+      toast.success("Documento vinculado ao cliente com sucesso.");
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, "Erro ao cadastrar ou vincular cliente."));
+    } finally {
+      setIsVinculando(false);
+    }
+  }
+
   const contextoResumo = clienteNome ? `cliente ${clienteNome}` : "sem cliente vinculado";
+
+  if (variant === "mini") {
+    return (
+      <div className="flex items-center gap-2">
+        <input
+          id={`document-upload-mini-${modulo}`}
+          ref={uploadInputRef}
+          type="file"
+          accept={ARQUIVOS_ACEITOS}
+          onChange={selecionarArquivo}
+          className="hidden"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-2 h-9 rounded-xl border-dashed border-primary/40 bg-primary/5 hover:bg-primary/10"
+          onClick={() => uploadInputRef.current?.click()}
+          disabled={ingestaoMutation.isPending}
+        >
+          {ingestaoMutation.isPending ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <FileUp className="h-3.5 w-3.5" />
+          )}
+          {arquivoSelecionado ? arquivoSelecionado.name : "Auto-preencher via PDF"}
+        </Button>
+        {arquivoSelecionado && (
+          <Button
+            size="sm"
+            onClick={enviarParaExtracao}
+            disabled={ingestaoMutation.isPending}
+            className="h-9 rounded-xl"
+          >
+            Extrair
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <>
@@ -770,6 +918,57 @@ export function DocumentoExtracaoInline({
                 </div>
               </div>
 
+              {sugestaoCrud.clienteSugestao && (
+                <div className={`rounded-xl border p-4 space-y-3 ${
+                  sugestaoCrud.clienteSugestao.existente 
+                    ? 'border-primary/20 bg-primary/5' 
+                    : 'border-warning/30 bg-warning/5'
+                }`}>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${
+                        sugestaoCrud.clienteSugestao.existente ? 'bg-primary/20 text-primary' : 'bg-warning/20 text-warning'
+                      }`}>
+                        <Building className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">
+                          {sugestaoCrud.clienteSugestao.existente ? "Cliente Identificado" : "Cliente Sugerido (Nao cadastrado)"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {sugestaoCrud.clienteSugestao.nome || "Nome nao identificado"} · {sugestaoCrud.clienteSugestao.cnpj}
+                        </p>
+                        {sugestaoCrud.clienteSugestao.existente && !clienteId && (
+                          <div className="flex items-center gap-1 mt-1 text-[10px] text-primary/80 font-medium">
+                            <Sparkles className="h-3 w-3" />
+                            Sera vinculado ao CRUD automaticamente ao aplicar
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {!sugestaoCrud.clienteSugestao.existente && (
+                      <Button 
+                        size="sm" 
+                        variant="warning"
+                        onClick={handleCriarEVincularCliente}
+                        disabled={isCriando || isVinculando}
+                        className="h-8 gap-2 text-xs"
+                      >
+                        {isCriando || isVinculando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserPlus className="h-3.5 w-3.5" />}
+                        Cadastrar e Vincular
+                      </Button>
+                    )}
+                    
+                    {sugestaoCrud.clienteSugestao.existente && !clienteId && (
+                      <div className="text-[10px] text-muted-foreground italic px-2">
+                        Pronto para sincronizar
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {modulo === "LICENCA" ? (
                 <>
                   <div className="space-y-2 rounded-xl border border-white/[0.08] p-3 bg-white/[0.02]">
@@ -807,26 +1006,79 @@ export function DocumentoExtracaoInline({
                     )}
                   </div>
 
-                  <div className="space-y-2 rounded-xl border border-white/[0.08] p-3 bg-white/[0.02]">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        checked={crudPayload.aplicarCondicionantes}
-                        onCheckedChange={(checked) =>
-                          setCrudPayload((current) => ({
-                            ...current,
-                            aplicarCondicionantes: !!checked,
-                          }))
-                        }
-                        disabled={
-                          !sugestaoCrud.licenca || sugestaoCrud.licenca.condicionantesSugeridas.length === 0
-                        }
-                      />
-                      <p className="text-sm font-medium text-foreground">Criar condicionantes sugeridas</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground pl-6">
-                      Itens elegiveis: {sugestaoCrud.licenca?.condicionantesSugeridas.length ?? 0}
-                    </p>
-                  </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          checked={crudPayload.aplicarCondicionantes}
+                          onCheckedChange={(checked) =>
+                            setCrudPayload((current) => ({
+                              ...current,
+                              aplicarCondicionantes: !!checked,
+                              condicionantesIndicesSelecionados: !!checked 
+                                ? sugestaoCrud.licenca?.condicionantesSugeridas.map((_, i) => i) ?? []
+                                : []
+                            }))
+                          }
+                          disabled={
+                            !sugestaoCrud.licenca || sugestaoCrud.licenca.condicionantesSugeridas.length === 0
+                          }
+                        />
+                        <p className="text-sm font-medium text-foreground">Criar condicionantes sugeridas</p>
+                      </div>
+                      
+                      {sugestaoCrud.licenca && sugestaoCrud.licenca.condicionantesSugeridas.length > 0 && (
+                        <div className="pl-6 pt-2 space-y-2">
+                          <p className="text-[10px] uppercase font-semibold text-muted-foreground/70 mb-1">
+                            Condicionantes Identificadas ({sugestaoCrud.licenca.condicionantesSugeridas.length})
+                          </p>
+                          <div className="max-h-[200px] overflow-y-auto pr-2 space-y-2 thin-scrollbar">
+                            {sugestaoCrud.licenca.condicionantesSugeridas.map((cond, index) => {
+                              const isSelected = crudPayload.condicionantesIndicesSelecionados?.includes(index);
+                              return (
+                                <div 
+                                  key={`cond-${index}`}
+                                  className={`rounded-lg border p-2 transition-colors ${
+                                    isSelected ? 'border-primary/25 bg-primary/[0.03]' : 'border-white/[0.04] bg-white/[0.01] opacity-60'
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <Checkbox
+                                      checked={isSelected}
+                                      onCheckedChange={(checked) => {
+                                        setCrudPayload(current => {
+                                          const prev = current.condicionantesIndicesSelecionados || [];
+                                          const next = !!checked 
+                                            ? [...prev, index]
+                                            : prev.filter(i => i !== index);
+                                          return {
+                                            ...current,
+                                            condicionantesIndicesSelecionados: next,
+                                            aplicarCondicionantes: next.length > 0
+                                          };
+                                        });
+                                      }}
+                                    />
+                                    <div className="space-y-1">
+                                      <p className="text-xs font-medium text-foreground leading-tight">
+                                        {cond.codigo ? `${cond.codigo}. ` : ""}{cond.descricao}
+                                      </p>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge variant="outline" className="text-[9px] h-4 py-0 px-1 font-normal opacity-70">
+                                          {cond.tipo === 'PERIODICA' ? `Recorrente (${cond.periodicidade || "nao def."})` : 'Pontual'}
+                                        </Badge>
+                                        {cond.prazo && (
+                                          <span className="text-[9px] text-muted-foreground">
+                                            Vencimento: {new Date(cond.prazo).toLocaleDateString()}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                 </>
               ) : (
                 <div className="space-y-2 rounded-xl border border-white/[0.08] p-3 bg-white/[0.02]">
@@ -848,17 +1100,91 @@ export function DocumentoExtracaoInline({
                       Nenhuma sugestao de MTR disponivel para este documento.
                     </p>
                   ) : (
-                    <div className="pl-6 space-y-1">
-                      <p className="text-xs text-muted-foreground">
-                        MTR alvo: {sugestaoCrud.mtr.mtrId ?? "nao identificado"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Campos sugeridos: {resumirCamposCrud(sugestaoCrud.mtr.payloadAtualizacao)}
-                      </p>
+                    <div className="pl-6 space-y-3">
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Identificador</p>
+                          <p className="text-xs font-medium text-foreground">{sugestaoCrud.mtr.numeroMTR || "N/A"}</p>
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">MTR Alvo</p>
+                          <p className="text-xs font-medium text-foreground">{sugestaoCrud.mtr.mtrId ? "Existente (Atualizar)" : "Novo (Criar)"}</p>
+                        </div>
+                        {sugestaoCrud.mtr.payloadAtualizacao?.dataEmissao && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Emissão</p>
+                            <p className="text-xs font-medium text-foreground">{new Date(sugestaoCrud.mtr.payloadAtualizacao.dataEmissao).toLocaleDateString()}</p>
+                          </div>
+                        )}
+                        {sugestaoCrud.mtr.itemResiduo?.quantidade && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Resíduo</p>
+                            <p className="text-xs font-medium text-blue-400">
+                              {sugestaoCrud.mtr.itemResiduo.quantidade} {sugestaoCrud.mtr.itemResiduo.unidadeMedida}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {sugestaoCrud.mtr.itemResiduo?.descricao && (
+                        <div className="space-y-0.5 pt-1 border-t border-white/[0.04]">
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Descrição do Resíduo</p>
+                          <p className="text-xs text-foreground italic">
+                            {sugestaoCrud.mtr.itemResiduo.codigoIbama ? `[${sugestaoCrud.mtr.itemResiduo.codigoIbama}] ` : ""}
+                            {sugestaoCrud.mtr.itemResiduo.descricao}
+                          </p>
+                        </div>
+                      )}
+
+                      {(sugestaoCrud.mtr.payloadAtualizacao?.transportadoraId || sugestaoCrud.mtr.payloadAtualizacao?.destinadorId) && (
+                         <div className="space-y-2 pt-1 border-t border-white/[0.04]">
+                            {sugestaoCrud.mtr.payloadAtualizacao.transportadoraId && (
+                               <div className="flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                  <p className="text-[10px] text-muted-foreground">Transportador vinculado com sucesso</p>
+                               </div>
+                            )}
+                            {sugestaoCrud.mtr.payloadAtualizacao.destinadorId && (
+                               <div className="flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                  <p className="text-[10px] text-muted-foreground">Destinatário vinculado com sucesso</p>
+                               </div>
+                            )}
+                         </div>
+                      )}
+
                       {sugestaoCrud.mtr.pendencias.length > 0 ? (
-                        <p className="text-xs text-warning">
-                          Pendencias: {sugestaoCrud.mtr.pendencias.join(" | ")}
-                        </p>
+                        <div className="rounded-md bg-warning/5 p-2 border border-warning/10">
+                          <p className="text-[10px] font-bold text-warning uppercase">Pendências</p>
+                          <ul className="list-disc list-inside space-y-0.5 mt-1">
+                            {sugestaoCrud.mtr.pendencias.map((p, i) => {
+                              const cnpjMatch = p.match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/);
+                              const isTransportador = p.toLowerCase().includes("transportador");
+                              const isDestinatario = p.toLowerCase().includes("destinat");
+
+                              return (
+                                <li key={i} className="text-[10px] text-warning/90 flex items-center justify-between group">
+                                  <span>{p}</span>
+                                  {cnpjMatch && (isTransportador || isDestinatario) && (
+                                    <button
+                                      onClick={() =>
+                                        resolverParceiroMutation.mutate({
+                                          processamentoId: processamentoSelecionado!,
+                                          cnpj: cnpjMatch[0],
+                                          tipo: isTransportador ? "TRANSPORTADOR" : "DESTINADOR",
+                                        })
+                                      }
+                                      disabled={resolverParceiroMutation.isPending}
+                                      className="ml-2 px-1.5 py-0.5 rounded bg-warning/20 hover:bg-warning/30 text-warning font-bold border border-warning/30 transition-colors disabled:opacity-50"
+                                    >
+                                      {resolverParceiroMutation.isPending ? "..." : "Cadastrar"}
+                                    </button>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
                       ) : null}
                     </div>
                   )}
